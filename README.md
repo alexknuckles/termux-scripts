@@ -64,6 +64,7 @@ API using a random genre such as fantasy or cyberpunk. You can override the rand
 repeated calls yield different descriptions even when the theme is the same.
 
 Dependencies: `curl`, `jq`, `termux-wallpaper`, optional `exiftool` for `-s` or `walsave`.
+Images are saved as PNG or JPEG depending on what the API returns.
 If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.

@@ -84,8 +84,8 @@ fi
 
 save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
-filename="$(date +%Y%m%d-%H%M%S).png"
-output="$save_dir/$filename"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+tmp_output="$save_dir/${timestamp}.img"
 
 
 # Whether to allow NSFW prompts and generations
@@ -137,16 +137,16 @@ echo "🛠 Using model: $model"
 
 generate_pollinations() {
   local out_file="$1"
-  local encoded headers content_type err_msg
+  local encoded headers err_msg
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
   headers=$(mktemp)
   if ! curl -sL -D "$headers" "https://image.pollinations.ai/prompt/${encoded}?${params}" -o "$out_file"; then
     rm -f "$headers"
     return 1
   fi
-  content_type=$(grep -i '^content-type:' "$headers" | tr -d '\r' | awk '{print $2}')
+  generated_content_type=$(grep -i '^content-type:' "$headers" | tr -d '\r' | awk '{print $2}')
   rm -f "$headers"
-  if printf '%s' "$content_type" | grep -qi 'application/json'; then
+  if printf '%s' "$generated_content_type" | grep -qi 'application/json'; then
     err_msg=$(jq -r '.message // .error // "Unknown error"' <"$out_file" 2>/dev/null)
     echo "❌ Pollinations error: $err_msg" >&2
     return 1
@@ -154,11 +154,26 @@ generate_pollinations() {
 }
 
 echo "⏳ Generating image via Pollinations..."
-if ! generate_pollinations "$output"; then
+if ! generate_pollinations "$tmp_output"; then
   echo "❌ Failed to generate image via Pollinations" >&2
   exit 1
 fi
 img_source="Pollinations"
+
+case "$generated_content_type" in
+  image/png)
+    ext="png"
+    ;;
+  image/jpeg|image/jpg)
+    ext="jpg"
+    ;;
+  *)
+    ext="png"
+    ;;
+esac
+filename="${timestamp}.${ext}"
+output="$save_dir/$filename"
+mv "$tmp_output" "$output"
 
 termux-wallpaper -f "$output"
 echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
