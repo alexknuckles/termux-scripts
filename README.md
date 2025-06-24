@@ -17,14 +17,15 @@ Environment variables:
 - `HORDE_BASE_MODELS` optional newline-separated list of base models used as
   fallbacks when the selected image lacks one (defaults include `SDXL 1.0`,
   `SD 1.5`, `SD 2.1 768`).
-- `ALLOW_NSFW` set to `true` to allow NSFW prompts (defaults to `false`).
+- `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
 
-Dependencies: `curl`, `jq`, `termux-wallpaper`.
+Dependencies: `curl`, `jq`, `termux-wallpaper`, `termux-vibrate`.
 If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
 The script prints the base model used by the selected image, or the fallback
 model when none is provided.
+It also plays a short vibration in the "shave and a haircut" pattern when finished.
 
 ### Installation
 Run `./install.sh` to place the script in `$PREFIX/bin`.
