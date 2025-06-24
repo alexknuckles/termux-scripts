@@ -156,6 +156,20 @@ EOF
   fi
 fi
 
+shell_rc=""
+for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+  if [ -f "$rc" ]; then
+    shell_rc="$rc"
+    break
+  fi
+done
+if [ -n "$shell_rc" ] && ! grep -Fq "$HOME/bin/termux-scripts" "$shell_rc"; then
+  echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$shell_rc"
+fi
+
+# Make new commands available immediately
+export PATH="$INSTALL_DIR:$PATH"
+
 if [ -d "$SHORTCUTS_DIR" ]; then
   dest="$HOME/.shortcuts/termux-scripts"
   mkdir -p "$dest"
