@@ -290,6 +290,13 @@ set_next_release() {
   done
   shift $((OPTIND - 1))
   if [ "$release" -eq 1 ]; then
+    if git rev-parse testing >/dev/null 2>&1; then
+      git tag -d testing
+      git push -d origin testing || true
+      if command -v gh >/dev/null 2>&1; then
+        gh release delete -y testing >/dev/null 2>&1 || true
+      fi
+    fi
     last=$(git tag -l 'v*' | sort -V | tail -n 1)
     if [ -n "$last" ]; then
       next=$(echo "${last#v}" | awk -F. '{if(NF==1){printf "%d",$1+1}else if(NF==2){printf "%d.%d",$1,$2+1}else{printf "%d.%d.%d",$1,$2,$3+1}}')
