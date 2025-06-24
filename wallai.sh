@@ -124,9 +124,20 @@ echo "🛠 Using model: $model"
 
 generate_pollinations() {
   local out_file="$1"
-  local encoded
+  local encoded headers content_type err_msg
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  curl -sL "https://image.pollinations.ai/prompt/${encoded}?${params}" -o "$out_file"
+  headers=$(mktemp)
+  if ! curl -sL -D "$headers" "https://image.pollinations.ai/prompt/${encoded}?${params}" -o "$out_file"; then
+    rm -f "$headers"
+    return 1
+  fi
+  content_type=$(grep -i '^content-type:' "$headers" | tr -d '\r' | awk '{print $2}')
+  rm -f "$headers"
+  if printf '%s' "$content_type" | grep -qi 'application/json'; then
+    err_msg=$(jq -r '.message // .error // "Unknown error"' <"$out_file" 2>/dev/null)
+    echo "❌ Pollinations error: $err_msg" >&2
+    return 1
+  fi
 }
 
 echo "⏳ Generating image via Pollinations..."
