@@ -8,11 +8,14 @@ Generates an AI-based wallpaper using the free Pollinations API.
 
 ### Usage
 ```bash
-wallai.sh
+wallai.sh [-p "prompt text"]
 ```
 
 Environment variables:
 - `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
+
+Flags:
+- `-p` Specify your own prompt instead of fetching a random one.
 
 Dependencies: `curl`, `jq`, `termux-wallpaper`, `termux-vibrate`.
 If any of these tools are missing the script exits with a clear error

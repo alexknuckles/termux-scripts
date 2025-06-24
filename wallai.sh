@@ -9,9 +9,24 @@ for cmd in curl jq termux-wallpaper termux-vibrate; do
   fi
 done
 
+# Parse options
+prompt=""
+while getopts ":p:" opt; do
+  case "$opt" in
+    p)
+      prompt="$OPTARG"
+      ;;
+    *)
+      echo "Usage: wallai.sh [-p \"prompt text\"]" >&2
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh
+# Usage: wallai.sh [-p "prompt text"]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 #
@@ -50,30 +65,31 @@ case "$(printf '%s' "$nsfw_raw" | tr '[:upper:]' '[:lower:]')" in
 esac
 
 
-echo "🎯 Fetching random prompt from Civitai..."
-
-# 🎲 Step 1: Get a random tag
-tag=$(curl -s "https://civitai.com/api/v1/tags?limit=200" \
-  | jq -r '.items[].name' | shuf -n 1 || true)
-echo "🔖 Selected tag: $tag"
-
-# 🧠 Step 2: Get a prompt from an image using that tag
-image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=$allow_nsfw&tag=$tag" \
-  -H "Content-Type: application/json" || true)
-encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1 || true)
-if [ -n "$encoded" ]; then
-  prompt=$(echo "$encoded" | base64 --decode | jq -r '.prompt')
-  # baseModel field is ignored
-else
-  echo "❌ No prompt found for tag $tag"
-  prompt="a neon dreamscape filled with surreal creatures"
-fi
-
-
-# 🛑 Fallback prompt
 if [ -z "$prompt" ]; then
-  echo "❌ No prompt found for tag $tag. Using fallback."
-  prompt="a neon dreamscape filled with surreal creatures"
+  echo "🎯 Fetching random prompt from Civitai..."
+
+  # 🎲 Step 1: Get a random tag
+  tag=$(curl -s "https://civitai.com/api/v1/tags?limit=200" \
+    | jq -r '.items[].name' | shuf -n 1 || true)
+  echo "🔖 Selected tag: $tag"
+
+  # 🧠 Step 2: Get a prompt from an image using that tag
+  image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=$allow_nsfw&tag=$tag" \
+    -H "Content-Type: application/json" || true)
+  encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1 || true)
+  if [ -n "$encoded" ]; then
+    prompt=$(echo "$encoded" | base64 --decode | jq -r '.prompt')
+    # baseModel field is ignored
+  else
+    echo "❌ No prompt found for tag $tag"
+    prompt="a neon dreamscape filled with surreal creatures"
+  fi
+
+  # 🛑 Fallback prompt
+  if [ -z "$prompt" ]; then
+    echo "❌ No prompt found for tag $tag. Using fallback."
+    prompt="a neon dreamscape filled with surreal creatures"
+  fi
 fi
 
 echo "🎨 Final prompt: $prompt"
