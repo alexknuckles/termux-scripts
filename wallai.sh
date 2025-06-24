@@ -1,6 +1,9 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 apikey="0000000000"
+# Dimensions must be <=576 to avoid extra kudos on Stable Horde
+width="${HORDE_WIDTH:-512}"
+height="${HORDE_HEIGHT:-512}"
 save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
 filename="$(date +%Y%m%d-%H%M%S).png"
@@ -28,24 +31,28 @@ fi
 echo "🎨 Final prompt: $prompt"
 
 # ✨ Step 3: Generate image via Horde
-id=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
+response=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
   -H "Content-Type: application/json" \
   -H "apikey: $apikey" \
   -H "Client-Agent: termux-horde-script:1.0:alex" \
-  -d '{
-    "prompt": "'"$prompt"'",
-    "params": {
-      "width": 1080,
-      "height": 2400,
-      "steps": 20,
-      "sampler_name": "k_euler_a",
-      "cfg_scale": 7,
-      "n": 1,
-      "karras": true
-    },
-    "nsfw": true,
-    "censor_nsfw": false
-  }' | jq -r '.id')
+  -d @- <<EOF
+{
+  "prompt": "$prompt",
+  "params": {
+    "width": $width,
+    "height": $height,
+    "steps": 20,
+    "sampler_name": "k_euler_a",
+    "cfg_scale": 7,
+    "n": 1,
+    "karras": true
+  },
+  "nsfw": true,
+  "censor_nsfw": false
+}
+EOF
+)
+id=$(echo "$response" | jq -r '.id')
 
 if [ "$id" = "null" ] || [ -z "$id" ]; then
   echo "❌ Failed to submit image generation job."
