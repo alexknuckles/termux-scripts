@@ -13,3 +13,4 @@
 - githelper-setnextall shortcut no longer forces the `testing` tag.
 - Installer with `-g` clones first and installs from the clone to avoid duplicate downloads.
 - Documented Termux, Termux Widget and Termux API requirements with F-Droid links.
+- Installer now ensures `~/bin/termux-scripts` is on the PATH and exports it for immediate use.
