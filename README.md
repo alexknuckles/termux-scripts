@@ -39,7 +39,7 @@ due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
-wallai [-p "prompt text"] [-t theme] [-m model] [-r]
+wallai [-p "prompt text"] [-t theme] [-m model] [-r] [-s]
 ```
 
 Environment variables:
@@ -53,6 +53,7 @@ Flags:
   The `gptimage` model requires a flower-tier Pollinations account; without
   access the API returns an error. The `turbo` model tends to produce lower quality images.
 - `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
+- `-s` Save the latest generated wallpaper to `~/pictures/saved-generated-wallpapers/` with the prompt embedded using `exiftool`.
 
 After showing the chosen prompt, the script also prints which Pollinations model will
 be used for image generation.
@@ -62,10 +63,13 @@ API using a random genre such as fantasy or cyberpunk. You can override the rand
 `-t theme`. The API is asked to respond in exactly 15 words. A random seed parameter ensures that
 repeated calls yield different descriptions even when the theme is the same.
 
-Dependencies: `curl`, `jq`, `termux-wallpaper`.
+Dependencies: `curl`, `jq`, `termux-wallpaper`, optional `exiftool` for `-s`.
 If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
+
+The installer creates a `walsave` alias and `wallai-save-shortcut.sh` so you
+can quickly archive the most recent wallpaper with metadata.
 
 ## githelper.sh
 
