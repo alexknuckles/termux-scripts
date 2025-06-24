@@ -8,6 +8,7 @@ set -euo pipefail
 #   pull-all               Update all git repositories under $GIT_ROOT (default ~/git)
 #   status                 Show git status of current repository
 #   push                   Push current branch to origin
+#   push-all [-c]          Push all repos under $GIT_ROOT to their main branches
 #   clone -u url [-d dest] Clone repository (uses gh if available)
 #   init                   Initialize repo in current directory with first commit
 #   revert-last            Revert the most recent commit in current repository
@@ -40,6 +41,46 @@ status_repo() {
 
 push_repo() {
   git push
+}
+
+push_all() {
+  local prompt=0 commit_msg="" opt repo branch
+  while getopts ":c" opt; do
+    case "$opt" in
+      c)
+        prompt=1
+        ;;
+      *)
+        echo "Usage: githelper.sh push-all [-c]" >&2
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  if [ "$prompt" -eq 1 ]; then
+    read -r -p "Commit message: " commit_msg
+  fi
+  for repo in "$GIT_ROOT"/*/.git; do
+    repo="${repo%/\.git}"
+    [ -d "$repo" ] || continue
+    echo "\u279c Pushing $repo"
+    if [ "$prompt" -eq 1 ] && [ -n "$commit_msg" ]; then
+      git -C "$repo" add -A
+      if ! git -C "$repo" diff --cached --quiet; then
+        git -C "$repo" commit -m "$commit_msg" || true
+      fi
+    fi
+    if git -C "$repo" show-ref --verify --quiet refs/heads/main; then
+      branch=main
+    else
+      branch=master
+    fi
+    if git -C "$repo" push origin "$branch"; then
+      echo "\u2705 Pushed $repo"
+    else
+      echo "\u274c Failed to push $repo" >&2
+    fi
+  done
 }
 
 clone_repo() {
@@ -232,6 +273,10 @@ case "$cmd" in
   pull-all)
     pull_all
     ;;
+  push-all)
+    shift
+    push_all "$@"
+    ;;
   status)
     status_repo
     ;;
@@ -257,7 +302,7 @@ case "$cmd" in
     new_repo "$@"
     ;;
   *)
-    echo "Usage: githelper.sh <pull-all|status|push|clone|init|revert-last|clone-mine|newrepo>" >&2
+    echo "Usage: githelper.sh <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo>" >&2
     exit 1
     ;;
 esac
