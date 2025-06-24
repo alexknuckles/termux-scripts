@@ -27,6 +27,7 @@ Auto-generate `README.md` and inline comments:
 - Dependencies (e.g. `curl`, `jq`, `gh`, etc.)
 - Flags and arguments
 - Output expectations
+- Document every subcommand in the header comment of each script
 
 ---
 
