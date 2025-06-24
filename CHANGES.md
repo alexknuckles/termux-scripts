@@ -6,3 +6,5 @@
 - README links refer to stable or testing releases.
 - Pre-release tag renamed to `testing` in githelper.
 - gnext and gnextall now explicitly set the `testing` tag.
+- Simplified `set-next` and `set-next-all` to only accept `-r`; prerelease uses
+  the `testing` tag by default.

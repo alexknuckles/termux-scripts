@@ -1,6 +1,13 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
+# installer.sh - install or remove Termux Scripts
+#
+# Usage: installer.sh [-r] [-g] [-u]
+#   -r  Install latest release from GitHub instead of local files
+#   -g  After installing, clone the repository to ~/git/termux-scripts
+#   -u  Uninstall all files installed by a previous run
+
 ROOT_DIR="$(cd "$(dirname "$0")"/.. && pwd)"
 SCRIPTS_DIR="$ROOT_DIR/scripts"
 ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"

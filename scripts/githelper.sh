@@ -15,6 +15,8 @@ set -euo pipefail
 #   revert-last            Revert the most recent commit in current repository
 #   clone-mine [-u user]   Clone all repositories from GitHub user (requires gh)
 #   newrepo [-d dir] [-ns] [description]  Create repo with AI-generated README and agents
+#   set-next [-r]       Create the next release tag (default prerelease 'testing')
+#   set-next-all [-r]   Run set-next for every repo under $GIT_ROOT
 #
 # Dependencies: git, optional gh
 # Output: command specific
@@ -274,59 +276,42 @@ EOF
 }
 
 set_next_release() {
-  local prompt=0 release=0 manual=0 tag="" desc="" last next prerelease flag
-  while getopts ":prt:d:" opt; do
+  local release=0 tag="" desc last next prerelease flag
+  while getopts ":r" opt; do
     case "$opt" in
-      p)
-        prompt=1
-        ;;
       r)
         release=1
         ;;
-      t)
-        tag="$OPTARG"
-        ;;
-      d)
-        desc="$OPTARG"; manual=1
-        ;;
       *)
-        echo "Usage: githelper set-next [-p] [-r] [-t tag] [-d desc]" >&2
+        echo "Usage: githelper set-next [-r]" >&2
         return 1
         ;;
     esac
   done
   shift $((OPTIND - 1))
-  if [ "$prompt" -eq 1 ]; then
-    read -r -p "Release description: " desc
-    manual=1
-  fi
   if [ "$release" -eq 1 ]; then
-    if [ -z "$tag" ]; then
-      last=$(git tag -l 'v*' | sort -V | tail -n 1)
-      if [ -n "$last" ]; then
-        next=$(echo "${last#v}" | awk -F. '{if(NF==1){printf "%d",$1+1}else if(NF==2){printf "%d.%d",$1,$2+1}else{printf "%d.%d.%d",$1,$2,$3+1}}')
-      else
-        next="0.1"
-      fi
-      tag="v$next"
+    last=$(git tag -l 'v*' | sort -V | tail -n 1)
+    if [ -n "$last" ]; then
+      next=$(echo "${last#v}" | awk -F. '{if(NF==1){printf "%d",$1+1}else if(NF==2){printf "%d.%d",$1,$2+1}else{printf "%d.%d.%d",$1,$2,$3+1}}')
+    else
+      next="0.1"
     fi
+    tag="v$next"
     prerelease=""
   else
-    tag="${tag:-testing}"
+    tag="testing"
     prerelease="--prerelease"
   fi
   git tag -f "$tag"
   git push -f origin "$tag" || true
   if command -v gh >/dev/null 2>&1; then
-    if [ "$manual" -eq 0 ]; then
-      last=$(git tag -l 'v*' | sort -V | tail -n 1)
-      if [ -n "$last" ]; then
-        desc=$(git log "$last"..HEAD --pretty='format:- %s' | head -n 20)
-      else
-        desc=$(git log --pretty='format:- %s' | head -n 20)
-      fi
+    last=$(git tag -l 'v*' | sort -V | tail -n 1)
+    if [ -n "$last" ]; then
+      desc=$(git log "$last"..HEAD --pretty='format:- %s' | head -n 20)
+    else
+      desc=$(git log --pretty='format:- %s' | head -n 20)
     fi
-    flag="${prerelease}"
+    flag="$prerelease"
     if gh release view "$tag" >/dev/null 2>&1; then
       gh release edit "$tag" -n "$desc" -t "${tag^} Release" $flag || true
     else
@@ -336,33 +321,21 @@ set_next_release() {
 }
 
 set_next_all() {
-  local prompt=0 release=0 manual=0 tag="" desc="" repo opt
-  while getopts ":prt:d:" opt; do
+  local release=0 repo opt
+  while getopts ":r" opt; do
     case "$opt" in
-      p)
-        prompt=1
-        ;;
       r)
         release=1
         ;;
-      t)
-        tag="$OPTARG"
-        ;;
-      d)
-        desc="$OPTARG"; manual=1
-        ;;
       *)
-        echo "Usage: githelper set-next-all [-p] [-r] [-t tag] [-d desc]" >&2
+        echo "Usage: githelper set-next-all [-r]" >&2
         return 1
         ;;
     esac
   done
   shift $((OPTIND - 1))
   local args=()
-  [ "$prompt" -eq 1 ] && args+=( -p )
   [ "$release" -eq 1 ] && args+=( -r )
-  [ -n "$tag" ] && args+=( -t "$tag" )
-  [ "$manual" -eq 1 ] && args+=( -d "$desc" )
   for repo in "$GIT_ROOT"/*/.git; do
     repo="${repo%/\.git}"
     [ -d "$repo" ] || continue
