@@ -17,7 +17,7 @@ To install the testing version run:
 curl -L https://github.com/alexknuckles/termux-scripts/releases/download/testing/installer.sh | bash -s -- -r
 ```
 
-Use `-g` along with `-r` to also clone the repository to `~/git/termux-scripts` after installing.
+Use `-g` to clone the repository to `~/git/termux-scripts` first and install from that local copy, avoiding an additional download.
 The installer updates your shell configuration to source every `*.aliases` file in `~/.aliases.d/` on startup.
 Shortcut scripts are located in the `termux-scripts-shortcuts` directory.
 Run the installer with `-u` to remove the symlinks, shortcuts and alias file and clean up the shell configuration.
