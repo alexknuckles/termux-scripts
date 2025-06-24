@@ -104,7 +104,18 @@ Add frontmatter or inline tags for script categorization:
 
 ## 🧪 Tester _(optional)_
 
-**Goal:**  
+**Goal:**
 If any scripts have flags or interactive input, generate minimal test cases or test harnesses.
+
+---
+
+## 📝 ChangeTracker
+
+**Goal:**
+Maintain a running changelog so new releases can be generated automatically:
+
+- Record notable commit messages since the last version in `CHANGES.md`
+- Summaries should be brief bullet points
+- Used by `gnext` when no description is provided
 
 ---

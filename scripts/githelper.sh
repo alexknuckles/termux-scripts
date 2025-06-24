@@ -269,17 +269,23 @@ EOF
 }
 
 set_next_release() {
-  local prompt=0 tag="next" desc=""
-  while getopts ":pt:" opt; do
+  local prompt=0 release=0 manual=0 tag="" desc="" last next prerelease flag
+  while getopts ":prt:d:" opt; do
     case "$opt" in
       p)
         prompt=1
         ;;
+      r)
+        release=1
+        ;;
       t)
         tag="$OPTARG"
         ;;
+      d)
+        desc="$OPTARG"; manual=1
+        ;;
       *)
-        echo "Usage: githelper set-next [-p] [-t tag]" >&2
+        echo "Usage: githelper set-next [-p] [-r] [-t tag] [-d desc]" >&2
         return 1
         ;;
     esac
@@ -287,43 +293,75 @@ set_next_release() {
   shift $((OPTIND - 1))
   if [ "$prompt" -eq 1 ]; then
     read -r -p "Release description: " desc
+    manual=1
+  fi
+  if [ "$release" -eq 1 ]; then
+    if [ -z "$tag" ]; then
+      last=$(git tag -l 'v*' | sort -V | tail -n 1)
+      if [ -n "$last" ]; then
+        next=$(echo "${last#v}" | awk -F. '{if(NF==1){printf "%d",$1+1}else if(NF==2){printf "%d.%d",$1,$2+1}else{printf "%d.%d.%d",$1,$2,$3+1}}')
+      else
+        next="0.1"
+      fi
+      tag="v$next"
+    fi
+    prerelease=""
+  else
+    tag="${tag:-next}"
+    prerelease="--prerelease"
   fi
   git tag -f "$tag"
   git push -f origin "$tag" || true
   if command -v gh >/dev/null 2>&1; then
+    if [ "$manual" -eq 0 ]; then
+      last=$(git tag -l 'v*' | sort -V | tail -n 1)
+      if [ -n "$last" ]; then
+        desc=$(git log "$last"..HEAD --pretty='format:- %s' | head -n 20)
+      else
+        desc=$(git log --pretty='format:- %s' | head -n 20)
+      fi
+    fi
+    flag="${prerelease}"
     if gh release view "$tag" >/dev/null 2>&1; then
-      gh release edit "$tag" -n "$desc" -t "${tag^} Release" || true
+      gh release edit "$tag" -n "$desc" -t "${tag^} Release" $flag || true
     else
-      gh release create "$tag" -n "$desc" -t "${tag^} Release" --prerelease || true
+      gh release create "$tag" -n "$desc" -t "${tag^} Release" $flag || true
     fi
   fi
 }
 
 set_next_all() {
-  local prompt=0 tag="next" repo opt
-  while getopts ":pt:" opt; do
+  local prompt=0 release=0 manual=0 tag="" desc="" repo opt
+  while getopts ":prt:d:" opt; do
     case "$opt" in
       p)
         prompt=1
         ;;
+      r)
+        release=1
+        ;;
       t)
         tag="$OPTARG"
         ;;
+      d)
+        desc="$OPTARG"; manual=1
+        ;;
       *)
-        echo "Usage: githelper set-next-all [-p] [-t tag]" >&2
+        echo "Usage: githelper set-next-all [-p] [-r] [-t tag] [-d desc]" >&2
         return 1
         ;;
     esac
   done
   shift $((OPTIND - 1))
+  local args=()
+  [ "$prompt" -eq 1 ] && args+=( -p )
+  [ "$release" -eq 1 ] && args+=( -r )
+  [ -n "$tag" ] && args+=( -t "$tag" )
+  [ "$manual" -eq 1 ] && args+=( -d "$desc" )
   for repo in "$GIT_ROOT"/*/.git; do
     repo="${repo%/\.git}"
     [ -d "$repo" ] || continue
-    if [ "$prompt" -eq 1 ]; then
-      (cd "$repo" && set_next_release -p -t "$tag")
-    else
-      (cd "$repo" && set_next_release -t "$tag")
-    fi
+    (cd "$repo" && set_next_release "${args[@]}")
   done
 }
 
