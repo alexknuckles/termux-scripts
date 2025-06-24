@@ -64,7 +64,7 @@ if [ -z "$prompt" ]; then
   # 🧠 Step 2: Retrieve a text prompt for that theme
   # Ask the API for exactly 15 words and pass a random seed to vary results
   random_token=$(date +%s%N | sha256sum | head -c 8)
-  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+scene+in+exactly+15+words?seed=${random_token}" || true)
+  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+picture+in+exactly+15+words?seed=${random_token}" || true)
   # Normalize whitespace and keep only the first 15 words
   prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
