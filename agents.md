@@ -36,6 +36,8 @@ Generate a `.aliases` file or `.shortcuts` compatible with Termux:
 - Suggest short, intuitive aliases for frequently used scripts
 - Respect common CLI idioms (`netinfo`, `pushgit`, etc.)
 - Optionally generate bash-compatible exports for `$PATH` use
+- Ensure every script has a short alias entry in `aliases/aliases`
+- Provide a matching shortcut script in the `shortcuts` directory
 
 ---
 
