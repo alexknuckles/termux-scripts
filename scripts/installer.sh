@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")"/.. && pwd)"
 SCRIPTS_DIR="$ROOT_DIR/scripts"
 ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
-SHORTCUTS_DIR="$ROOT_DIR/shortcuts"
+SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
 
 safe_copy() {
   local src="$1" dest="$2"
