@@ -8,10 +8,11 @@ set -euo pipefail
 #   pull-all               Update all git repositories under $GIT_ROOT (default ~/git)
 #   status                 Show git status of current repository
 #   push                   Push current branch to origin
-#   clone <url> [dest]     Clone repository (uses gh if available)
+#   clone -u url [-d dest] Clone repository (uses gh if available)
 #   init                   Initialize repo in current directory with first commit
 #   revert-last            Revert the most recent commit in current repository
-#   clone-mine [user]      Clone all repositories from GitHub user (requires gh)
+#   clone-mine [-u user]   Clone all repositories from GitHub user (requires gh)
+#   newrepo [-d dir] [-ns] [description]  Create repo with AI-generated README and agents
 #
 # Dependencies: git, optional gh
 # Output: command specific
@@ -51,6 +52,30 @@ clone_repo() {
   fi
 }
 
+clone_cmd() {
+  local url="" dest=""
+  local OPTIND=1 opt
+  while getopts ":u:d:" opt; do
+    case "$opt" in
+      u)
+        url="$OPTARG"
+        ;;
+      d)
+        dest="$OPTARG"
+        ;;
+      *)
+        echo "Usage: githelper.sh clone -u url [-d dest]" >&2
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  if [ -z "$url" ]; then
+    echo "Usage: githelper.sh clone -u url [-d dest]" >&2
+    return 1
+  fi
+  clone_repo "$url" "$dest"
+}
 init_here() {
   if [ -d .git ]; then
     echo "Repository already initialized" >&2
@@ -70,7 +95,32 @@ clone_mine() {
     echo "gh is required for clone-mine" >&2
     exit 1
   fi
-  local user="${1:-$(gh api user --jq .login)}"
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "No GitHub authentication found. Launching gh auth login..." >&2
+    gh auth login
+  fi
+
+  local user=""
+  local OPTIND=1 opt
+  while getopts ":u:" opt; do
+    case "$opt" in
+      u)
+        user="$OPTARG"
+        ;;
+      *)
+        echo "Usage: githelper.sh clone-mine [-u user]" >&2
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+
+  user="${user:-$(gh api user --jq .login)}"
+  if [ -z "$user" ]; then
+    echo "Unable to determine GitHub user" >&2
+    return 1
+  fi
+
   mkdir -p "$GIT_ROOT"
   gh repo list "$user" --limit 1000 --json sshUrl,name \
     | jq -r '.[] | "\(.sshUrl) \(.name)"' \
@@ -85,11 +135,24 @@ clone_mine() {
 }
 
 new_repo() {
-  local dir="$1"
-  if [ -z "$dir" ]; then
-    echo "Usage: githelper.sh newrepo <directory>" >&2
-    return 1
-  fi
+  local dir="."
+  local scan=1
+  local desc=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -d)
+        shift
+        dir="${1:-.}"
+        ;;
+      -ns)
+        scan=0
+        ;;
+      *)
+        desc="${desc:+$desc }$1"
+        ;;
+    esac
+    shift
+  done
 
   mkdir -p "$dir"
   cd "$dir"
@@ -103,21 +166,34 @@ new_repo() {
     gh repo create "$project_name" --source=. --public --remote=origin --push || true
   fi
 
-  local file_list
-  file_list=$(find . -type f ! -path '*/.*' \
-    ! -iname '*.png' ! -iname '*.jpg' ! -iname '*.jpeg' ! -iname '*.gif' \
-    ! -iname '*.bmp' ! -iname '*.svg' ! -iname '*.webp' ! -iname '*.ico' \
-    -print0 | xargs -0 grep -Il '' | sed 's|^./||' | tr '\n' ' ')
-  file_list=$(printf '%s' "$file_list" | sed 's/  */ /g; s/ $//')
+  local file_list="" prompt encoded readme agents
+  if [ "$scan" -eq 1 ] || [ -z "$desc" ]; then
+    file_list=$(find . -type f ! -path '*/.*' \
+      ! -iname '*.png' ! -iname '*.jpg' ! -iname '*.jpeg' ! -iname '*.gif' \
+      ! -iname '*.bmp' ! -iname '*.svg' ! -iname '*.webp' ! -iname '*.ico' \
+      -print0 | xargs -0 grep -Il '' | sed 's|^./||' | tr '\n' ' ')
+    file_list=$(printf '%s' "$file_list" | sed 's/  */ /g; s/ $//')
+  fi
 
-  local prompt encoded readme agents
-  prompt="Create a professional README.md for a software project that includes: $file_list. Include a project description, features, and usage."
+  if [ -n "$desc" ] && [ "$scan" -eq 0 ]; then
+    prompt="Create a professional README.md for a software project named $project_name. $desc Include usage instructions."
+  elif [ -n "$desc" ] && [ "$scan" -eq 1 ]; then
+    prompt="Create a professional README.md for a software project named $project_name that includes files: $file_list. The project is described as: $desc. Include usage instructions."
+  else
+    prompt="Create a professional README.md for a software project that includes: $file_list. Include a project description, features, and usage."
+  fi
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
   readme=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" | jq -r '.completion' || true)
   [ -n "$readme" ] || readme="# $project_name"
   printf '%s\n' "$readme" > README.md
 
-  prompt="Create an agents.md file for a project with these files: $file_list. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+  if [ -n "$desc" ] && [ "$scan" -eq 0 ]; then
+    prompt="Create an agents.md file for a project described as: $desc. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+  elif [ -n "$desc" ] && [ "$scan" -eq 1 ]; then
+    prompt="Create an agents.md file for a project described as: $desc with files: $file_list. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+  else
+    prompt="Create an agents.md file for a project with these files: $file_list. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+  fi
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
   agents=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" | jq -r '.completion' || true)
   [ -n "$agents" ] && printf '%s\n' "$agents" > agents.md
@@ -164,11 +240,7 @@ case "$cmd" in
     ;;
   clone)
     shift
-    if [ "$#" -lt 1 ]; then
-      echo "Usage: githelper.sh clone <url> [dest]" >&2
-      exit 1
-    fi
-    clone_repo "$@"
+    clone_cmd "$@"
     ;;
   init)
     init_here
