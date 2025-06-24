@@ -22,3 +22,4 @@
 - wallai now logs prompts with filenames and can archive the last wallpaper with exif metadata using `-s`.
 - New `walsave` alias archives the current wallpaper without generating a new image.
 - wallai now names wallpapers with the correct extension based on the API response.
+- Installer now prints the path to walsave after installation.
