@@ -80,11 +80,12 @@ if [ -f "$ALIASES_FILE" ]; then
   fi
 fi
 
-if [ -d "$SCRIPT_DIR/shortcuts" ]; then
-  mkdir -p "$HOME/.shortcuts"
-  for sc in "$SCRIPT_DIR"/shortcuts/*.sh; do
+if [ -d "$SCRIPT_DIR/termux-scripts-shortcuts" ]; then
+  dest="$HOME/.shortcuts/termux-scripts-shortcuts"
+  mkdir -p "$dest"
+  for sc in "$SCRIPT_DIR"/termux-scripts-shortcuts/*.sh; do
     [ -f "$sc" ] || continue
-    target="$HOME/.shortcuts/$(basename "$sc")"
+    target="$dest/$(basename "$sc")"
     if [ "$copy" -eq 1 ]; then
       safe_copy "$sc" "$target"
     else
