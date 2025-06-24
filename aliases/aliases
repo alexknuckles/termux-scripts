@@ -1,0 +1,7 @@
+# Short aliases for Termux scripts
+alias wallai='wallai.sh'
+alias gpullall='git-helper.sh pull-all'
+alias gstatus='git-helper.sh status'
+alias gpush='git-helper.sh push'
+alias gclone='git-helper.sh clone'
+alias ghl='git-helper.sh'

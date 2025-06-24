@@ -1,2 +1,3 @@
 # Short aliases for Termux scripts
 alias wal='wallai'
+alias ghl='git-helper.sh'
