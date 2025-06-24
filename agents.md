@@ -13,6 +13,8 @@ Ensure all shell scripts follow best practices:
 - Use `#!/data/data/com.termux/files/usr/bin/bash` shebang
 - Set `set -euo pipefail` at the top
 - Quote variables and use `"$@"` for arguments
+- Prefer single-letter flags for command arguments
+- All scripts and commands should expose flags for each argument
 
 ---
 

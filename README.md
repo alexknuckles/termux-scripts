@@ -54,10 +54,10 @@ githelper.sh <pull-all|status|push|clone|init|revert-last|clone-mine|newrepo>
 
 Examples:
 - `githelper.sh pull-all` updates every repository in `~/git`.
-- `githelper.sh clone <url>` clones a repository using `gh` if available.
+- `githelper.sh clone -u <url>` clones a repository using `gh` if available.
 - `githelper.sh init` initializes a new repo in the current directory.
 - `githelper.sh revert-last` reverts the most recent commit.
-- `githelper.sh clone-mine` clones all your GitHub repositories to `~/git`.
-- `githelper.sh newrepo <dir>` creates a new repo with an AI-generated README and agents file.
+- `githelper.sh clone-mine` clones all your GitHub repositories to `~/git`. Specify a different user with `-u`.
+- `githelper.sh newrepo [-d dir] [-ns] [description]` creates a new repo with an AI-generated README and agents file. Scanning files is enabled by default; use `-ns` to disable scanning and `-d` to specify a different directory.
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.
