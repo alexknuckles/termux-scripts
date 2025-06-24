@@ -110,7 +110,7 @@ if [ "$remote" -eq 0 ] && [ "$clone_repo" -eq 0 ] && \
 fi
 
 # Check for required dependencies and offer to install them if missing
-deps=(curl jq git termux-wallpaper)
+deps=(curl jq git termux-wallpaper exiftool)
 missing=()
 for dep in "${deps[@]}"; do
   if ! command -v "$dep" >/dev/null 2>&1; then
@@ -128,9 +128,10 @@ fi
 TARGET_BIN="$INSTALL_DIR"
 mkdir -p "$TARGET_BIN"
 safe_copy "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
+safe_copy "$SCRIPTS_DIR/walsave.sh" "$TARGET_BIN/walsave"
 safe_copy "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
 
-chmod 755 "$TARGET_BIN/wallai" "$TARGET_BIN/githelper"
+chmod 755 "$TARGET_BIN/wallai" "$TARGET_BIN/walsave" "$TARGET_BIN/githelper"
 
 if [ -f "$ALIASES_FILE" ]; then
   dest_dir="$HOME/.aliases.d"
