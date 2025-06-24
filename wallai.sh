@@ -66,28 +66,19 @@ esac
 
 
 if [ -z "$prompt" ]; then
-  echo "🎯 Fetching random prompt from Civitai..."
+  echo "🎯 Fetching random prompt from Pollinations..."
 
-  # 🎲 Step 1: Get a random tag
-  tag=$(curl -s "https://civitai.com/api/v1/tags?limit=200" \
-    | jq -r '.items[].name' | shuf -n 1 || true)
-  echo "🔖 Selected tag: $tag"
+  # 🎲 Step 1: Pick a random theme
+  themes=("fantasy" "sci-fi" "cyberpunk" "steampunk" "surreal" "horror")
+  theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
+  echo "🔖 Selected theme: $theme"
 
-  # 🧠 Step 2: Get a prompt from an image using that tag
-  image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=$allow_nsfw&tag=$tag" \
-    -H "Content-Type: application/json" || true)
-  encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1 || true)
-  if [ -n "$encoded" ]; then
-    prompt=$(echo "$encoded" | base64 --decode | jq -r '.prompt')
-    # baseModel field is ignored
-  else
-    echo "❌ No prompt found for tag $tag"
-    prompt="a neon dreamscape filled with surreal creatures"
-  fi
+  # 🧠 Step 2: Retrieve a text prompt for that theme
+  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+scene" || true)
 
   # 🛑 Fallback prompt
   if [ -z "$prompt" ]; then
-    echo "❌ No prompt found for tag $tag. Using fallback."
+    echo "❌ Failed to fetch prompt. Using fallback."
     prompt="a neon dreamscape filled with surreal creatures"
   fi
 fi
