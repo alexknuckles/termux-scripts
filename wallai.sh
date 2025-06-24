@@ -1,4 +1,18 @@
 #!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+# wallai.sh - generate a wallpaper using Stable Horde
+#
+# Usage: wallai.sh
+# Environment variables:
+#   HORDE_WIDTH       Desired image width (<=576)
+#   HORDE_HEIGHT      Desired image height (<=576)
+#   HORDE_MAX_CHECKS  Number of times to poll for completion (default 60)
+#
+# Dependencies: curl, jq, termux-wallpaper
+# Output: saves the generated image under ~/pictures/generated-wallpapers
+# TAG: wallpaper
+# TAG: ai
 
 apikey="0000000000"
 # Dimensions must be <=576 to avoid extra kudos on Stable Horde
@@ -80,14 +94,21 @@ fi
 echo "⏳ Submitted to Horde. ID: $id"
 
 # 🔄 Poll for result
-for i in $(seq 1 15); do
-  echo "⏳ Checking status (attempt $i)..."
+max_attempts="${HORDE_MAX_CHECKS:-60}"
+attempt=1
+while true; do
+  echo "⏳ Checking status (attempt $attempt)..."
   status=$(curl -s "https://stablehorde.net/api/v2/generate/status/$id")
   done_flag=$(echo "$status" | jq -r '.done')
   if [ "$done_flag" = "true" ]; then
     echo "✅ Image ready!"
     break
   fi
+  if [ "$attempt" -ge "$max_attempts" ]; then
+    echo "❌ Timed out waiting for image after $max_attempts attempts."
+    exit 1
+  fi
+  attempt=$((attempt + 1))
   sleep 10
 done
 
