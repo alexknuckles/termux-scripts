@@ -1,0 +1,1 @@
+bash ~/bin/wallai.sh
