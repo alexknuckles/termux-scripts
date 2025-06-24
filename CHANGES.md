@@ -5,3 +5,4 @@
 - Installer tracks installed version to avoid unnecessary reinstalls.
 - README links refer to stable or testing releases.
 - Pre-release tag renamed to `testing` in githelper.
+- gnext and gnextall now explicitly set the `testing` tag.
