@@ -1,0 +1,100 @@
+# 🧠 Codex Agents for Termux Scripts
+
+This file defines a set of agents to optimize and manage the Termux Scripts repository.
+
+---
+
+## 🚦 Linter
+
+**Goal:**  
+Ensure all shell scripts follow best practices:
+
+- POSIX-compatible where feasible
+- Use `#!/data/data/com.termux/files/usr/bin/bash` shebang
+- Set `set -euo pipefail` at the top
+- Quote variables and use `"$@"` for arguments
+
+---
+
+## 📝 DocGen
+
+**Goal:**  
+Auto-generate `README.md` and inline comments:
+
+- Script name, purpose, usage examples
+- Dependencies (e.g. `curl`, `jq`, `gh`, etc.)
+- Flags and arguments
+- Output expectations
+
+---
+
+## 🔗 AliasMaker
+
+**Goal:**  
+Generate a `.aliases` file or `.shortcuts` compatible with Termux:
+
+- Suggest short, intuitive aliases for frequently used scripts
+- Respect common CLI idioms (`netinfo`, `pushgit`, etc.)
+- Optionally generate bash-compatible exports for `$PATH` use
+
+---
+
+## ⏰ Scheduler
+
+**Goal:**  
+Identify scripts that should be scheduled:
+
+- Create crontab entries (e.g., backups, updates)
+- Suggest `termux-job-scheduler` equivalents for event-based tasks
+
+---
+
+## 🧼 Optimizer
+
+**Goal:**  
+Improve performance and reduce redundancy:
+
+- Inline multiple pipes where beneficial
+- Cache repeated values (e.g., date stamps)
+- Replace slow commands with faster alternatives
+
+---
+
+## 🔒 SecurityCheck
+
+**Goal:**  
+Scan for risky patterns:
+
+- Unchecked `rm`, `mv`, or `dd` usage
+- Missing validation on user inputs
+- Suggest confirmation prompts or `--dry-run` flags
+
+---
+
+## 🛠 Installer
+
+**Goal:**  
+Generate an `install.sh` script that:
+
+- Symlinks or copies scripts to `$PREFIX/bin`
+- Sets executable permissions
+- Optionally installs shortcuts and aliases
+
+---
+
+## 🏷 Tagger
+
+**Goal:**  
+Add frontmatter or inline tags for script categorization:
+
+- `# TAG: networking`, `# TAG: git`, etc.
+- Helps future agents or UI tools filter/group scripts
+
+---
+
+## 🧪 Tester _(optional)_
+
+**Goal:**  
+If any scripts have flags or interactive input, generate minimal test cases or test harnesses.
+
+---
