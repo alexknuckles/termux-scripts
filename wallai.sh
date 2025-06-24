@@ -16,6 +16,7 @@ done
 #   HORDE_WIDTH       Desired image width (<=576)
 #   HORDE_HEIGHT      Desired image height (<=576)
 #   HORDE_MAX_CHECKS  Number of times to poll for completion (default 60)
+#   ALLOW_NSFW       Set to 'true' to allow NSFW prompts (default 'false')
 #
 # Dependencies: curl, jq, termux-wallpaper
 # Output: saves the generated image under ~/pictures/generated-wallpapers
@@ -30,6 +31,17 @@ save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
 filename="$(date +%Y%m%d-%H%M%S).png"
 output="$save_dir/$filename"
+
+# Whether to allow NSFW prompts and generations
+nsfw_raw="${ALLOW_NSFW:-false}"
+case "$(printf '%s' "$nsfw_raw" | tr '[:upper:]' '[:lower:]')" in
+  1|true|yes)
+    allow_nsfw=true
+    ;;
+  *)
+    allow_nsfw=false
+    ;;
+esac
 
 # Grab list of models available on Stable Horde
 horde_models=$(curl -s "https://stablehorde.net/api/v2/status/models" | jq -r '.[].name')
@@ -50,7 +62,7 @@ echo "🔖 Selected tag: $tag"
 base_model=$(printf '%s\n' "${horde_base_models[@]}" | shuf -n 1)
 
 # 🧠 Step 2: Get a prompt and base model from an image using that tag
-image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag" \
+image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=$allow_nsfw&tag=$tag" \
   -H "Content-Type: application/json")
 encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1 || true)
 if [ -n "$encoded" ]; then
@@ -107,7 +119,7 @@ response=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
     "n": 1,
     "karras": true
   },
-  "nsfw": true,
+  "nsfw": $allow_nsfw,
   "censor_nsfw": false
 }
 EOF

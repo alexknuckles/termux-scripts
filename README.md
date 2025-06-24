@@ -17,6 +17,7 @@ Environment variables:
 - `HORDE_BASE_MODELS` optional newline-separated list of base models used as
   fallbacks when the selected image lacks one (defaults include `SDXL 1.0`,
   `SD 1.5`, `SD 2.1 768`).
+- `ALLOW_NSFW` set to `true` to allow NSFW prompts (defaults to `false`).
 
 Dependencies: `curl`, `jq`, `termux-wallpaper`.
 If any of these tools are missing the script exits with a clear error
