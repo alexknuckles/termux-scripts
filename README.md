@@ -3,7 +3,8 @@
 A collection of small utilities for the Termux environment.
 
 ## Installation
-Run `./install.sh` to create symlinks in `$PREFIX/bin` pointing to the scripts. Shortcuts are installed as hard links under `~/.shortcuts/termux-scripts-shortcuts` so they work with Termux Widget. Use `-c` to copy the scripts to `~/bin`, shortcuts to `~/.shortcuts/termux-scripts-shortcuts`, and the alias file to `~/.aliases` instead. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` work immediately.
+Run `./install.sh` to create symlinks in `$PREFIX/bin` pointing to the scripts. Shortcuts are installed as hard links under `~/.shortcuts/termux-scripts-shortcuts` so they work with Termux Widget. Use `-c` to copy the scripts to `~/bin`, shortcuts to `~/.shortcuts/termux-scripts-shortcuts`, and alias files to `~/.aliases.d/` instead. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` work immediately.
+The installer updates your shell configuration to source every `*.aliases` file in `~/.aliases.d/` on startup.
 
 ## wallai.sh
 
