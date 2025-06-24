@@ -6,6 +6,9 @@ SCRIPTS_DIR="$ROOT_DIR/scripts"
 ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
 SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
 REPO_URL="https://github.com/alexknuckles/termux-scripts"
+VERSION="0.4"
+INSTALL_DIR="$HOME/bin/termux-scripts"
+VERSION_FILE="$INSTALL_DIR/.version"
 
 safe_copy() {
   local src="$1" dest="$2"
@@ -31,15 +34,11 @@ safe_copy() {
   cp -f "$src" "$dest"
 }
 
-copy=0
 remote=0
 clone_repo=0
 uninstall=0
-while getopts ":crgu" opt; do
+while getopts ":rgu" opt; do
   case "$opt" in
-    c)
-      copy=1
-      ;;
     r)
       remote=1
       ;;
@@ -51,7 +50,7 @@ while getopts ":crgu" opt; do
       uninstall=1
       ;;
     *)
-      echo "Usage: $(basename "$0") [-c] [-r] [-g] [-u]" >&2
+      echo "Usage: $(basename "$0") [-r] [-g] [-u]" >&2
       exit 1
       ;;
   esac
@@ -61,6 +60,8 @@ shift $((OPTIND - 1))
 if [ "$uninstall" -eq 1 ]; then
   rm -f "$PREFIX/bin/wallai" "$PREFIX/bin/githelper" \
         "$HOME/bin/wallai" "$HOME/bin/githelper"
+  rm -rf "$INSTALL_DIR"
+  rm -f "$VERSION_FILE"
   rm -f "$HOME/.aliases.d/$(basename "$ALIASES_FILE")"
   for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
     if [ -f "$rc" ]; then
@@ -85,6 +86,12 @@ if [ "$remote" -eq 1 ]; then
   SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
 fi
 
+if [ "$remote" -eq 0 ] && [ -f "$VERSION_FILE" ] && \
+   [ "$(cat "$VERSION_FILE")" = "$VERSION" ]; then
+  echo "Termux scripts version $VERSION already installed"
+  exit 0
+fi
+
 # Check for required dependencies and offer to install them if missing
 deps=(curl jq git termux-wallpaper)
 missing=()
@@ -101,16 +108,10 @@ if [ "${#missing[@]}" -gt 0 ]; then
   fi
 fi
 
-TARGET_BIN="$PREFIX/bin"
-if [ "$copy" -eq 1 ]; then
-  TARGET_BIN="$HOME/bin"
-  mkdir -p "$TARGET_BIN"
-  safe_copy "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
-  safe_copy "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
-else
-  ln -sf "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
-  ln -sf "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
-fi
+TARGET_BIN="$INSTALL_DIR"
+mkdir -p "$TARGET_BIN"
+safe_copy "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
+safe_copy "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
 
 chmod 755 "$TARGET_BIN/wallai" "$TARGET_BIN/githelper"
 
@@ -118,11 +119,7 @@ if [ -f "$ALIASES_FILE" ]; then
   dest_dir="$HOME/.aliases.d"
   mkdir -p "$dest_dir"
   alias_target="$dest_dir/$(basename "$ALIASES_FILE")"
-  if [ "$copy" -eq 1 ]; then
-    safe_copy "$ALIASES_FILE" "$alias_target"
-  else
-    ln -sf "$ALIASES_FILE" "$alias_target"
-  fi
+  safe_copy "$ALIASES_FILE" "$alias_target"
 
   shell_rc=""
   for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
@@ -148,17 +145,14 @@ if [ -d "$SHORTCUTS_DIR" ]; then
   for sc in "$SHORTCUTS_DIR"/*.sh; do
     [ -f "$sc" ] || continue
     target="$dest/$(basename "$sc")"
-    if [ "$copy" -eq 1 ]; then
-      safe_copy "$sc" "$target"
-    else
-      ln -f "$sc" "$target"
-    fi
+    safe_copy "$sc" "$target"
     chmod 755 "$target"
   done
 fi
 
 echo "Installed wallai to $TARGET_BIN/wallai"
 echo "Installed githelper to $TARGET_BIN/githelper"
+echo "$VERSION" > "$VERSION_FILE"
 
 if [ "$clone_repo" -eq 1 ]; then
   mkdir -p "$HOME/git"

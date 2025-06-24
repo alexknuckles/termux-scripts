@@ -312,7 +312,7 @@ set_next_release() {
     fi
     prerelease=""
   else
-    tag="${tag:-next}"
+    tag="${tag:-testing}"
     prerelease="--prerelease"
   fi
   git tag -f "$tag"
