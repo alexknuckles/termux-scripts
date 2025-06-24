@@ -34,7 +34,8 @@ safe_copy() {
 copy=0
 remote=0
 clone_repo=0
-while getopts ":crg" opt; do
+uninstall=0
+while getopts ":crgu" opt; do
   case "$opt" in
     c)
       copy=1
@@ -46,13 +47,32 @@ while getopts ":crg" opt; do
       remote=1
       clone_repo=1
       ;;
+    u)
+      uninstall=1
+      ;;
     *)
-      echo "Usage: $(basename "$0") [-c] [-r] [-g]" >&2
+      echo "Usage: $(basename "$0") [-c] [-r] [-g] [-u]" >&2
       exit 1
       ;;
   esac
 done
 shift $((OPTIND - 1))
+
+if [ "$uninstall" -eq 1 ]; then
+  rm -f "$PREFIX/bin/wallai" "$PREFIX/bin/githelper" \
+        "$HOME/bin/wallai" "$HOME/bin/githelper"
+  rm -f "$HOME/.aliases.d/$(basename "$ALIASES_FILE")"
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    if [ -f "$rc" ]; then
+      # shellcheck disable=SC2016
+      sed -i '/if \[ -d "\$HOME\/\.aliases\.d" \]; then/,/fi/d' "$rc"
+    fi
+  done
+  rm -rf "$HOME/.shortcuts/termux-scripts"
+  rm -rf "$HOME/git/termux-scripts"
+  echo "Uninstallation complete"
+  exit 0
+fi
 
 if [ "$remote" -eq 1 ]; then
   tag=$(curl -sL "https://api.github.com/repos/alexknuckles/termux-scripts/releases/latest" | jq -r .tag_name)
