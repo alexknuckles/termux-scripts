@@ -5,6 +5,24 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPTS_DIR="$SCRIPT_DIR/scripts"
 ALIASES_FILE="$SCRIPT_DIR/aliases/.aliases"
 
+safe_copy() {
+  local src="$1" dest="$2"
+  if [ -f "$dest" ]; then
+    mapfile -t extra < <(grep -Fvx -f "$src" "$dest" || true)
+    if [ "${#extra[@]}" -gt 0 ]; then
+      echo "Lines in $dest not present in $src:" >&2
+      printf '  %s\n' "${extra[@]}" >&2
+      read -r -p "Replace file or append these lines? [r/a] " ans
+      if [[ $ans =~ ^[Aa]$ ]]; then
+        cp -f "$src" "$dest"
+        printf '%s\n' "${extra[@]}" >> "$dest"
+        return
+      fi
+    fi
+  fi
+  cp -f "$src" "$dest"
+}
+
 copy=0
 while getopts ":c" opt; do
   case "$opt" in
@@ -39,8 +57,8 @@ TARGET_BIN="$PREFIX/bin"
 if [ "$copy" -eq 1 ]; then
   TARGET_BIN="$HOME/bin"
   mkdir -p "$TARGET_BIN"
-  cp -f "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
-  cp -f "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
+  safe_copy "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
+  safe_copy "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
 else
   ln -sf "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
   ln -sf "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
@@ -50,7 +68,7 @@ chmod 755 "$TARGET_BIN/wallai" "$TARGET_BIN/githelper"
 
 if [ -f "$ALIASES_FILE" ]; then
   if [ "$copy" -eq 1 ]; then
-    cp -f "$ALIASES_FILE" "$HOME/.aliases"
+    safe_copy "$ALIASES_FILE" "$HOME/.aliases"
   else
     ln -sf "$ALIASES_FILE" "$HOME/.aliases"
   fi
@@ -62,7 +80,7 @@ if [ -d "$SCRIPT_DIR/shortcuts" ]; then
     [ -f "$sc" ] || continue
     target="$HOME/.shortcuts/$(basename "$sc")"
     if [ "$copy" -eq 1 ]; then
-      cp -f "$sc" "$target"
+      safe_copy "$sc" "$target"
     else
       ln -sf "$sc" "$target"
     fi
