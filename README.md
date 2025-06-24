@@ -18,7 +18,7 @@ Environment variables:
 Flags:
 - `-p` Specify your own prompt instead of fetching a random one.
 
-If no prompt is provided, the script retrieves a themed scene from the Pollinations text
+If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
 API using a random genre such as fantasy or cyberpunk. The API is asked to respond in
 exactly 15 words. A random seed parameter ensures that repeated calls yield different
 descriptions even when the theme is the same.
