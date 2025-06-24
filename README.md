@@ -2,6 +2,12 @@
 
 A collection of small utilities for the Termux environment.
 
+## Installation
+Run `./install.sh` to create symlinks in `$PREFIX/bin` that point to the scripts
+inside this repository. The installer links `.aliases` to `~/.aliases` and
+places shortcut links in `~/.shortcuts`. If any required packages are missing,
+the script will offer to install them automatically.
+
 ## wallai.sh
 
 Generates an AI-based wallpaper using the free Pollinations API. The script requests a 15-word
@@ -42,8 +48,6 @@ If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
 
-### Installation
-Run `./install.sh` to place the script in `$PREFIX/bin`.
 
 ## githelper.sh
 

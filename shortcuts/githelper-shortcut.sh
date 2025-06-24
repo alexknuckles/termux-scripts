@@ -2,4 +2,4 @@
 set -euo pipefail
 
 # githelper shortcut
-exec ~/bin/githelper "$@"
+exec "$PREFIX/bin/githelper" "$@"
