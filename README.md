@@ -56,11 +56,12 @@ all repositories under `~/git`.
 
 ### Usage
 ```bash
-githelper.sh <pull-all|status|push|clone|init|revert-last|clone-mine|newrepo>
+githelper.sh <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo>
 ```
 
 Examples:
 - `githelper.sh pull-all` updates every repository in `~/git`.
+- `githelper.sh push-all` pushes each repository in `~/git` to its main branch. Use `-c` to enter a commit message for all.
 - `githelper.sh clone -u <url>` clones a repository using `gh` if available.
 - `githelper.sh init` initializes a new repo in the current directory.
 - `githelper.sh revert-last` reverts the most recent commit.
