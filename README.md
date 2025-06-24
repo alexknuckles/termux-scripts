@@ -74,7 +74,7 @@ Examples:
 - `githelper revert-last` reverts the most recent commit.
 - `githelper clone-mine` clones all your GitHub repositories to `~/git`. Specify a different user with `-u`.
 - `githelper newrepo [-d dir] [-ns] [description]` creates a new repo with an AI-generated README and agents file. Scanning files is enabled by default; use `-ns` to disable scanning and `-d` to specify a different directory.
-- `githelper set-next` tags the current repository as the next release and pushes the tag. Use `-p` for a description prompt.
+- `githelper set-next` tags the current repository as a release. Use `-p` for a description prompt and `-t tag` to choose a tag name (defaults to `next`).
 - `githelper set-next-all` performs the same tag operation on every repository in `~/git`.
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.
