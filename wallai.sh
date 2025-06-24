@@ -46,13 +46,12 @@ tag=$(curl -s "https://civitai.com/api/v1/tags?limit=200" \
   | jq -r '.items[].name' | shuf -n 1)
 echo "🔖 Selected tag: $tag"
 
-# Pick a random base model from those known on Horde
+# Pick a fallback base model in case the image lacks one
 base_model=$(printf '%s\n' "${horde_base_models[@]}" | shuf -n 1)
-encoded_model=$(printf '%s' "$base_model" | jq -sRr @uri)
-echo "📦 Filtering by base model: $base_model"
+echo "📦 Fallback base model: $base_model"
 
-# 🧠 Step 2: Get a prompt and model from an image using that tag and base model
-image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag&baseModel=$encoded_model" \
+# 🧠 Step 2: Get a prompt and base model from an image using that tag
+image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag" \
   -H "Content-Type: application/json")
 encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1 || true)
 if [ -n "$encoded" ]; then
@@ -62,7 +61,7 @@ if [ -n "$encoded" ]; then
     base_model="$bm_tmp"
   fi
 else
-  echo "❌ No prompt found for tag $tag with base model $base_model"
+  echo "❌ No prompt found for tag $tag"
   prompt="a neon dreamscape filled with surreal creatures"
 fi
 
