@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPTS_DIR="$SCRIPT_DIR/scripts"
-ALIASES_FILE="$SCRIPT_DIR/aliases/.aliases"
+ALIASES_FILE="$SCRIPT_DIR/aliases/termux-scripts-aliases.aliases"
 
 safe_copy() {
   local src="$1" dest="$2"
@@ -73,10 +73,30 @@ fi
 chmod 755 "$TARGET_BIN/wallai" "$TARGET_BIN/githelper"
 
 if [ -f "$ALIASES_FILE" ]; then
+  dest_dir="$HOME/.aliases.d"
+  mkdir -p "$dest_dir"
+  alias_target="$dest_dir/$(basename "$ALIASES_FILE")"
   if [ "$copy" -eq 1 ]; then
-    safe_copy "$ALIASES_FILE" "$HOME/.aliases"
+    safe_copy "$ALIASES_FILE" "$alias_target"
   else
-    ln -sf "$ALIASES_FILE" "$HOME/.aliases"
+    ln -sf "$ALIASES_FILE" "$alias_target"
+  fi
+
+  shell_rc=""
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    if [ -f "$rc" ]; then
+      shell_rc="$rc"
+      break
+    fi
+  done
+  if [ -n "$shell_rc" ] && ! grep -Fq '.aliases.d/' "$shell_rc"; then
+    cat >>"$shell_rc" <<'EOF'
+if [ -d "$HOME/.aliases.d" ]; then
+  for f in "$HOME"/.aliases.d/*.aliases; do
+    [ -r "$f" ] && . "$f"
+  done
+fi
+EOF
   fi
 fi
 
