@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")"/.. && pwd)"
 SCRIPTS_DIR="$ROOT_DIR/scripts"
 ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
 SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
+REPO_URL="https://github.com/alexknuckles/termux-scripts"
 
 safe_copy() {
   local src="$1" dest="$2"
@@ -31,18 +32,38 @@ safe_copy() {
 }
 
 copy=0
-while getopts ":c" opt; do
+remote=0
+clone_repo=0
+while getopts ":crg" opt; do
   case "$opt" in
     c)
       copy=1
       ;;
+    r)
+      remote=1
+      ;;
+    g)
+      remote=1
+      clone_repo=1
+      ;;
     *)
-  echo "Usage: $(basename "$0") [-c]" >&2
+      echo "Usage: $(basename "$0") [-c] [-r] [-g]" >&2
       exit 1
       ;;
   esac
 done
 shift $((OPTIND - 1))
+
+if [ "$remote" -eq 1 ]; then
+  tag=$(curl -sL "https://api.github.com/repos/alexknuckles/termux-scripts/releases/latest" | jq -r .tag_name)
+  [ -n "$tag" ] || tag=main
+  tmpdir=$(mktemp -d)
+  curl -sL "$REPO_URL/archive/$tag.tar.gz" | tar -xz --strip-components=1 -C "$tmpdir"
+  ROOT_DIR="$tmpdir"
+  SCRIPTS_DIR="$ROOT_DIR/scripts"
+  ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
+  SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
+fi
 
 # Check for required dependencies and offer to install them if missing
 deps=(curl jq git termux-wallpaper)
@@ -118,3 +139,12 @@ fi
 
 echo "Installed wallai to $TARGET_BIN/wallai"
 echo "Installed githelper to $TARGET_BIN/githelper"
+
+if [ "$clone_repo" -eq 1 ]; then
+  mkdir -p "$HOME/git"
+  if [ -d "$HOME/git/termux-scripts/.git" ]; then
+    git -C "$HOME/git/termux-scripts" pull --ff-only || true
+  else
+    git clone "$REPO_URL" "$HOME/git/termux-scripts"
+  fi
+fi

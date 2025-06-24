@@ -4,6 +4,14 @@ A collection of small utilities for the Termux environment.
 
 ## Installation
 Run `./scripts/installer.sh` to create symlinks in `$PREFIX/bin` pointing to the scripts. Shortcuts are installed as hard links under `~/.shortcuts/termux-scripts` so they work with Termux Widget. Use `-c` to copy the scripts to `~/bin`, shortcuts to `~/.shortcuts/termux-scripts`, and alias files to `~/.aliases.d/` instead. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` work immediately.
+
+To install without cloning the repository run:
+
+```bash
+curl -L https://github.com/alexknuckles/termux-scripts/releases/latest/download/installer.sh | bash -s -- -r
+```
+
+Use `-g` along with `-r` to also clone the repository to `~/git/termux-scripts` after installing.
 The installer updates your shell configuration to source every `*.aliases` file in `~/.aliases.d/` on startup.
 Shortcut scripts are located in the `termux-scripts-shortcuts` directory.
 
@@ -54,7 +62,7 @@ all repositories under `~/git`.
 
 ### Usage
 ```bash
-githelper <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo>
+githelper <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo|set-next|set-next-all>
 ```
 
 Examples:
@@ -65,5 +73,7 @@ Examples:
 - `githelper revert-last` reverts the most recent commit.
 - `githelper clone-mine` clones all your GitHub repositories to `~/git`. Specify a different user with `-u`.
 - `githelper newrepo [-d dir] [-ns] [description]` creates a new repo with an AI-generated README and agents file. Scanning files is enabled by default; use `-ns` to disable scanning and `-d` to specify a different directory.
+- `githelper set-next` tags the current repository as the next release and pushes the tag. Use `-p` for a description prompt.
+- `githelper set-next-all` performs the same tag operation on every repository in `~/git`.
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.

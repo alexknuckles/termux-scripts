@@ -1,0 +1,20 @@
+name: Upload installer
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Upload installer
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: scripts/installer.sh
+          asset_name: installer.sh
+          asset_content_type: application/x-sh

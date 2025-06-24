@@ -268,6 +268,59 @@ EOF
   fi
 }
 
+set_next_release() {
+  local prompt=0 desc=""
+  while getopts ":p" opt; do
+    case "$opt" in
+      p)
+        prompt=1
+        ;;
+      *)
+        echo "Usage: githelper set-next [-p]" >&2
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  if [ "$prompt" -eq 1 ]; then
+    read -r -p "Release description: " desc
+  fi
+  git tag -f next
+  git push -f origin next || true
+  if command -v gh >/dev/null 2>&1; then
+    if gh release view next >/dev/null 2>&1; then
+      gh release edit next -n "$desc" -t "Next Release" || true
+    else
+      gh release create next -n "$desc" -t "Next Release" --prerelease || true
+    fi
+  fi
+}
+
+set_next_all() {
+  local prompt=0 repo opt
+  while getopts ":p" opt; do
+    case "$opt" in
+      p)
+        prompt=1
+        ;;
+      *)
+        echo "Usage: githelper set-next-all [-p]" >&2
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  for repo in "$GIT_ROOT"/*/.git; do
+    repo="${repo%/\.git}"
+    [ -d "$repo" ] || continue
+    if [ "$prompt" -eq 1 ]; then
+      (cd "$repo" && set_next_release -p)
+    else
+      (cd "$repo" && set_next_release)
+    fi
+  done
+}
+
 cmd="${1:-}"
 case "$cmd" in
   pull-all)
@@ -301,8 +354,16 @@ case "$cmd" in
     shift
     new_repo "$@"
     ;;
+  set-next)
+    shift
+    set_next_release "$@"
+    ;;
+  set-next-all)
+    shift
+    set_next_all "$@"
+    ;;
   *)
-    echo "Usage: githelper.sh <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo>" >&2
+    echo "Usage: githelper.sh <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo|set-next|set-next-all>" >&2
     exit 1
     ;;
 esac
