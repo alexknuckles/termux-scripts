@@ -19,9 +19,7 @@ done
 #   HORDE_STEPS        Diffusion steps for Stable Horde (default 40)
 #   HORDE_SAMPLER      Sampler name for Horde (default 'k_euler')
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
-#   USE_REPLICATE      Set to 'true' to use Replicate instead of Horde
-#   REPLICATE_TOKEN    API token for Replicate
-#   REPLICATE_VERSION  Model version ID (defaults to SDXL latest)
+#   HORDE_ONLY         Set to 'true' to disable Pollinations
 #
 # Dependencies: curl, jq, termux-wallpaper, termux-vibrate
 # Output: saves the generated image under ~/pictures/generated-wallpapers
@@ -32,20 +30,15 @@ apikey="${HORDE_API_KEY:-0000000000}"
 # Dimensions must be <=576 to avoid extra kudos on Stable Horde
 width="${HORDE_WIDTH:-512}"
 height="${HORDE_HEIGHT:-512}"
-replicate_token="${REPLICATE_TOKEN:-}"
-replicate_version="${REPLICATE_VERSION:-7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc}"
 horde_steps="${HORDE_STEPS:-40}"
 horde_sampler="${HORDE_SAMPLER:-k_euler}"
-replicate_steps="${REPLICATE_STEPS:-50}"
-replicate_scheduler="${REPLICATE_SCHEDULER:-K_EULER}"
-replicate_guidance="${REPLICATE_GUIDANCE:-7.5}"
-use_replicate_raw="${USE_REPLICATE:-false}"
-case "$(printf '%s' "$use_replicate_raw" | tr '[:upper:]' '[:lower:]')" in
+horde_only_raw="${HORDE_ONLY:-false}"
+case "$(printf '%s' "$horde_only_raw" | tr '[:upper:]' '[:lower:]')" in
   1|true|yes)
-    use_replicate=true
+    horde_only=true
     ;;
   *)
-    use_replicate=false
+    horde_only=false
     ;;
 esac
 save_dir="$HOME/pictures/generated-wallpapers"
@@ -135,60 +128,11 @@ echo "🎨 Final prompt: $prompt"
 # Escape any characters in the prompt that could break JSON
 escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
 
-# ✨ Step 3: Generate image via Horde or Replicate
-if [ "$use_replicate" = true ]; then
-  if [ -z "$replicate_token" ]; then
-    echo "❌ REPLICATE_TOKEN is required when USE_REPLICATE is true" >&2
-    exit 1
-  fi
-  response=$(curl -s -X POST "https://api.replicate.com/v1/predictions" \
-    -H "Authorization: Token $replicate_token" \
-    -H "Content-Type: application/json" \
-    -d @- <<EOF
-  {
-    "version": "$replicate_version",
-    "input": {
-      "prompt": $escaped_prompt,
-      "width": $width,
-      "height": $height,
-      "num_inference_steps": $replicate_steps,
-      "scheduler": "$replicate_scheduler",
-      "guidance_scale": $replicate_guidance,
-      "num_outputs": 1,
-      "disable_safety_checker": $([ "$allow_nsfw" = true ] && echo true || echo false)
-    }
-  }
-EOF
-  )
-  id=$(echo "$response" | jq -r '.id')
-  if [ "$id" = "null" ] || [ -z "$id" ]; then
-    echo "❌ Failed to submit image generation job." >&2
-    exit 1
-  fi
-  echo "⏳ Submitted to Replicate. ID: $id"
-  max_attempts="${HORDE_MAX_CHECKS:-60}"
-  attempt=1
-  while true; do
-    echo "⏳ Checking status (attempt $attempt)..."
-    status=$(curl -s -H "Authorization: Token $replicate_token" "https://api.replicate.com/v1/predictions/$id")
-    state=$(echo "$status" | jq -r '.status')
-    if [ "$state" = "succeeded" ]; then
-      echo "✅ Image ready!"
-      break
-    elif [ "$state" = "failed" ] || [ "$state" = "canceled" ]; then
-      echo "❌ Generation failed with status: $state" >&2
-      echo "$status" | jq -r '.error // empty' >&2
-      exit 1
-    fi
-    if [ "$attempt" -ge "$max_attempts" ]; then
-      echo "❌ Timed out waiting for image after $max_attempts attempts." >&2
-      exit 1
-    fi
-    attempt=$((attempt + 1))
-    sleep 10
-  done
-  img_url=$(echo "$status" | jq -r '.output[0]')
-else
+# ✨ Step 3: Generate image via Stable Horde and Pollinations
+
+generate_horde() {
+  local out_file="$1"
+  local response id status done_flag img_url max_attempts attempt
   response=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
     -H "Content-Type: application/json" \
     -H "apikey: $apikey" \
@@ -212,38 +156,80 @@ else
 EOF
   )
   id=$(echo "$response" | jq -r '.id')
-  if [ "$id" = "null" ] || [ -z "$id" ]; then
-    echo "❌ Failed to submit image generation job." >&2
-    exit 1
-  fi
-  echo "⏳ Submitted to Horde. ID: $id"
+  [ "$id" = "null" ] && return 1
   max_attempts="${HORDE_MAX_CHECKS:-60}"
   attempt=1
   while true; do
-    echo "⏳ Checking status (attempt $attempt)..."
     status=$(curl -s "https://stablehorde.net/api/v2/generate/status/$id")
     done_flag=$(echo "$status" | jq -r '.done')
     if [ "$done_flag" = "true" ]; then
-      echo "✅ Image ready!"
       break
     fi
     if [ "$attempt" -ge "$max_attempts" ]; then
-      echo "❌ Timed out waiting for image after $max_attempts attempts." >&2
-      exit 1
+      return 1
     fi
     attempt=$((attempt + 1))
     sleep 10
   done
   img_url=$(echo "$status" | jq -r '.generations[0].img')
+  [ "$img_url" = "null" ] && return 1
+  curl -sL "$img_url" -o "$out_file"
+}
+
+generate_pollinations() {
+  local out_file="$1"
+  local encoded
+  encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
+  curl -sL "https://image.pollinations.ai/prompt/${encoded}" -o "$out_file"
+}
+
+if [ "$horde_only" = true ]; then
+  echo "⏳ Generating image via Stable Horde..."
+  if ! generate_horde "$output"; then
+    echo "❌ Failed to generate image via Stable Horde" >&2
+    exit 1
+  fi
+  img_source="Stable Horde"
+else
+  pollinations_tmp=$(mktemp)
+  horde_tmp=$(mktemp)
+  echo "⏳ Generating images via Pollinations and Stable Horde..."
+  generate_pollinations "$pollinations_tmp" &
+  pid_p=$!
+  generate_horde "$horde_tmp" &
+  pid_h=$!
+  winner=""
+  while true; do
+    if [ -s "$pollinations_tmp" ]; then
+      winner="pollinations"
+      kill "$pid_h" 2>/dev/null || true
+      wait "$pid_h" 2>/dev/null || true
+      break
+    fi
+    if [ -s "$horde_tmp" ]; then
+      winner="horde"
+      kill "$pid_p" 2>/dev/null || true
+      wait "$pid_p" 2>/dev/null || true
+      break
+    fi
+    if ! kill -0 "$pid_p" 2>/dev/null && ! kill -0 "$pid_h" 2>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+  if [ "$winner" = "pollinations" ]; then
+    mv "$pollinations_tmp" "$output"
+    img_source="Pollinations"
+  elif [ "$winner" = "horde" ]; then
+    mv "$horde_tmp" "$output"
+    img_source="Stable Horde"
+  else
+    echo "❌ Both Pollinations and Horde failed." >&2
+    exit 1
+  fi
 fi
 
-if [ "$img_url" = "null" ] || [ -z "$img_url" ]; then
-  echo "❌ No image URL received." >&2
-  exit 1
-fi
-
-curl -sL "$img_url" -o "$output"
 termux-wallpaper -f "$output"
-echo "🎉 Wallpaper set from prompt: $prompt"
+echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 echo "💾 Saved to: $output"
 shave_and_a_haircut
