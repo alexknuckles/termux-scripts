@@ -26,6 +26,9 @@ Flags:
   `flux-3d`, `flux-pro`, `anydark`, or `gptimage`.
 - `-r` Pick a random model from the list above.
 
+After showing the chosen prompt, the script also prints which Pollinations model will
+be used for image generation.
+
 If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
 API using a random genre such as fantasy or cyberpunk. You can override the random choice with
 `-t theme`. The API is asked to respond in exactly 15 words. A random seed parameter ensures that

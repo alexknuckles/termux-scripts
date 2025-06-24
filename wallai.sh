@@ -117,6 +117,7 @@ if [ -z "$prompt" ]; then
 fi
 
 echo "🎨 Final prompt: $prompt"
+echo "🛠 Using model: $model"
 
 # ✨ Step 3: Generate image via Pollinations
 
