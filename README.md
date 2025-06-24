@@ -19,11 +19,12 @@ Flags:
 
 If no prompt is provided, the script retrieves a themed scene from the
 Pollinations text API using a random genre such as fantasy or cyberpunk.
+Fetched text is cleaned up so the final prompt is concise and descriptive.
 
-Dependencies: `curl`, `jq`, `termux-wallpaper`, `termux-vibrate`.
+Dependencies: `curl`, `jq`, `termux-wallpaper`.
 If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
-the image. The script plays a short vibration in the "shave and a haircut" pattern when finished.
+the image.
 
 ### Installation
 Run `./install.sh` to place the script in `$PREFIX/bin`.
