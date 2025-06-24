@@ -1,6 +1,14 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
+# Check dependencies early so the script fails with a clear message
+for cmd in curl jq termux-wallpaper; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "❌ Required command '$cmd' is not installed" >&2
+    exit 1
+  fi
+done
+
 # wallai.sh - generate a wallpaper using Stable Horde
 #
 # Usage: wallai.sh
