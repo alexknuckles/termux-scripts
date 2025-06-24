@@ -24,6 +24,8 @@ Flags:
 - `-t` Choose a theme for the random prompt (ignored if `-p` is used).
 - `-m` Select Pollinations model. Available models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
+  The `gptimage` model requires a flower-tier Pollinations account; without
+  access the API returns an error.
 - `-r` Pick a random model from the available list.
 
 After showing the chosen prompt, the script also prints which Pollinations model will
