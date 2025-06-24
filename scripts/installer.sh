@@ -184,6 +184,7 @@ if [ -d "$SHORTCUTS_DIR" ]; then
 fi
 
 echo "Installed wallai to $TARGET_BIN/wallai"
+echo "Installed walsave to $TARGET_BIN/walsave"
 echo "Installed githelper to $TARGET_BIN/githelper"
 echo "$VERSION" > "$VERSION_FILE"
 

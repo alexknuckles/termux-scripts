@@ -90,6 +90,7 @@ Generate an `install.sh` script that:
 - Optionally installs shortcuts and aliases
 - Use hard links for shortcut files since Termux Widget doesn't
   always follow symlinks
+- Print a confirmation line for each installed command so none are missed
 
 ---
 
