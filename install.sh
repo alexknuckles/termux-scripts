@@ -4,24 +4,40 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PREFIX_BIN="$PREFIX/bin"
 
-install -Dm755 "$SCRIPT_DIR/wallai.sh" "$PREFIX_BIN/wallai"
-install -Dm755 "$SCRIPT_DIR/githelper.sh" "$PREFIX_BIN/githelper"
+# Check for required dependencies and offer to install them if missing
+deps=(curl jq git termux-wallpaper)
+missing=()
+for dep in "${deps[@]}"; do
+  if ! command -v "$dep" >/dev/null 2>&1; then
+    missing+=("$dep")
+  fi
+done
+if [ "${#missing[@]}" -gt 0 ]; then
+  echo "The following packages are required: ${missing[*]}"
+  read -r -p "Install them now with pkg? [y/N] " ans
+  if [[ $ans =~ ^[Yy]$ ]]; then
+    pkg install -y "${missing[@]}"
+  fi
+fi
+
+ln -sf "$SCRIPT_DIR/wallai.sh" "$PREFIX_BIN/wallai"
+ln -sf "$SCRIPT_DIR/githelper.sh" "$PREFIX_BIN/githelper"
 
 if [ -f "$SCRIPT_DIR/.aliases" ]; then
-  install -Dm644 "$SCRIPT_DIR/.aliases" "$PREFIX/bin/.aliases"
+  ln -sf "$SCRIPT_DIR/.aliases" "$HOME/.aliases"
 fi
 
 if [ -f "$SCRIPT_DIR/aliases/aliases" ]; then
-  install -Dm644 "$SCRIPT_DIR/aliases/aliases" "$PREFIX/bin/aliases"
+  ln -sf "$SCRIPT_DIR/aliases/aliases" "$PREFIX/bin/aliases"
 fi
 
 if [ -d "$SCRIPT_DIR/shortcuts" ]; then
-  mkdir -p "$HOME/shortcuts"
+  mkdir -p "$HOME/.shortcuts"
   for sc in "$SCRIPT_DIR"/shortcuts/*.sh; do
     [ -f "$sc" ] || continue
-    install -Dm755 "$sc" "$HOME/shortcuts/$(basename "$sc")"
+    ln -sf "$sc" "$HOME/.shortcuts/$(basename "$sc")"
   done
 fi
 
-echo "Installed wallai to $PREFIX_BIN/wallai"
-echo "Installed githelper to $PREFIX_BIN/githelper"
+echo "Symlinked wallai to $PREFIX_BIN/wallai"
+echo "Symlinked githelper to $PREFIX_BIN/githelper"
