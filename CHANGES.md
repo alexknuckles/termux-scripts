@@ -9,3 +9,4 @@
 - Simplified `set-next` and `set-next-all` to only accept `-r`; prerelease uses
   the `testing` tag by default.
 - gnext -r now removes the `testing` tag and creates a release tag.
+- Pre-releases now list commits since the previous tag when creating GitHub releases.
