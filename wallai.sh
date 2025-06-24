@@ -62,10 +62,12 @@ if [ -z "$prompt" ]; then
   echo "🔖 Selected theme: $theme"
 
   # 🧠 Step 2: Retrieve a text prompt for that theme
-  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+scene" || true)
-  # Trim and shorten to keep prompts descriptive and concise
+  # Ask the API for exactly 15 words and pass a random seed to vary results
+  random_token=$(date +%s%N | sha256sum | head -c 8)
+  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+scene+in+exactly+15+words?seed=${random_token}" || true)
+  # Normalize whitespace and keep only the first 15 words
   prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
-  prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";};if(NF>15)printf "..."}')
+  prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
 
   # 🛑 Fallback prompt
   if [ -z "$prompt" ]; then
