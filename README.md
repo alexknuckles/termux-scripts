@@ -4,7 +4,7 @@ A collection of small utilities for the Termux environment.
 
 ## wallai.sh
 
-Generates an AI-based wallpaper using Stable Horde and sets it as your Termux wallpaper.
+Generates an AI-based wallpaper using Stable Horde or Replicate and sets it as your Termux wallpaper.
 
 ### Usage
 ```bash
@@ -13,11 +13,16 @@ wallai.sh
 
 Environment variables:
 - `HORDE_WIDTH` and `HORDE_HEIGHT` for image dimensions (<=576).
-- `HORDE_MAX_CHECKS` to control how many times the script polls for completion.
+- `HORDE_MAX_CHECKS` how many times to poll for completion (default 60).
+- `HORDE_STEPS` diffusion steps for Stable Horde (default 40).
+- `HORDE_SAMPLER` sampler for Horde (default `k_euler`).
 - `HORDE_BASE_MODELS` optional newline-separated list of base models used as
   fallbacks when the selected image lacks one (defaults include `SDXL 1.0`,
   `SD 1.5`, `SD 2.1 768`).
 - `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
+- `USE_REPLICATE` set to `true` to use Replicate instead of Stable Horde.
+- `REPLICATE_TOKEN` API token for Replicate.
+- `REPLICATE_VERSION` model version ID (defaults to latest SDXL).
 
 Dependencies: `curl`, `jq`, `termux-wallpaper`, `termux-vibrate`.
 If any of these tools are missing the script exits with a clear error
