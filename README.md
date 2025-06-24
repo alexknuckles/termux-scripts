@@ -31,3 +31,19 @@ the image.
 
 ### Installation
 Run `./install.sh` to place the script in `$PREFIX/bin`.
+
+## git-helper.sh
+
+Provides shortcuts for common git tasks and automates pulling
+all repositories under `~/git`.
+
+### Usage
+```bash
+git-helper.sh <pull-all|status|push|clone>
+```
+
+Examples:
+- `git-helper.sh pull-all` updates every repository in `~/git`.
+- `git-helper.sh clone <url>` clones a repository using `gh` if available.
+
+Dependencies: `git`, optional `gh` for GitHub integration.
