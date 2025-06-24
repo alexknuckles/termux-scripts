@@ -48,7 +48,6 @@ echo "🔖 Selected tag: $tag"
 
 # Pick a fallback base model in case the image lacks one
 base_model=$(printf '%s\n' "${horde_base_models[@]}" | shuf -n 1)
-echo "📦 Fallback base model: $base_model"
 
 # 🧠 Step 2: Get a prompt and base model from an image using that tag
 image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag" \
@@ -59,10 +58,14 @@ if [ -n "$encoded" ]; then
   bm_tmp=$(echo "$encoded" | base64 --decode | jq -r '.baseModel')
   if [ -n "$bm_tmp" ] && [ "$bm_tmp" != "null" ]; then
     base_model="$bm_tmp"
+    echo "📦 Image base model: $base_model"
+  else
+    echo "📦 Using fallback base model: $base_model"
   fi
 else
   echo "❌ No prompt found for tag $tag"
   prompt="a neon dreamscape filled with surreal creatures"
+  echo "📦 Using fallback base model: $base_model"
 fi
 
 # Pick a model on Horde that matches the base model, if available

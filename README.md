@@ -22,6 +22,8 @@ Dependencies: `curl`, `jq`, `termux-wallpaper`.
 If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
+The script prints the base model used by the selected image, or the fallback
+model when none is provided.
 
 ### Installation
 Run `./install.sh` to place the script in `$PREFIX/bin`.
