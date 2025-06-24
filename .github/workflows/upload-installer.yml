@@ -13,6 +13,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Upload installer
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: scripts/installer.sh
