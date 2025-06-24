@@ -13,18 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Extract upload URL
-        id: vars
-        run: echo "url=${GITHUB_EVENT_RELEASE_UPLOAD_URL%%\{*}" >> $GITHUB_OUTPUT
+      - name: Sanitize upload URL
+        id: sanitize
+        run: |
+          echo "url=${UPLOAD_URL%%\{*}" >> $GITHUB_OUTPUT
         env:
-          GITHUB_EVENT_RELEASE_UPLOAD_URL: ${{ github.event.release.upload_url }}
+          UPLOAD_URL: ${{ github.event.release.upload_url }}
 
       - name: Upload installer
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.vars.outputs.url }}
+          upload_url: ${{ steps.sanitize.outputs.url }}
           asset_path: scripts/installer.sh
           asset_name: installer.sh
           asset_content_type: application/x-sh
