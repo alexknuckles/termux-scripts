@@ -289,6 +289,13 @@ set_next_release() {
     esac
   done
   shift $((OPTIND - 1))
+  if command -v gh >/dev/null 2>&1; then
+    if ! gh auth status >/dev/null 2>&1; then
+      echo "No GitHub authentication found. Launching gh auth login..." >&2
+      gh auth login
+    fi
+    gh auth setup-git >/dev/null 2>&1 || true
+  fi
   if [ "$release" -eq 1 ]; then
     if git rev-parse testing >/dev/null 2>&1; then
       git tag -d testing
