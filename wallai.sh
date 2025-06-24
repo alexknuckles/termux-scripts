@@ -44,7 +44,10 @@ if [ "${#models[@]}" -eq 0 ]; then
   models=(flux turbo gptimage)
 fi
 if [ "$random_model" = true ]; then
-  model=$(printf '%s\n' "${models[@]}" | shuf -n1)
+  # Exclude models that require paid tiers or produce low quality
+  mapfile -t candidates < <(printf '%s\n' "${models[@]}" | grep -vE '^(gptimage|turbo)$')
+  [ "${#candidates[@]}" -gt 0 ] || candidates=(flux)
+  model=$(printf '%s\n' "${candidates[@]}" | shuf -n1)
 fi
 if ! printf '%s\n' "${models[@]}" | grep -qxF "$model"; then
   echo "Invalid model: $model" >&2

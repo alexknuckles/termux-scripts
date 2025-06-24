@@ -9,7 +9,8 @@ description for a random theme and includes a unique seed so prompts vary even f
 You can choose between several Pollinations models using the `-m` flag or let the
 script pick one at random with `-r`. Models are retrieved from the Pollinations
 API. If that fails the script falls back to `flux`, `turbo` and `gptimage`. The
-default model is `flux`.
+random option ignores `gptimage` (requires a flower-tier account) and `turbo`
+due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
@@ -25,8 +26,8 @@ Flags:
 - `-m` Select Pollinations model. Available models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
   The `gptimage` model requires a flower-tier Pollinations account; without
-  access the API returns an error.
-- `-r` Pick a random model from the available list.
+  access the API returns an error. The `turbo` model tends to produce lower quality images.
+- `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
 
 After showing the chosen prompt, the script also prints which Pollinations model will
 be used for image generation.
