@@ -18,6 +18,9 @@ Environment variables:
   from Civitai (defaults include `SDXL 1.0`, `SD 1.5`, `SD 2.1 768`).
 
 Dependencies: `curl`, `jq`, `termux-wallpaper`.
+If any of these tools are missing the script exits with a clear error
+message. Internet access is required for fetching prompts and generating
+the image.
 
 ### Installation
 Run `./install.sh` to place the script in `$PREFIX/bin`.
