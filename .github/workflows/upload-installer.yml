@@ -13,19 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Sanitize upload URL
-        id: sanitize
-        run: |
-          echo "url=${UPLOAD_URL%%\{*}" >> $GITHUB_OUTPUT
-        env:
-          UPLOAD_URL: ${{ github.event.release.upload_url }}
-
       - name: Upload installer
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
+        with:
+          files: scripts/installer.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.sanitize.outputs.url }}
-          asset_path: scripts/installer.sh
-          asset_name: installer.sh
-          asset_content_type: application/x-sh
