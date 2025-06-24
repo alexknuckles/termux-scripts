@@ -3,7 +3,7 @@
 A collection of small utilities for the Termux environment.
 
 ## Installation
-Run `./scripts/installer.sh` to create symlinks in `$PREFIX/bin` pointing to the scripts. Shortcuts are installed as hard links under `~/.shortcuts/termux-scripts` so they work with Termux Widget. Use `-c` to copy the scripts to `~/bin`, shortcuts to `~/.shortcuts/termux-scripts`, and alias files to `~/.aliases.d/` instead. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` work immediately. Pass `-u` to remove everything created by a previous run.
+Run `./scripts/installer.sh` to create symlinks in `$PREFIX/bin` pointing to the scripts. Shortcuts are installed as hard links under `~/.shortcuts/termux-scripts` so they work with Termux Widget. Use `-c` to copy the scripts to `~/bin`, shortcuts to `~/.shortcuts/termux-scripts`, and alias files to `~/.aliases.d/` instead. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` and `gpull` work immediately. Pass `-u` to remove everything created by a previous run.
 
 To install without cloning the repository run:
 
@@ -69,12 +69,13 @@ all repositories under `~/git`.
 
 ### Usage
 ```bash
-githelper <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo|set-next|set-next-all>
+githelper <pull-all|push-all|status|pull|push|clone|init|revert-last|clone-mine|newrepo|set-next|set-next-all>
 ```
 
 Examples:
 - `githelper pull-all` updates every repository in `~/git`.
 - `githelper push-all` pushes each repository in `~/git` to its main branch. Use `-c` to enter a commit message for all.
+- `githelper pull` pulls the latest changes for the current repository.
 - `githelper clone -u <url>` clones a repository using `gh` if available.
 - `githelper init` initializes a new repo in the current directory.
 - `githelper revert-last` reverts the most recent commit.

@@ -1,1 +1,2 @@
 - Applying previous commit.
+- Add gpull command to githelper with alias.
