@@ -1,7 +1,0 @@
-# Short aliases for Termux scripts
-alias wal='wallai'
-alias ghl='githelper.sh'
-alias ginit='githelper.sh init'
-alias gundo='githelper.sh revert-last'
-alias gcloneall='githelper.sh clone-mine'
-alias gnewrepo='githelper.sh newrepo'

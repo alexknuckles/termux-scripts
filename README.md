@@ -3,10 +3,7 @@
 A collection of small utilities for the Termux environment.
 
 ## Installation
-Run `./install.sh` to create symlinks in `$PREFIX/bin` that point to the scripts
-inside this repository. The installer links `.aliases` to `~/.aliases` and
-places shortcut links in `~/.shortcuts`. If any required packages are missing,
-the script will offer to install them automatically.
+Run `./install.sh` to create symlinks in `$PREFIX/bin` pointing to the scripts. Use `-c` to copy the scripts to `~/bin`, shortcuts to `~/.shortcuts`, and the alias file to `~/.aliases` instead. Missing packages will be offered for installation automatically.
 
 ## wallai.sh
 
@@ -20,7 +17,7 @@ due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
-wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r]
+wallai [-p "prompt text"] [-t theme] [-m model] [-r]
 ```
 
 Environment variables:
@@ -48,7 +45,6 @@ If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
 
-
 ## githelper.sh
 
 Provides shortcuts for common git tasks and automates pulling
@@ -56,16 +52,16 @@ all repositories under `~/git`.
 
 ### Usage
 ```bash
-githelper.sh <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo>
+githelper <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo>
 ```
 
 Examples:
-- `githelper.sh pull-all` updates every repository in `~/git`.
-- `githelper.sh push-all` pushes each repository in `~/git` to its main branch. Use `-c` to enter a commit message for all.
-- `githelper.sh clone -u <url>` clones a repository using `gh` if available.
-- `githelper.sh init` initializes a new repo in the current directory.
-- `githelper.sh revert-last` reverts the most recent commit.
-- `githelper.sh clone-mine` clones all your GitHub repositories to `~/git`. Specify a different user with `-u`.
-- `githelper.sh newrepo [-d dir] [-ns] [description]` creates a new repo with an AI-generated README and agents file. Scanning files is enabled by default; use `-ns` to disable scanning and `-d` to specify a different directory.
+- `githelper pull-all` updates every repository in `~/git`.
+- `githelper push-all` pushes each repository in `~/git` to its main branch. Use `-c` to enter a commit message for all.
+- `githelper clone -u <url>` clones a repository using `gh` if available.
+- `githelper init` initializes a new repo in the current directory.
+- `githelper revert-last` reverts the most recent commit.
+- `githelper clone-mine` clones all your GitHub repositories to `~/git`. Specify a different user with `-u`.
+- `githelper newrepo [-d dir] [-ns] [description]` creates a new repo with an AI-generated README and agents file. Scanning files is enabled by default; use `-ns` to disable scanning and `-d` to specify a different directory.
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.

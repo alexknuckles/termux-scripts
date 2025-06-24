@@ -1,0 +1,12 @@
+# Short aliases for Termux scripts
+alias wal='wallai'
+alias gpullall='githelper pull-all'
+alias gpushall='githelper push-all'
+alias gstatus='githelper status'
+alias gpush='githelper push'
+alias gclone='githelper clone'
+alias ghl='githelper'
+alias ginit='githelper init'
+alias gundo='githelper revert-last'
+alias gcloneall='githelper clone-mine'
+alias gnewrepo='githelper newrepo'
