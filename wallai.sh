@@ -36,7 +36,8 @@ horde_models=$(curl -s "https://stablehorde.net/api/v2/status/models" | jq -r '.
 
 # Known base models available on Stable Horde
 default_models=$'SDXL 1.0\nSD 1.5\nSD 2.1 768\n'
-IFS=$'\n' read -r -d '' -a horde_base_models <<<"${HORDE_BASE_MODELS:-$default_models}"
+# Read newline separated models into an array without requiring a NUL terminator
+mapfile -t horde_base_models <<<"${HORDE_BASE_MODELS:-$default_models}"
 
 echo "🎯 Fetching random prompt from Civitai..."
 
