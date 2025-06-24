@@ -11,13 +11,17 @@ done
 
 # Parse options
 prompt=""
-while getopts ":p:" opt; do
+theme=""
+while getopts ":p:t:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
       ;;
+    t)
+      theme="$OPTARG"
+      ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme]" >&2
       exit 1
       ;;
   esac
@@ -26,9 +30,12 @@ shift $((OPTIND - 1))
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"]
+# Usage: wallai.sh [-p "prompt text"] [-t theme]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
+# Flags:
+#   -p prompt text  Custom prompt instead of random theme
+#   -t theme        Specify theme when fetching random prompt
 #
 # Dependencies: curl, jq, termux-wallpaper
 # Output: saves the generated image under ~/pictures/generated-wallpapers
@@ -52,13 +59,21 @@ case "$(printf '%s' "$nsfw_raw" | tr '[:upper:]' '[:lower:]')" in
     ;;
 esac
 
+if [ "$allow_nsfw" = false ]; then
+  safe_flag="?safe=true"
+else
+  safe_flag=""
+fi
+
 
 if [ -z "$prompt" ]; then
   echo "🎯 Fetching random prompt from Pollinations..."
 
-  # 🎲 Step 1: Pick a random theme
-  themes=("fantasy" "sci-fi" "cyberpunk" "steampunk" "surreal" "horror")
-  theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
+  # 🎲 Step 1: Pick or use provided theme
+  if [ -z "$theme" ]; then
+    themes=("fantasy" "sci-fi" "cyberpunk" "steampunk" "surreal" "horror")
+    theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
+  fi
   echo "🔖 Selected theme: $theme"
 
   # 🧠 Step 2: Retrieve a text prompt for that theme
@@ -84,7 +99,7 @@ generate_pollinations() {
   local out_file="$1"
   local encoded
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  curl -sL "https://image.pollinations.ai/prompt/${encoded}" -o "$out_file"
+  curl -sL "https://image.pollinations.ai/prompt/${encoded}${safe_flag}" -o "$out_file"
 }
 
 echo "⏳ Generating image via Pollinations..."
