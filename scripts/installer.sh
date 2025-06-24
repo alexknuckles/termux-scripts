@@ -154,17 +154,18 @@ if [ -d "$HOME/.aliases.d" ]; then
 fi
 EOF
   fi
+  # Load aliases for this session
+  . "$alias_target"
 fi
 
-shell_rc=""
-for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
-  if [ -f "$rc" ]; then
-    shell_rc="$rc"
-    break
-  fi
-done
-if [ -n "$shell_rc" ] && ! grep -Fq "$HOME/bin/termux-scripts" "$shell_rc"; then
-  echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$shell_rc"
+bash_rc="$HOME/.bashrc"
+if [ ! -f "$bash_rc" ]; then
+  touch "$bash_rc"
+fi
+if ! grep -Fq "$HOME/bin/termux-scripts" "$bash_rc"; then
+  echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$bash_rc"
+  # Apply changes to current session
+  . "$bash_rc"
 fi
 
 # Make new commands available immediately
