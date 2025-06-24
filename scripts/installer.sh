@@ -1,9 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SCRIPTS_DIR="$SCRIPT_DIR/scripts"
-ALIASES_FILE="$SCRIPT_DIR/aliases/termux-scripts-aliases.aliases"
+ROOT_DIR="$(cd "$(dirname "$0")"/.. && pwd)"
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
+SHORTCUTS_DIR="$ROOT_DIR/shortcuts"
 
 safe_copy() {
   local src="$1" dest="$2"
@@ -36,7 +37,7 @@ while getopts ":c" opt; do
       copy=1
       ;;
     *)
-      echo "Usage: install.sh [-c]" >&2
+  echo "Usage: $(basename "$0") [-c]" >&2
       exit 1
       ;;
   esac
@@ -100,10 +101,10 @@ EOF
   fi
 fi
 
-if [ -d "$SCRIPT_DIR/termux-scripts-shortcuts" ]; then
-  dest="$HOME/.shortcuts/termux-scripts-shortcuts"
+if [ -d "$SHORTCUTS_DIR" ]; then
+  dest="$HOME/.shortcuts/termux-scripts"
   mkdir -p "$dest"
-  for sc in "$SCRIPT_DIR"/termux-scripts-shortcuts/*.sh; do
+  for sc in "$SHORTCUTS_DIR"/*.sh; do
     [ -f "$sc" ] || continue
     target="$dest/$(basename "$sc")"
     if [ "$copy" -eq 1 ]; then
