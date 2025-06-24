@@ -17,3 +17,5 @@
 - Installer now appends the path to `~/.bashrc`, sources it and loads the alias file immediately.
 
 - gnext and gnextall now configure gh git credentials automatically when needed.
+
+- Shortcut scripts now use absolute paths to installed commands for reliability with Termux Widget.

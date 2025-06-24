@@ -4,4 +4,4 @@ set -euo pipefail
 # wallai-shortcut.sh - simple wrapper to launch wallai
 # TAG: shortcut
 
-exec wallai "$@"
+exec "$HOME/bin/termux-scripts/wallai" "$@"

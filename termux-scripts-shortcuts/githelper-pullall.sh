@@ -4,4 +4,4 @@ set -euo pipefail
 # githelper-pullall.sh - run githelper pull-all
 # TAG: shortcut
 
-exec githelper pull-all "$@"
+exec "$HOME/bin/termux-scripts/githelper" pull-all "$@"

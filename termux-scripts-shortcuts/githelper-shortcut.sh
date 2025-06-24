@@ -2,4 +2,4 @@
 set -euo pipefail
 
 # githelper shortcut
-exec githelper "$@"
+exec "$HOME/bin/termux-scripts/githelper" "$@"

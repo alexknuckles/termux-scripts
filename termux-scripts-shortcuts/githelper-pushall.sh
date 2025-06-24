@@ -4,4 +4,4 @@ set -euo pipefail
 # githelper-pushall.sh - run githelper push-all
 # TAG: shortcut
 
-exec githelper push-all "$@"
+exec "$HOME/bin/termux-scripts/githelper" push-all "$@"

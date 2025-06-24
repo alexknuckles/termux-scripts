@@ -4,4 +4,4 @@ set -euo pipefail
 # githelper-clonemine.sh - run githelper clone-mine
 # TAG: shortcut
 
-exec githelper clone-mine "$@"
+exec "$HOME/bin/termux-scripts/githelper" clone-mine "$@"
