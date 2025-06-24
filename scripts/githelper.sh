@@ -7,6 +7,7 @@ set -euo pipefail
 # Commands:
 #   pull-all               Update all git repositories under $GIT_ROOT (default ~/git)
 #   status                 Show git status of current repository
+#   pull                   Pull latest changes for current repository
 #   push                   Push current branch to origin
 #   push-all [-c]          Push all repos under $GIT_ROOT to their main branches
 #   clone -u url [-d dest] Clone repository (uses gh if available)
@@ -37,6 +38,10 @@ pull_all() {
 
 status_repo() {
   git status --short
+}
+
+pull_repo() {
+  git pull --ff-only
 }
 
 push_repo() {
@@ -377,6 +382,9 @@ case "$cmd" in
   status)
     status_repo
     ;;
+  pull)
+    pull_repo
+    ;;
   push)
     push_repo
     ;;
@@ -407,7 +415,7 @@ case "$cmd" in
     set_next_all "$@"
     ;;
   *)
-    echo "Usage: githelper.sh <pull-all|push-all|status|push|clone|init|revert-last|clone-mine|newrepo|set-next|set-next-all>" >&2
+    echo "Usage: githelper.sh <pull-all|push-all|status|pull|push|clone|init|revert-last|clone-mine|newrepo|set-next|set-next-all>" >&2
     exit 1
     ;;
 esac
