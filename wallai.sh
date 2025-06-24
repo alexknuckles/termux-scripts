@@ -9,13 +9,15 @@ output="$save_dir/$filename"
 echo "🎯 Fetching random prompt from Civitai..."
 
 # 🎲 Step 1: Get a random tag
-tag=$(curl -s "https://civitai.com/api/v1/tags?limit=1000" | jq -r '.items[].name' | shuf -n 1)
+tag=$(curl -s "https://civitai.com/api/v1/tags?limit=200" \
+  | jq -r '.items[].name' | shuf -n 1)
 echo "🔖 Selected tag: $tag"
 
 # 🧠 Step 2: Get a prompt from an image using that tag (NSFW allowed)
 prompt=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag" \
   -H "Content-Type: application/json" \
-  | jq -r '[.items[].meta.prompt] | map(select(. != null and . != "")) | .[]' | shuf -n 1)
+  | jq -r '[.items[].meta.prompt] | map(select(. != null and . != "")) | .[]' \
+  | shuf -n 1)
 
 # 🛑 Fallback prompt
 if [ -z "$prompt" ]; then
@@ -33,8 +35,8 @@ id=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
   -d '{
     "prompt": "'"$prompt"'",
     "params": {
-      "width": 512,
-      "height": 512,
+      "width": 1080,
+      "height": 2400,
       "steps": 20,
       "sampler_name": "k_euler_a",
       "cfg_scale": 7,
@@ -56,8 +58,8 @@ echo "⏳ Submitted to Horde. ID: $id"
 for i in $(seq 1 15); do
   echo "⏳ Checking status (attempt $i)..."
   status=$(curl -s "https://stablehorde.net/api/v2/generate/status/$id")
-  done=$(echo "$status" | jq -r '.done')
-  if [ "$done" = "true" ]; then
+  done_flag=$(echo "$status" | jq -r '.done')
+  if [ "$done_flag" = "true" ]; then
     echo "✅ Image ready!"
     break
   fi
@@ -70,7 +72,7 @@ if [ "$img_url" = "null" ] || [ -z "$img_url" ]; then
   exit 1
 fi
 
-curl -s "$img_url" -o "$output"
+curl -sL "$img_url" -o "$output"
 termux-wallpaper -f "$output"
 echo "🎉 Wallpaper set from prompt: $prompt"
 echo "💾 Saved to: $output"
