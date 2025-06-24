@@ -90,24 +90,65 @@ new_repo() {
     echo "Usage: githelper.sh newrepo <directory>" >&2
     return 1
   fi
+
   mkdir -p "$dir"
   cd "$dir"
   git init
+  git add -A
+  git commit -m "Initial commit"
+
   local project_name
   project_name=$(basename "$dir")
-  local readme
-  readme=$(curl -sL "https://text.pollinations.ai/Imagine+a+short+README+for+$project_name+project+in+markdown" || true)
-  if [ -z "$readme" ]; then
-    readme="# $project_name"
+  if command -v gh >/dev/null 2>&1; then
+    gh repo create "$project_name" --source=. --public --remote=origin --push || true
   fi
+
+  local file_list
+  file_list=$(find . -type f ! -path '*/.*' \
+    ! -iname '*.png' ! -iname '*.jpg' ! -iname '*.jpeg' ! -iname '*.gif' \
+    ! -iname '*.bmp' ! -iname '*.svg' ! -iname '*.webp' ! -iname '*.ico' \
+    -print0 | xargs -0 grep -Il '' | sed 's|^./||' | tr '\n' ' ')
+  file_list=$(printf '%s' "$file_list" | sed 's/  */ /g; s/ $//')
+
+  local prompt encoded readme agents
+  prompt="Create a professional README.md for a software project that includes: $file_list. Include a project description, features, and usage."
+  encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
+  readme=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" | jq -r '.completion' || true)
+  [ -n "$readme" ] || readme="# $project_name"
   printf '%s\n' "$readme" > README.md
-  local agents
-  agents=$(curl -sL "https://text.pollinations.ai/Imagine+a+short+AGENTS.md+spec+for+$project_name" || true)
-  if [ -n "$agents" ]; then
-    printf '%s\n' "$agents" > agents.md
+
+  prompt="Create an agents.md file for a project with these files: $file_list. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+  encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
+  agents=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" | jq -r '.completion' || true)
+  [ -n "$agents" ] && printf '%s\n' "$agents" > agents.md
+
+  local author year
+  author=$(git config user.name)
+  year=$(date +%Y)
+  cat > LICENSE <<EOF
+GPL-3.0 License
+
+Copyright (C) $year $author
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
+EOF
+
+  git add README.md agents.md LICENSE 2>/dev/null || git add README.md LICENSE
+  git commit -m "Add generated README, agents, and license"
+  if git remote | grep -q origin; then
+    git push -u origin main || git push -u origin master
   fi
-  git add README.md agents.md 2>/dev/null || git add README.md
-  git commit -m "Add AI-generated README and agents"
 }
 
 cmd="${1:-}"
