@@ -6,10 +6,13 @@ A collection of small utilities for the Termux environment.
 
 Generates an AI-based wallpaper using the free Pollinations API. The script requests a 15-word
 description for a random theme and includes a unique seed so prompts vary even for the same theme.
+You can choose between several Pollinations models using the `-m` flag. Available models are
+`flux` (default), `turbo`, `flux-realism`, `flux-anime`, `flux-3d`, `flux-pro`, `anydark`,
+and `gptimage`.
 
 ### Usage
 ```bash
-wallai.sh [-p "prompt text"] [-t theme]
+wallai.sh [-p "prompt text"] [-t theme] [-m model]
 ```
 
 Environment variables:
@@ -18,6 +21,8 @@ Environment variables:
 Flags:
 - `-p` Specify your own prompt instead of fetching a random one.
 - `-t` Choose a theme for the random prompt (ignored if `-p` is used).
+- `-m` Select Pollinations model: `flux` (default), `turbo`, `flux-realism`, `flux-anime`,
+  `flux-3d`, `flux-pro`, `anydark`, or `gptimage`.
 
 If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
 API using a random genre such as fantasy or cyberpunk. You can override the random choice with
@@ -39,11 +44,14 @@ all repositories under `~/git`.
 
 ### Usage
 ```bash
-git-helper.sh <pull-all|status|push|clone>
+git-helper.sh <pull-all|status|push|clone|init|revert-last|clone-mine>
 ```
 
 Examples:
 - `git-helper.sh pull-all` updates every repository in `~/git`.
 - `git-helper.sh clone <url>` clones a repository using `gh` if available.
+- `git-helper.sh init` initializes a new repo in the current directory.
+- `git-helper.sh revert-last` reverts the most recent commit.
+- `git-helper.sh clone-mine` clones all your GitHub repositories to `~/git`.
 
-Dependencies: `git`, optional `gh` for GitHub integration.
+Dependencies: `git`, `jq`, optional `gh` for GitHub integration.

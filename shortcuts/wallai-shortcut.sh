@@ -4,4 +4,4 @@ set -euo pipefail
 # wallai-shortcut.sh - simple wrapper to launch wallai
 # TAG: shortcut
 
-exec ~/bin/wallai.sh "$@"
+exec ~/bin/wallai "$@"

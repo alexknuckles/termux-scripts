@@ -12,7 +12,8 @@ done
 # Parse options
 prompt=""
 theme=""
-while getopts ":p:t:" opt; do
+model="flux"
+while getopts ":p:t:m:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -20,22 +21,38 @@ while getopts ":p:t:" opt; do
     t)
       theme="$OPTARG"
       ;;
+    m)
+      model="$OPTARG"
+      ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-m model]" >&2
       exit 1
       ;;
   esac
 done
 shift $((OPTIND - 1))
 
+# Validate selected model
+case "$model" in
+  flux|turbo|gptimage|flux-realism|flux-anime|flux-3d|flux-pro|anydark)
+    ;;
+  *)
+    echo "Invalid model: $model" >&2
+    echo "Valid models: flux, turbo, flux-realism, flux-anime, flux-3d, flux-pro, anydark, gptimage" >&2
+    exit 1
+    ;;
+esac
+
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
 #   -p prompt text  Custom prompt instead of random theme
 #   -t theme        Specify theme when fetching random prompt
+#   -m model        Pollinations model (flux, turbo, flux-realism, flux-anime, \
+#                   flux-3d, flux-pro, anydark, gptimage)
 #
 # Dependencies: curl, jq, termux-wallpaper
 # Output: saves the generated image under ~/pictures/generated-wallpapers
@@ -59,10 +76,9 @@ case "$(printf '%s' "$nsfw_raw" | tr '[:upper:]' '[:lower:]')" in
     ;;
 esac
 
+params="model=$model"
 if [ "$allow_nsfw" = false ]; then
-  safe_flag="?safe=true"
-else
-  safe_flag=""
+  params="safe=true&$params"
 fi
 
 
@@ -99,7 +115,7 @@ generate_pollinations() {
   local out_file="$1"
   local encoded
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  curl -sL "https://image.pollinations.ai/prompt/${encoded}${safe_flag}" -o "$out_file"
+  curl -sL "https://image.pollinations.ai/prompt/${encoded}?${params}" -o "$out_file"
 }
 
 echo "⏳ Generating image via Pollinations..."
