@@ -4,7 +4,7 @@ A collection of small utilities for the Termux environment.
 
 ## wallai.sh
 
-Generates an AI-based wallpaper using the free Pollinations API and Stable Horde. The script fetches images from both services concurrently and uses whichever finishes first.
+Generates an AI-based wallpaper using the free Pollinations API.
 
 ### Usage
 ```bash
@@ -12,23 +12,12 @@ wallai.sh
 ```
 
 Environment variables:
-- `HORDE_WIDTH` and `HORDE_HEIGHT` for image dimensions (<=576).
-- `HORDE_MAX_CHECKS` how many times to poll for completion (default 60).
-- `HORDE_STEPS` diffusion steps for Stable Horde (default 40).
-- `HORDE_SAMPLER` sampler for Horde (default `k_euler`).
-- `HORDE_BASE_MODELS` optional newline-separated list of base models used as
-  fallbacks when the selected image lacks one (defaults include `SDXL 1.0`,
-  `SD 1.5`, `SD 2.1 768`).
 - `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
-- `HORDE_ONLY` set to `true` to disable Pollinations and use only Stable Horde.
 
 Dependencies: `curl`, `jq`, `termux-wallpaper`, `termux-vibrate`.
 If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
-the image.
-The script prints the base model used by the selected image, or the fallback
-model when none is provided.
-It also plays a short vibration in the "shave and a haircut" pattern when finished.
+the image. The script plays a short vibration in the "shave and a haircut" pattern when finished.
 
 ### Installation
 Run `./install.sh` to place the script in `$PREFIX/bin`.
