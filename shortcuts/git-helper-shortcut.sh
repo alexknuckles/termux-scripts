@@ -2,4 +2,4 @@
 set -euo pipefail
 
 # git-helper shortcut
-exec ~/bin/git-helper.sh "$@"
+exec ~/bin/git-helper "$@"
