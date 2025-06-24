@@ -1,9 +1,9 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-# git-helper.sh - simple helper for common git tasks
+# githelper.sh - simple helper for common git tasks
 #
-# Usage: git-helper.sh <command> [args]
+# Usage: githelper.sh <command> [args]
 # Commands:
 #   pull-all               Update all git repositories under $GIT_ROOT (default ~/git)
 #   status                 Show git status of current repository
@@ -84,6 +84,32 @@ clone_mine() {
       done
 }
 
+new_repo() {
+  local dir="$1"
+  if [ -z "$dir" ]; then
+    echo "Usage: githelper.sh newrepo <directory>" >&2
+    return 1
+  fi
+  mkdir -p "$dir"
+  cd "$dir"
+  git init
+  local project_name
+  project_name=$(basename "$dir")
+  local readme
+  readme=$(curl -sL "https://text.pollinations.ai/Imagine+a+short+README+for+$project_name+project+in+markdown" || true)
+  if [ -z "$readme" ]; then
+    readme="# $project_name"
+  fi
+  printf '%s\n' "$readme" > README.md
+  local agents
+  agents=$(curl -sL "https://text.pollinations.ai/Imagine+a+short+AGENTS.md+spec+for+$project_name" || true)
+  if [ -n "$agents" ]; then
+    printf '%s\n' "$agents" > agents.md
+  fi
+  git add README.md agents.md 2>/dev/null || git add README.md
+  git commit -m "Add AI-generated README and agents"
+}
+
 cmd="${1:-}"
 case "$cmd" in
   pull-all)
@@ -98,7 +124,7 @@ case "$cmd" in
   clone)
     shift
     if [ "$#" -lt 1 ]; then
-      echo "Usage: git-helper.sh clone <url> [dest]" >&2
+      echo "Usage: githelper.sh clone <url> [dest]" >&2
       exit 1
     fi
     clone_repo "$@"
@@ -113,8 +139,12 @@ case "$cmd" in
     shift
     clone_mine "$@"
     ;;
+  newrepo)
+    shift
+    new_repo "$@"
+    ;;
   *)
-    echo "Usage: git-helper.sh <pull-all|status|push|clone|init|revert-last|clone-mine>" >&2
+    echo "Usage: githelper.sh <pull-all|status|push|clone|init|revert-last|clone-mine|newrepo>" >&2
     exit 1
     ;;
 esac

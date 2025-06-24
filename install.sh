@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PREFIX_BIN="$PREFIX/bin"
 
 install -Dm755 "$SCRIPT_DIR/wallai.sh" "$PREFIX_BIN/wallai"
-install -Dm755 "$SCRIPT_DIR/git-helper.sh" "$PREFIX_BIN/git-helper"
+install -Dm755 "$SCRIPT_DIR/githelper.sh" "$PREFIX_BIN/githelper"
 
 if [ -f "$SCRIPT_DIR/.aliases" ]; then
   install -Dm644 "$SCRIPT_DIR/.aliases" "$PREFIX/bin/.aliases"
@@ -24,4 +24,4 @@ if [ -d "$SCRIPT_DIR/shortcuts" ]; then
 fi
 
 echo "Installed wallai to $PREFIX_BIN/wallai"
-echo "Installed git-helper to $PREFIX_BIN/git-helper"
+echo "Installed githelper to $PREFIX_BIN/githelper"

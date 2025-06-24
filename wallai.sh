@@ -13,7 +13,8 @@ done
 prompt=""
 theme=""
 model="flux"
-while getopts ":p:t:m:" opt; do
+random_model=false
+while getopts ":p:t:m:r" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -24,8 +25,11 @@ while getopts ":p:t:m:" opt; do
     m)
       model="$OPTARG"
       ;;
+    r)
+      random_model=true
+      ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-m model]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-m model] [-r]" >&2
       exit 1
       ;;
   esac
@@ -33,6 +37,10 @@ done
 shift $((OPTIND - 1))
 
 # Validate selected model
+models=(flux turbo gptimage flux-realism flux-anime flux-3d flux-pro anydark)
+if [ "$random_model" = true ]; then
+  model=$(printf '%s\n' "${models[@]}" | shuf -n1)
+fi
 case "$model" in
   flux|turbo|gptimage|flux-realism|flux-anime|flux-3d|flux-pro|anydark)
     ;;
@@ -45,7 +53,7 @@ esac
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -53,6 +61,7 @@ esac
 #   -t theme        Specify theme when fetching random prompt
 #   -m model        Pollinations model (flux, turbo, flux-realism, flux-anime, \
 #                   flux-3d, flux-pro, anydark, gptimage)
+#   -r              Pick a random model from the supported list
 #
 # Dependencies: curl, jq, termux-wallpaper
 # Output: saves the generated image under ~/pictures/generated-wallpapers

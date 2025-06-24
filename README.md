@@ -6,13 +6,14 @@ A collection of small utilities for the Termux environment.
 
 Generates an AI-based wallpaper using the free Pollinations API. The script requests a 15-word
 description for a random theme and includes a unique seed so prompts vary even for the same theme.
-You can choose between several Pollinations models using the `-m` flag. Available models are
-`flux` (default), `turbo`, `flux-realism`, `flux-anime`, `flux-3d`, `flux-pro`, `anydark`,
-and `gptimage`.
+You can choose between several Pollinations models using the `-m` flag or let the
+script pick one at random with `-r`. Available models are `flux` (default),
+`turbo`, `flux-realism`, `flux-anime`, `flux-3d`, `flux-pro`, `anydark`, and
+`gptimage`.
 
 ### Usage
 ```bash
-wallai.sh [-p "prompt text"] [-t theme] [-m model]
+wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r]
 ```
 
 Environment variables:
@@ -23,6 +24,7 @@ Flags:
 - `-t` Choose a theme for the random prompt (ignored if `-p` is used).
 - `-m` Select Pollinations model: `flux` (default), `turbo`, `flux-realism`, `flux-anime`,
   `flux-3d`, `flux-pro`, `anydark`, or `gptimage`.
+- `-r` Pick a random model from the list above.
 
 If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
 API using a random genre such as fantasy or cyberpunk. You can override the random choice with
@@ -37,21 +39,22 @@ the image.
 ### Installation
 Run `./install.sh` to place the script in `$PREFIX/bin`.
 
-## git-helper.sh
+## githelper.sh
 
 Provides shortcuts for common git tasks and automates pulling
 all repositories under `~/git`.
 
 ### Usage
 ```bash
-git-helper.sh <pull-all|status|push|clone|init|revert-last|clone-mine>
+githelper.sh <pull-all|status|push|clone|init|revert-last|clone-mine|newrepo>
 ```
 
 Examples:
-- `git-helper.sh pull-all` updates every repository in `~/git`.
-- `git-helper.sh clone <url>` clones a repository using `gh` if available.
-- `git-helper.sh init` initializes a new repo in the current directory.
-- `git-helper.sh revert-last` reverts the most recent commit.
-- `git-helper.sh clone-mine` clones all your GitHub repositories to `~/git`.
+- `githelper.sh pull-all` updates every repository in `~/git`.
+- `githelper.sh clone <url>` clones a repository using `gh` if available.
+- `githelper.sh init` initializes a new repo in the current directory.
+- `githelper.sh revert-last` reverts the most recent commit.
+- `githelper.sh clone-mine` clones all your GitHub repositories to `~/git`.
+- `githelper.sh newrepo <dir>` creates a new repo with an AI-generated README and agents file.
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.
