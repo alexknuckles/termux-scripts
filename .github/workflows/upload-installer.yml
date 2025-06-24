@@ -4,17 +4,18 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   upload:
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Upload installer
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: scripts/installer.sh
