@@ -9,6 +9,9 @@ mkdir -p "$save_dir"
 filename="$(date +%Y%m%d-%H%M%S).png"
 output="$save_dir/$filename"
 
+# Grab list of models available on Stable Horde
+horde_models=$(curl -s "https://stablehorde.net/api/v2/status/models" | jq -r '.[].name')
+
 echo "🎯 Fetching random prompt from Civitai..."
 
 # 🎲 Step 1: Get a random tag
@@ -16,11 +19,22 @@ tag=$(curl -s "https://civitai.com/api/v1/tags?limit=200" \
   | jq -r '.items[].name' | shuf -n 1)
 echo "🔖 Selected tag: $tag"
 
-# 🧠 Step 2: Get a prompt from an image using that tag (NSFW allowed)
-prompt=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag" \
-  -H "Content-Type: application/json" \
-  | jq -r '[.items[].meta.prompt] | map(select(. != null and . != "")) | .[]' \
-  | shuf -n 1)
+# 🧠 Step 2: Get a prompt and model from an image using that tag (NSFW allowed)
+image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag" \
+  -H "Content-Type: application/json")
+encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1)
+prompt=$(echo "$encoded" | base64 --decode | jq -r '.prompt')
+base_model=$(echo "$encoded" | base64 --decode | jq -r '.baseModel')
+
+# Pick a model on Horde that matches the base model, if available
+model=$(echo "$horde_models" | grep -iF "$base_model" | head -n 1)
+if [ -n "$model" ]; then
+  echo "🌟 Using Horde model: $model (from base: $base_model)"
+  model_field="\"models\": [\"$model\"],"
+else
+  echo "⚠️ Model '$base_model' not found on Horde."
+  model_field=""
+fi
 
 # 🛑 Fallback prompt
 if [ -z "$prompt" ]; then
@@ -38,6 +52,7 @@ response=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
   -d @- <<EOF
 {
   "prompt": "$prompt",
+  ${model_field}
   "params": {
     "width": $width,
     "height": $height,
