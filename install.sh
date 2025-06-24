@@ -7,6 +7,12 @@ ALIASES_FILE="$SCRIPT_DIR/aliases/.aliases"
 
 safe_copy() {
   local src="$1" dest="$2"
+  if [ "$src" -ef "$dest" ]; then
+    # Destination is a symlink or hard link to the source; replace it with
+    # an independent copy so future edits don't modify the repo version.
+    echo "Replacing symlinked $dest with a fresh copy of $src" >&2
+    rm -f "$dest"
+  fi
   if [ -f "$dest" ]; then
     mapfile -t extra < <(grep -Fvx -f "$src" "$dest" || true)
     if [ "${#extra[@]}" -gt 0 ]; then
@@ -82,7 +88,7 @@ if [ -d "$SCRIPT_DIR/shortcuts" ]; then
     if [ "$copy" -eq 1 ]; then
       safe_copy "$sc" "$target"
     else
-      ln -sf "$sc" "$target"
+      ln -f "$sc" "$target"
     fi
     chmod 755 "$target"
   done

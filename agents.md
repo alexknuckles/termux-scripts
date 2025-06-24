@@ -40,6 +40,10 @@ Generate a `.aliases` file or `.shortcuts` compatible with Termux:
 - Optionally generate bash-compatible exports for `$PATH` use
 - Ensure every script has a short alias entry in `aliases/aliases`
 - Provide a matching shortcut script in the `shortcuts` directory
+- Create shortcut files only for githelper subcommands that are
+  context-free—they must not depend on the current directory or require
+  additional arguments. Valid examples are `pull-all`, `push-all`, and
+  `clone-mine` which become shortcuts like `githelper-pullall.sh`.
 
 ---
 
@@ -83,6 +87,8 @@ Generate an `install.sh` script that:
 - Symlinks or copies scripts to `$PREFIX/bin`
 - Sets executable permissions
 - Optionally installs shortcuts and aliases
+- Use hard links for shortcut files since Termux Widget doesn't
+  always follow symlinks
 
 ---
 
