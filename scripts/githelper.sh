@@ -312,7 +312,11 @@ set_next_release() {
   git tag -f "$tag"
   git push -f origin "$tag" || true
   if command -v gh >/dev/null 2>&1; then
-    last=$(git tag -l 'v*' | sort -V | tail -n 1)
+    if [ "$release" -eq 1 ]; then
+      last=$(git tag -l 'v*' | sort -V | tail -n 1)
+    else
+      last=$(git tag --sort=-creatordate | grep -v "^$tag$" | head -n 1)
+    fi
     if [ -n "$last" ]; then
       desc=$(git log "$last"..HEAD --pretty='format:- %s' | head -n 20)
     else
