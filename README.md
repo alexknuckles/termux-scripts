@@ -7,9 +7,9 @@ A collection of small utilities for the Termux environment.
 Generates an AI-based wallpaper using the free Pollinations API. The script requests a 15-word
 description for a random theme and includes a unique seed so prompts vary even for the same theme.
 You can choose between several Pollinations models using the `-m` flag or let the
-script pick one at random with `-r`. Available models are `flux` (default),
-`turbo`, `flux-realism`, `flux-anime`, `flux-3d`, `flux-pro`, `anydark`, and
-`gptimage`.
+script pick one at random with `-r`. Models are retrieved from the Pollinations
+API. If that fails the script falls back to `flux`, `turbo` and `gptimage`. The
+default model is `flux`.
 
 ### Usage
 ```bash
@@ -22,9 +22,9 @@ Environment variables:
 Flags:
 - `-p` Specify your own prompt instead of fetching a random one.
 - `-t` Choose a theme for the random prompt (ignored if `-p` is used).
-- `-m` Select Pollinations model: `flux` (default), `turbo`, `flux-realism`, `flux-anime`,
-  `flux-3d`, `flux-pro`, `anydark`, or `gptimage`.
-- `-r` Pick a random model from the list above.
+- `-m` Select Pollinations model. Available models come from the API and usually
+  include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
+- `-r` Pick a random model from the available list.
 
 After showing the chosen prompt, the script also prints which Pollinations model will
 be used for image generation.

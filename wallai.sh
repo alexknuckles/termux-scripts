@@ -36,20 +36,21 @@ while getopts ":p:t:m:r" opt; do
 done
 shift $((OPTIND - 1))
 
-# Validate selected model
-models=(flux turbo gptimage flux-realism flux-anime flux-3d flux-pro anydark)
+# Validate selected model using the API list
+mapfile -t models < <(
+  curl -sL "https://image.pollinations.ai/models" | jq -r '.[]' 2>/dev/null
+)
+if [ "${#models[@]}" -eq 0 ]; then
+  models=(flux turbo gptimage)
+fi
 if [ "$random_model" = true ]; then
   model=$(printf '%s\n' "${models[@]}" | shuf -n1)
 fi
-case "$model" in
-  flux|turbo|gptimage|flux-realism|flux-anime|flux-3d|flux-pro|anydark)
-    ;;
-  *)
-    echo "Invalid model: $model" >&2
-    echo "Valid models: flux, turbo, flux-realism, flux-anime, flux-3d, flux-pro, anydark, gptimage" >&2
-    exit 1
-    ;;
-esac
+if ! printf '%s\n' "${models[@]}" | grep -qxF "$model"; then
+  echo "Invalid model: $model" >&2
+  echo "Valid models: ${models[*]}" >&2
+  exit 1
+fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
@@ -59,9 +60,9 @@ esac
 # Flags:
 #   -p prompt text  Custom prompt instead of random theme
 #   -t theme        Specify theme when fetching random prompt
-#   -m model        Pollinations model (flux, turbo, flux-realism, flux-anime, \
-#                   flux-3d, flux-pro, anydark, gptimage)
-#   -r              Pick a random model from the supported list
+#   -m model        Pollinations model (defaults to 'flux'). Supported models
+#                   are fetched from the API (fallback: flux turbo gptimage)
+#   -r              Pick a random model from the available list
 #
 # Dependencies: curl, jq, termux-wallpaper
 # Output: saves the generated image under ~/pictures/generated-wallpapers
