@@ -44,6 +44,9 @@ fi
 
 echo "🎨 Final prompt: $prompt"
 
+# Escape any characters in the prompt that could break JSON
+escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
+
 # ✨ Step 3: Generate image via Horde
 response=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
   -H "Content-Type: application/json" \
@@ -51,7 +54,7 @@ response=$(curl -s -X POST "https://stablehorde.net/api/v2/generate/async" \
   -H "Client-Agent: termux-horde-script:1.0:alex" \
   -d @- <<EOF
 {
-  "prompt": "$prompt",
+  "prompt": $escaped_prompt,
   ${model_field}
   "params": {
     "width": $width,
