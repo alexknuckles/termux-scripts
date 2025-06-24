@@ -50,7 +50,6 @@ while getopts ":rgu" opt; do
       remote=1
       ;;
     g)
-      remote=1
       clone_repo=1
       ;;
     u)
@@ -82,7 +81,18 @@ if [ "$uninstall" -eq 1 ]; then
   exit 0
 fi
 
-if [ "$remote" -eq 1 ]; then
+if [ "$clone_repo" -eq 1 ]; then
+  mkdir -p "$HOME/git"
+  if [ -d "$HOME/git/termux-scripts/.git" ]; then
+    git -C "$HOME/git/termux-scripts" pull --ff-only || true
+  else
+    git clone "$REPO_URL" "$HOME/git/termux-scripts"
+  fi
+  ROOT_DIR="$HOME/git/termux-scripts"
+  SCRIPTS_DIR="$ROOT_DIR/scripts"
+  ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
+  SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
+elif [ "$remote" -eq 1 ]; then
   tag=$(curl -sL "https://api.github.com/repos/alexknuckles/termux-scripts/releases/latest" | jq -r .tag_name)
   [ -n "$tag" ] || tag=main
   tmpdir=$(mktemp -d)
@@ -93,8 +103,8 @@ if [ "$remote" -eq 1 ]; then
   SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
 fi
 
-if [ "$remote" -eq 0 ] && [ -f "$VERSION_FILE" ] && \
-   [ "$(cat "$VERSION_FILE")" = "$VERSION" ]; then
+if [ "$remote" -eq 0 ] && [ "$clone_repo" -eq 0 ] && \
+   [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" = "$VERSION" ]; then
   echo "Termux scripts version $VERSION already installed"
   exit 0
 fi
@@ -162,10 +172,5 @@ echo "Installed githelper to $TARGET_BIN/githelper"
 echo "$VERSION" > "$VERSION_FILE"
 
 if [ "$clone_repo" -eq 1 ]; then
-  mkdir -p "$HOME/git"
-  if [ -d "$HOME/git/termux-scripts/.git" ]; then
-    git -C "$HOME/git/termux-scripts" pull --ff-only || true
-  else
-    git clone "$REPO_URL" "$HOME/git/termux-scripts"
-  fi
+  echo "Repository cloned to $HOME/git/termux-scripts"
 fi
