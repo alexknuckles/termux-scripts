@@ -46,6 +46,8 @@ else
   ln -sf "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
 fi
 
+chmod 755 "$TARGET_BIN/wallai" "$TARGET_BIN/githelper"
+
 if [ -f "$ALIASES_FILE" ]; then
   if [ "$copy" -eq 1 ]; then
     cp -f "$ALIASES_FILE" "$HOME/.aliases"
@@ -58,11 +60,13 @@ if [ -d "$SCRIPT_DIR/shortcuts" ]; then
   mkdir -p "$HOME/.shortcuts"
   for sc in "$SCRIPT_DIR"/shortcuts/*.sh; do
     [ -f "$sc" ] || continue
+    target="$HOME/.shortcuts/$(basename "$sc")"
     if [ "$copy" -eq 1 ]; then
-      cp -f "$sc" "$HOME/.shortcuts/$(basename "$sc")"
+      cp -f "$sc" "$target"
     else
-      ln -sf "$sc" "$HOME/.shortcuts/$(basename "$sc")"
+      ln -sf "$sc" "$target"
     fi
+    chmod 755 "$target"
   done
 fi
 
