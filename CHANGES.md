@@ -12,3 +12,4 @@
 - Pre-releases now list commits since the previous tag when creating GitHub releases.
 - githelper-setnextall shortcut no longer forces the `testing` tag.
 - Installer with `-g` clones first and installs from the clone to avoid duplicate downloads.
+- Documented Termux, Termux Widget and Termux API requirements with F-Droid links.

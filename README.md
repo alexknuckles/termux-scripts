@@ -2,6 +2,11 @@
 
 A collection of small utilities for the Termux environment.
 
+## Requirements
+- [Termux](https://f-droid.org/packages/com.termux/) – obviously required
+- [Termux Widget](https://f-droid.org/packages/com.termux.widget/) for shortcut support
+- [Termux:API](https://f-droid.org/packages/com.termux.api/) for wallpaper and other integrations
+
 ## Installation
 Run `./scripts/installer.sh` to install the scripts. They are copied to `~/bin/termux-scripts`, shortcuts under `~/.shortcuts/termux-scripts`, and an alias file in `~/.aliases.d/`. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` and `gpull` work immediately. Pass `-u` to remove everything created by a previous run.
 
