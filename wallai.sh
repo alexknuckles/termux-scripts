@@ -26,6 +26,10 @@ output="$save_dir/$filename"
 # Grab list of models available on Stable Horde
 horde_models=$(curl -s "https://stablehorde.net/api/v2/status/models" | jq -r '.[].name')
 
+# Known base models available on Stable Horde
+default_models=$'SDXL 1.0\nSD 1.5\nSD 2.1 768\n'
+IFS=$'\n' read -r -d '' -a horde_base_models <<<"${HORDE_BASE_MODELS:-$default_models}"
+
 echo "🎯 Fetching random prompt from Civitai..."
 
 # 🎲 Step 1: Get a random tag
@@ -33,12 +37,25 @@ tag=$(curl -s "https://civitai.com/api/v1/tags?limit=200" \
   | jq -r '.items[].name' | shuf -n 1)
 echo "🔖 Selected tag: $tag"
 
-# 🧠 Step 2: Get a prompt and model from an image using that tag (NSFW allowed)
-image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag" \
+# Pick a random base model from those known on Horde
+base_model=$(printf '%s\n' "${horde_base_models[@]}" | shuf -n 1)
+encoded_model=$(printf '%s' "$base_model" | jq -sRr @uri)
+echo "📦 Filtering by base model: $base_model"
+
+# 🧠 Step 2: Get a prompt and model from an image using that tag and base model
+image_info=$(curl -s "https://civitai.com/api/v1/images?limit=100&nsfw=true&tag=$tag&baseModel=$encoded_model" \
   -H "Content-Type: application/json")
-encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1)
-prompt=$(echo "$encoded" | base64 --decode | jq -r '.prompt')
-base_model=$(echo "$encoded" | base64 --decode | jq -r '.baseModel')
+encoded=$(echo "$image_info" | jq -r '[.items[] | {prompt: .meta.prompt, baseModel: .baseModel}] | map(select(.prompt != null and .prompt != "")) | .[] | @base64' | shuf -n 1 || true)
+if [ -n "$encoded" ]; then
+  prompt=$(echo "$encoded" | base64 --decode | jq -r '.prompt')
+  bm_tmp=$(echo "$encoded" | base64 --decode | jq -r '.baseModel')
+  if [ -n "$bm_tmp" ] && [ "$bm_tmp" != "null" ]; then
+    base_model="$bm_tmp"
+  fi
+else
+  echo "❌ No prompt found for tag $tag with base model $base_model"
+  prompt="a neon dreamscape filled with surreal creatures"
+fi
 
 # Pick a model on Horde that matches the base model, if available
 model=$(echo "$horde_models" | grep -iF "$base_model" | head -n 1)
