@@ -14,22 +14,31 @@ prompt=""
 theme=""
 model="flux"
 random_model=false
-while getopts ":p:t:m:r" opt; do
+save_wall=false
+generation_opts=false
+while getopts ":p:t:m:rs" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
+      generation_opts=true
       ;;
     t)
       theme="$OPTARG"
+      generation_opts=true
       ;;
     m)
       model="$OPTARG"
+      generation_opts=true
       ;;
     r)
       random_model=true
+      generation_opts=true
+      ;;
+    s)
+      save_wall=true
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-m model] [-r]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-m model] [-r] [-s]" >&2
       exit 1
       ;;
   esac
@@ -57,7 +66,7 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r] [-s]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -66,8 +75,9 @@ fi
 #   -m model        Pollinations model (defaults to 'flux'). Supported models
 #                   are fetched from the API (fallback: flux turbo gptimage)
 #   -r              Pick a random model from the available list
+#   -s              Save the latest generated wallpaper with prompt metadata
 #
-# Dependencies: curl, jq, termux-wallpaper
+# Dependencies: curl, jq, termux-wallpaper, optional exiftool for -s
 # Output: saves the generated image under ~/pictures/generated-wallpapers
 # TAG: wallpaper
 # TAG: ai
@@ -153,3 +163,40 @@ img_source="Pollinations"
 termux-wallpaper -f "$output"
 echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 echo "💾 Saved to: $output"
+
+# Log filename and prompt for later reference
+log_file="$save_dir/wallai.log"
+echo "$filename|$prompt" >> "$log_file"
+
+# Function to archive the most recent wallpaper with metadata using exiftool
+archive_wall() {
+  command -v exiftool >/dev/null 2>&1 || {
+    echo "❌ exiftool is required for -s" >&2
+    return 1
+  }
+  local file="$1" meta="$2"
+  local dest_dir="$HOME/pictures/saved-generated-wallpapers"
+  mkdir -p "$dest_dir"
+  local dest
+  dest="$dest_dir/$(basename "$file")"
+  cp "$file" "$dest"
+  exiftool -overwrite_original -Comment="$meta" "$dest" >/dev/null
+  echo "📂 Archived wallpaper to: $dest"
+}
+
+# If called only with -s, archive the last generated wallpaper and exit
+if [ "$save_wall" = true ] && [ "$generation_opts" = false ]; then
+  last_entry=$(tail -n1 "$log_file" 2>/dev/null || true)
+  if [ -z "$last_entry" ]; then
+    echo "❌ No wallpaper has been generated yet" >&2
+    exit 1
+  fi
+  last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
+  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f2-)
+  archive_wall "$save_dir/$last_file" "$last_prompt"
+  exit 0
+fi
+
+# Archive the wallpaper immediately if -s was passed alongside generation options
+[ "$save_wall" = true ] && archive_wall "$output" "$prompt"
+

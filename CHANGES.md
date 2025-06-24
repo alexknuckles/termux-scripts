@@ -19,3 +19,4 @@
 - gnext and gnextall now configure gh git credentials automatically when needed.
 
 - Shortcut scripts now use absolute paths to installed commands for reliability with Termux Widget.
+- wallai now logs prompts with filenames and can archive the last wallpaper with exif metadata using `-s`.
