@@ -14,7 +14,7 @@ set -euo pipefail
 #   init                   Initialize repo in current directory with first commit
 #   revert-last            Revert the most recent commit in current repository
 #   clone-mine [-u user]   Clone all repositories from GitHub user (requires gh)
-#   newrepo [-d dir] [-ns] [description]  Create repo with AI-generated README and agents
+#   newrepo [-d dir] [-n] [-m description]  Create repo with AI-generated README and agents
 #   set-next [-r]       Create the next release tag (default prerelease 'testing')
 #   set-next-all [-r]   Run set-next for every repo under $GIT_ROOT
 #
@@ -186,21 +186,25 @@ new_repo() {
   local dir="."
   local scan=1
   local desc=""
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      -d)
-        shift
-        dir="${1:-.}"
+  local OPTIND=1 opt
+  while getopts ":d:m:n" opt; do
+    case "$opt" in
+      d)
+        dir="$OPTARG"
         ;;
-      -ns)
+      m)
+        desc="$OPTARG"
+        ;;
+      n)
         scan=0
         ;;
       *)
-        desc="${desc:+$desc }$1"
+        echo "Usage: githelper newrepo [-d dir] [-n] [-m description]" >&2
+        return 1
         ;;
     esac
-    shift
   done
+  shift $((OPTIND - 1))
 
   mkdir -p "$dir"
   cd "$dir"
