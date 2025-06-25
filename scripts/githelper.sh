@@ -232,11 +232,11 @@ new_repo() {
   printf '%s\n' "$readme" > README.md
 
   if [ -n "$desc" ] && [ "$scan" -eq 0 ]; then
-    prompt="Create an agents.md file for a project described as: $desc. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+    prompt="Create an agents.md inspired by the Termux Scripts agents.md. The project is described as: $desc. Include sections for Linter, DocGen, AliasMaker, Scheduler, Optimizer, SecurityCheck, APIFallback, InputSanitizer, Installer, Tagger, Tester (optional), ChangeTracker, CI Runner, and AuditBot. Summarize each agent's goal and usage."
   elif [ -n "$desc" ] && [ "$scan" -eq 1 ]; then
-    prompt="Create an agents.md file for a project described as: $desc with files: $file_list. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+    prompt="Create an agents.md inspired by the Termux Scripts agents.md for a project described as: $desc with files: $file_list. Include sections for Linter, DocGen, AliasMaker, Scheduler, Optimizer, SecurityCheck, APIFallback, InputSanitizer, Installer, Tagger, Tester (optional), ChangeTracker, CI Runner, and AuditBot. Summarize each agent's goal and usage."
   else
-    prompt="Create an agents.md file for a project with these files: $file_list. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
+    prompt="Create an agents.md inspired by the Termux Scripts agents.md for a project with these files: $file_list. Include sections for Linter, DocGen, AliasMaker, Scheduler, Optimizer, SecurityCheck, APIFallback, InputSanitizer, Installer, Tagger, Tester (optional), ChangeTracker, CI Runner, and AuditBot. Summarize each agent's goal and usage."
   fi
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
   response=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" || true)
