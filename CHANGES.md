@@ -11,7 +11,7 @@
 - gnext -r now removes the `testing` tag and creates a release tag.
 - Pre-releases now list commits since the previous tag when creating GitHub releases.
 - githelper-setnextall shortcut no longer forces the `testing` tag.
-- Installer with `-g` clones first and installs from the clone to avoid duplicate downloads.
+- Removed the `-g` option from the installer. Use the testing installer to clone and install from the latest commit.
 - Documented Termux, Termux Widget and Termux API requirements with F-Droid links.
 - Installer now ensures `~/bin/termux-scripts` is on the PATH and exports it for immediate use.
 - Installer now appends the path to `~/.bashrc`, sources it and loads the alias file immediately.
@@ -47,3 +47,5 @@
 - githelper newrepo now sets the initial branch to `main` and creates a private GitHub repository named after the directory.
 - Fixed githelper newrepo using '.' as the project name when run in the current directory.
 - Testing installer now clones the repo for bleeding edge installs.
+- Release installer no longer clones the repo and README clarifies the usage.
+- Removed cleanup of old git clone path from installer uninstall routine.
