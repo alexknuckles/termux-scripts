@@ -158,3 +158,16 @@ Automate running lint and test scripts on every commit:
 - Execute `scripts/lint.sh` and `tests/test_newrepo.sh`
 - Fail if either returns a non-zero status
 - Intended for GitHub Actions or similar CI setup
+
+---
+
+## 🔍 AuditBot
+
+**Goal:**
+Continuously review the repository and agent definitions:
+
+- Run `scripts/lint.sh`, `scripts/security_check.sh` and `tests/test_newrepo.sh` on a schedule and whenever new scripts are added
+- Scan for unreachable or incomplete logic in shell functions
+- Ensure every script and function has a descriptive header with usage examples
+- Inspect `agents.md` and propose new agents if commit logs reveal manual fixes
+- Record findings and references in `AUDIT.md`
