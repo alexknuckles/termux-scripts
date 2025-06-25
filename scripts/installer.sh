@@ -78,7 +78,7 @@ if [ "$uninstall" -eq 1 ]; then
   rm -rf "$HOME/.shortcuts/termux-scripts"
   rm -rf "$HOME/git/termux-scripts"
   echo "Uninstallation complete"
-  exit 0
+  exec bash
 fi
 
 if [ "$clone_repo" -eq 1 ]; then
