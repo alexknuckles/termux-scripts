@@ -47,42 +47,24 @@ pull_repo() {
 }
 
 push_repo() {
-  git push
+  git add .
+  if ! git diff --cached --quiet; then
+    git commit -m "gpush-ed"
+  fi
+  git push origin main
 }
 
 push_all() {
-  local prompt=0 commit_msg="" opt repo branch
-  while getopts ":c" opt; do
-    case "$opt" in
-      c)
-        prompt=1
-        ;;
-      *)
-        echo "Usage: githelper.sh push-all [-c]" >&2
-        return 1
-        ;;
-    esac
-  done
-  shift $((OPTIND - 1))
-  if [ "$prompt" -eq 1 ]; then
-    read -r -p "Commit message: " commit_msg
-  fi
+  local repo
   for repo in "$GIT_ROOT"/*/.git; do
     repo="${repo%/\.git}"
     [ -d "$repo" ] || continue
     echo "\u279c Pushing $repo"
-    if [ "$prompt" -eq 1 ] && [ -n "$commit_msg" ]; then
-      git -C "$repo" add -A
-      if ! git -C "$repo" diff --cached --quiet; then
-        git -C "$repo" commit -m "$commit_msg" || true
-      fi
+    git -C "$repo" add .
+    if ! git -C "$repo" diff --cached --quiet; then
+      git -C "$repo" commit -m "gpush-ed"
     fi
-    if git -C "$repo" show-ref --verify --quiet refs/heads/main; then
-      branch=main
-    else
-      branch=master
-    fi
-    if git -C "$repo" push origin "$branch"; then
+    if git -C "$repo" push origin main; then
       echo "\u2705 Pushed $repo"
     else
       echo "\u274c Failed to push $repo" >&2
