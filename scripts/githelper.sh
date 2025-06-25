@@ -199,7 +199,7 @@ new_repo() {
   fi
 
   local project_name
-  project_name=$(basename "$dir")
+  project_name=$(basename "$PWD")
   if command -v gh >/dev/null 2>&1; then
     gh repo create "$project_name" --source=. --private --remote=origin --push || true
   fi
