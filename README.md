@@ -3,21 +3,12 @@
 A collection of small utilities for the Termux environment.
 
 ## Requirements
-- [Termux](https://f-droid.org/packages/com.termux/) – obviously required
-- [Termux Widget](https://f-droid.org/packages/com.termux.widget/) for shortcut support
-- [Termux:API](https://f-droid.org/packages/com.termux.api/) for wallpaper and other integrations
-
-<p align="center">
-  <a href="https://f-droid.org/packages/com.termux/">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux on F-Droid" width="170" />
-  </a>
-  <a href="https://f-droid.org/packages/com.termux.widget/">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux Widget on F-Droid" width="170" />
-  </a>
-  <a href="https://f-droid.org/packages/com.termux.api/">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux:API on F-Droid" width="170" />
-  </a>
-</p>
+- [Termux](https://f-droid.org/packages/com.termux/) – obviously required  
+  <a href="https://f-droid.org/packages/com.termux/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux on F-Droid" width="120" /></a>
+- [Termux Widget](https://f-droid.org/packages/com.termux.widget/) for shortcut support  
+  <a href="https://f-droid.org/packages/com.termux.widget/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux Widget on F-Droid" width="120" /></a>
+- [Termux:API](https://f-droid.org/packages/com.termux.api/) for wallpaper and other integrations  
+  <a href="https://f-droid.org/packages/com.termux.api/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux:API on F-Droid" width="120" /></a>
 
 ## Installation
 Run `./scripts/installer.sh` to install the scripts. They are copied to `~/bin/termux-scripts`, shortcuts under `~/.shortcuts/termux-scripts`, and an alias file in `~/.aliases.d/`. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` and `gpull` work immediately. It appends `~/bin/termux-scripts` to your `~/.bashrc` and exports it so the utilities are available right away. The alias file is sourced as soon as it's installed. Pass `-u` to remove everything created by a previous run.
@@ -41,7 +32,7 @@ Run the installer with `-u` to remove the symlinks, shortcuts and alias file and
 
 ## wallai.sh
 
-<p align="center">
+<p align="center" style="margin-bottom:0;">
   <img src="static/wallai-logo.png" alt="wallai logo" width="200" />
 </p>
 
