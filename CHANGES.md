@@ -42,3 +42,5 @@
 - Removed broken listcmds script.
 - `gpush` now stages, commits with "gpush-ed", and pushes to the main branch.
 - `gpushall` now automatically stages, commits with "gpush-ed", and pushes each repo to the main branch.
+- Updated README with githelper push docs, clearer set-next notes and F-Droid badges.
+- Switched to remote F-Droid badge and removed local image.
