@@ -317,8 +317,11 @@ set_next_release() {
     tag="testing"
     prerelease="--prerelease"
   fi
-  git tag -f "$tag"
-  git push -f origin "$tag" || true
+  git tag -af "$tag" -m "$tag"
+  if ! git push -f origin "$tag"; then
+    echo "Failed to push tag $tag" >&2
+    return 1
+  fi
   if command -v gh >/dev/null 2>&1; then
     if [ "$release" -eq 1 ]; then
       last=$(git tag -l 'v*' | sort -V | tail -n 1)
