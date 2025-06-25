@@ -81,6 +81,17 @@ Scan for risky patterns:
 
 ---
 
+## 🌐 APIFallback
+
+**Goal:**
+Ensure scripts gracefully handle network failures or invalid API responses:
+
+- Mock failing responses such as invalid JSON or network errors
+- Verify Pollinations integrations produce fallback output
+- Add simple tests for critical API-dependent commands
+
+---
+
 ## 🛠 Installer
 
 **Goal:**  
