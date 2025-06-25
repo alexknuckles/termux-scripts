@@ -234,3 +234,4 @@ echo "$filename|$prompt" >> "$log_file"
 # Archive the wallpaper immediately if -s was passed alongside generation options
 [ "$save_wall" = true ] && archive_wall "$output" "$prompt"
 
+exit 0

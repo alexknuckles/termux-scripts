@@ -420,3 +420,4 @@ case "$cmd" in
     exit 1
     ;;
 esac
+exit 0
