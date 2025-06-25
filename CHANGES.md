@@ -44,3 +44,4 @@
 - `gpushall` now automatically stages, commits with "gpush-ed", and pushes each repo to the main branch.
 - Updated README with githelper push docs, clearer set-next notes and F-Droid badges.
 - Switched to remote F-Droid badge and removed local image.
+- githelper newrepo now sets the initial branch to `main` and creates a private GitHub repository named after the directory.
