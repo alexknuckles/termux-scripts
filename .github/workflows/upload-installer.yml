@@ -13,7 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Upload installer
+      - name: Upload bleeding edge installer
+        if: github.event.release.prerelease == true
+        uses: softprops/action-gh-release@v1
+        with:
+          files: scripts/testing_installer.sh#installer.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload stable installer
+        if: github.event.release.prerelease != true
         uses: softprops/action-gh-release@v1
         with:
           files: scripts/installer.sh
