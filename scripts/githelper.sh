@@ -210,7 +210,11 @@ new_repo() {
   cd "$dir"
   git init
   git add -A
-  git commit -m "Initial commit"
+  if git diff --cached --quiet 2>/dev/null; then
+    git commit --allow-empty -m "Initial commit"
+  else
+    git commit -m "Initial commit"
+  fi
 
   local project_name
   project_name=$(basename "$dir")
