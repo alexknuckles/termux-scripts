@@ -1,6 +1,21 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
+# wallai.sh - generate a wallpaper using Pollinations
+#
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r] [-s]
+#   -p  custom prompt instead of random theme
+#   -t  choose a theme when fetching the random prompt
+#   -m  Pollinations model (default "flux")
+#   -r  select a random model from the available list
+#   -s  save the wallpaper with metadata using exiftool
+#
+# Dependencies: curl, jq, termux-wallpaper, optional exiftool for -s
+# Output: saves the generated image to ~/pictures/generated-wallpapers and sets
+#         the current wallpaper
+# TAG: wallpaper
+# TAG: ai
+
 # Check dependencies early so the script fails with a clear message
 for cmd in curl jq termux-wallpaper; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
