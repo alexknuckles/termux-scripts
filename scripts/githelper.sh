@@ -111,7 +111,7 @@ init_here() {
     echo "Repository already initialized" >&2
     return
   fi
-  git init
+  git init -b main
   git add -A
   git commit -m "Initial commit"
 }
@@ -190,7 +190,7 @@ new_repo() {
 
   mkdir -p "$dir"
   cd "$dir"
-  git init
+  git init -b main
   git add -A
   if git diff --cached --quiet 2>/dev/null; then
     git commit --allow-empty -m "Initial commit"
@@ -201,7 +201,7 @@ new_repo() {
   local project_name
   project_name=$(basename "$dir")
   if command -v gh >/dev/null 2>&1; then
-    gh repo create "$project_name" --source=. --public --remote=origin --push || true
+    gh repo create "$project_name" --source=. --private --remote=origin --push || true
   fi
 
   local file_list="" prompt encoded readme agents
