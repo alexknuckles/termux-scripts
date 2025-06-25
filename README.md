@@ -9,7 +9,7 @@ A collection of my small utilities for the Termux environment.
 ## Requirements
 The scripts are for Termux. Install widget and API as well for full functionality:
 
-<table>
+<table align="center">
   <tr>
     <td>
       <p><strong>Termux</strong></p>
