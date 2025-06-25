@@ -42,7 +42,6 @@ To install the stable release run:
 ```bash
 curl -L https://github.com/alexknuckles/termux-scripts/releases/latest/download/installer.sh | bash
 ```
-This installer only installs the release files.
 
 To install the testing version run:
 
