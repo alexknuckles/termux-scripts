@@ -45,6 +45,7 @@ Generate a `.aliases` file or `.shortcuts` compatible with Termux:
   context-free—they must not depend on the current directory or require
   additional arguments. Valid examples are `pull-all`, `push-all`, and
   `clone-mine` which become shortcuts like `githelper-pullall.sh`.
+- Shortcut filenames must mirror the alias name exactly to avoid confusion
 
 ---
 
@@ -91,6 +92,8 @@ Generate an `install.sh` script that:
 - Use hard links for shortcut files since Termux Widget doesn't
   always follow symlinks
 - Print a confirmation line for each installed command so none are missed
+- Append the install directory to the user's shell rc and export PATH so new commands work immediately
+- Uninstall should spawn a fresh shell to clear loaded aliases
 
 ---
 
