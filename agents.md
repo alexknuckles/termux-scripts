@@ -149,3 +149,12 @@ Maintain a running changelog so new releases can be generated automatically:
 - Used by `gnext` when no description is provided
 
 ---
+
+## 🔄 CI Runner
+
+**Goal:**
+Automate running lint and test scripts on every commit:
+
+- Execute `scripts/lint.sh` and `tests/test_newrepo.sh`
+- Fail if either returns a non-zero status
+- Intended for GitHub Actions or similar CI setup
