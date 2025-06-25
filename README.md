@@ -11,26 +11,26 @@ The scripts require a few Termux addons. Install them from F-Droid:
 
 <table>
   <tr>
-    <td align="center">
+    <td align="center" width="33%">
       <strong>Termux</strong><br>
       <a href="https://f-droid.org/packages/com.termux/">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="120" alt="Get Termux on F-Droid">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="100" alt="Get Termux on F-Droid">
       </a>
-      <br>obviously required
+      <div style="max-width: 150px; margin: auto;">obviously required</div>
     </td>
-    <td align="center">
+    <td align="center" width="33%">
       <strong>Termux Widget</strong><br>
       <a href="https://f-droid.org/packages/com.termux.widget/">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="120" alt="Get Termux Widget on F-Droid">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="100" alt="Get Termux Widget on F-Droid">
       </a>
-      <br>for shortcut support
+      <div style="max-width: 150px; margin: auto;">for shortcut support</div>
     </td>
-    <td align="center">
+    <td align="center" width="33%">
       <strong>Termux:API</strong><br>
       <a href="https://f-droid.org/packages/com.termux.api/">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="120" alt="Get Termux:API on F-Droid">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="100" alt="Get Termux:API on F-Droid">
       </a>
-      <br>for wallpaper and other integrations
+      <div style="max-width: 150px; margin: auto;">for wallpaper and other integrations</div>
     </td>
   </tr>
 </table>
