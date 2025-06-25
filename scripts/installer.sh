@@ -3,9 +3,8 @@ set -euo pipefail
 
 # installer.sh - install or remove Termux Scripts
 #
-# Usage: installer.sh [-r] [-g] [-u]
+# Usage: installer.sh [-r] [-u]
 #   -r  Install latest release from GitHub instead of local files
-#   -g  After installing, clone the repository to ~/git/termux-scripts
 #   -u  Uninstall all files installed by a previous run
 
 ROOT_DIR="$(cd "$(dirname "$0")"/.. && pwd)"
@@ -43,21 +42,17 @@ safe_copy() {
 }
 
 remote=0
-clone_repo=0
 uninstall=0
-while getopts ":rgu" opt; do
+while getopts ":ru" opt; do
   case "$opt" in
     r)
       remote=1
-      ;;
-    g)
-      clone_repo=1
       ;;
     u)
       uninstall=1
       ;;
     *)
-      echo "Usage: $(basename "$0") [-r] [-g] [-u]" >&2
+      echo "Usage: $(basename "$0") [-r] [-u]" >&2
       exit 1
       ;;
   esac
@@ -77,23 +72,11 @@ if [ "$uninstall" -eq 1 ]; then
     fi
   done
   rm -rf "$HOME/.shortcuts/termux-scripts"
-  rm -rf "$HOME/git/termux-scripts"
   echo "Uninstallation complete"
   exec bash
 fi
 
-if [ "$clone_repo" -eq 1 ]; then
-  mkdir -p "$HOME/git"
-  if [ -d "$HOME/git/termux-scripts/.git" ]; then
-    git -C "$HOME/git/termux-scripts" pull --ff-only || true
-  else
-    git clone "$REPO_URL" "$HOME/git/termux-scripts"
-  fi
-  ROOT_DIR="$HOME/git/termux-scripts"
-  SCRIPTS_DIR="$ROOT_DIR/scripts"
-  ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
-  SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
-elif [ "$remote" -eq 1 ]; then
+if [ "$remote" -eq 1 ]; then
   tag=$(curl -sL "https://api.github.com/repos/alexknuckles/termux-scripts/releases/latest" | jq -r .tag_name)
   [ -n "$tag" ] || tag=main
   tmpdir=$(mktemp -d)
@@ -110,7 +93,7 @@ if [ -d "$ROOT_DIR/.git" ]; then
   VERSION=$(git -C "$ROOT_DIR" rev-parse --short HEAD)
 fi
 
-if [ "$remote" -eq 0 ] && [ "$clone_repo" -eq 0 ] && \
+if [ "$remote" -eq 0 ] && \
    [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" = "$VERSION" ]; then
   echo "Termux scripts already installed"
   exit 0
@@ -194,7 +177,3 @@ fi
 echo "Installed wallai to $TARGET_BIN/wallai"
 echo "Installed githelper to $TARGET_BIN/githelper"
 echo "$VERSION" > "$VERSION_FILE"
-
-if [ "$clone_repo" -eq 1 ]; then
-  echo "Repository cloned to $HOME/git/termux-scripts"
-fi

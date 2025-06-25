@@ -18,11 +18,12 @@ A collection of small utilities for the Termux environment.
 ## Installation
 Run `./scripts/installer.sh` to install the scripts. They are copied to `~/bin/termux-scripts`, shortcuts under `~/.shortcuts/termux-scripts`, and an alias file in `~/.aliases.d/`. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` and `gpull` work immediately. It appends `~/bin/termux-scripts` to your `~/.bashrc` and exports it so the utilities are available right away. The alias file is sourced as soon as it's installed. Pass `-u` to remove everything created by a previous run.
 
-To install the stable release without cloning the repository run:
+To install the stable release run:
 
 ```bash
-curl -L https://github.com/alexknuckles/termux-scripts/releases/latest/download/installer.sh | bash -s -- -r
+curl -L https://github.com/alexknuckles/termux-scripts/releases/latest/download/installer.sh | bash
 ```
+This installer only installs the release files; it does not clone the repository.
 
 To install the testing version run:
 
@@ -30,7 +31,7 @@ To install the testing version run:
 curl -L https://github.com/alexknuckles/termux-scripts/releases/download/testing/installer.sh | bash
 ```
 
-Use `-g` to clone the repository to `~/git/termux-scripts` first and install from that local copy, avoiding an additional download.
+The testing installer automatically clones this repository to a temporary directory and installs from the latest commit.
 The installer updates your shell configuration to source every `*.aliases` file in `~/.aliases.d/` on startup.
 Shortcut scripts are located in the `termux-scripts-shortcuts` directory.
 Run the installer with `-u` to remove the symlinks, shortcuts and alias file and clean up the shell configuration. A new shell starts afterward so any loaded aliases are cleared.
