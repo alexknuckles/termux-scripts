@@ -29,3 +29,5 @@
 - githelper newrepo now requires `-m` for the description and uses `-n` to disable scanning.
 - githelper newrepo gracefully handles invalid Pollinations responses.
 - Fixed githelper newrepo failing when committing in an empty directory.
+- Improved wallai header comments and tags.
+- Added APIFallback agent to validate API error handling.
