@@ -27,3 +27,4 @@
 - Renamed wallai-save shortcut to walsave-shortcut for clarity.
 - Uninstaller now spawns a fresh shell to remove loaded aliases.
 - githelper newrepo now requires `-m` for the description and uses `-n` to disable scanning.
+- githelper newrepo gracefully handles invalid Pollinations responses.
