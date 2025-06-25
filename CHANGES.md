@@ -52,3 +52,4 @@
 - Added repo logo to README.
 - Arranged Termux app requirements into three columns in the README.
 - Upload workflow now triggers once and attaches the correct installer.
+- Testing installer now attaches to testing releases.
