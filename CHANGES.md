@@ -45,3 +45,4 @@
 - Updated README with githelper push docs, clearer set-next notes and F-Droid badges.
 - Switched to remote F-Droid badge and removed local image.
 - githelper newrepo now sets the initial branch to `main` and creates a private GitHub repository named after the directory.
+- Fixed githelper newrepo using '.' as the project name when run in the current directory.
