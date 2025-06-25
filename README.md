@@ -27,7 +27,7 @@ curl -L https://github.com/alexknuckles/termux-scripts/releases/latest/download/
 To install the testing version run:
 
 ```bash
-curl -L https://github.com/alexknuckles/termux-scripts/releases/download/testing/installer.sh | bash -s -- -r
+curl -L https://github.com/alexknuckles/termux-scripts/releases/download/testing/installer.sh | bash
 ```
 
 Use `-g` to clone the repository to `~/git/termux-scripts` first and install from that local copy, avoiding an additional download.
