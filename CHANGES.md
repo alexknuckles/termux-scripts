@@ -40,3 +40,5 @@
 - `wallai -s` now archives the last wallpaper without generating a new image.
 - Removed obsolete `tests/test_newrepo.sh`; its checks are now covered elsewhere.
 - Removed broken listcmds script.
+- `gpush` now stages, commits with "gpush-ed", and pushes to the main branch.
+- `gpushall` now automatically stages, commits with "gpush-ed", and pushes each repo to the main branch.
