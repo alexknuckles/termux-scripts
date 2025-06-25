@@ -107,4 +107,4 @@ Examples:
 - Both commands ensure `gh auth setup-git` has configured credentials so pushes won't prompt for a password.
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.
-Use `scripts/lint.sh` to run ShellCheck and `tests/test_newrepo.sh` for a basic test of githelper newrepo.
+Use `scripts/lint.sh` to run ShellCheck, `scripts/security_check.sh` to scan for risky patterns, and `tests/test_newrepo.sh` for a basic test of githelper newrepo.

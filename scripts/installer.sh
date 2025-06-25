@@ -156,6 +156,7 @@ fi
 EOF
   fi
   # Load aliases for this session
+  # shellcheck source=/dev/null
   . "$alias_target"
 fi
 
@@ -166,6 +167,7 @@ fi
 if ! grep -Fq "$HOME/bin/termux-scripts" "$bash_rc"; then
   echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$bash_rc"
   # Apply changes to current session
+  # shellcheck source=/dev/null
   . "$bash_rc"
 fi
 
