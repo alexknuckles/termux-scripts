@@ -8,6 +8,7 @@ A collection of small utilities for the Termux environment.
   obviously required
 - [Termux Widget](https://f-droid.org/packages/com.termux.widget/)  
   <a href="https://f-droid.org/packages/com.termux.widget/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux Widget on F-Droid" width="120" /></a>
+  <br>
   for shortcut support
 - [Termux:API](https://f-droid.org/packages/com.termux.api/)  
   <a href="https://f-droid.org/packages/com.termux.api/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux:API on F-Droid" width="120" /></a>
