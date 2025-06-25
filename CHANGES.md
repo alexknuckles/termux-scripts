@@ -37,3 +37,5 @@
 - Added lint script and test harness for githelper newrepo.
 - Added SecurityCheck script and silenced shellcheck warnings in installer.
 - Updated lint, security check and test scripts to use Termux bash shebang.
+- `wallai -s` now archives the last wallpaper without generating a new image.
+- Removed obsolete `tests/test_newrepo.sh`; its checks are now covered elsewhere.

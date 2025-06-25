@@ -60,6 +60,40 @@ while getopts ":p:t:m:rs" opt; do
 done
 shift $((OPTIND - 1))
 
+# Directory where generated wallpapers live and log path
+save_dir="$HOME/pictures/generated-wallpapers"
+mkdir -p "$save_dir"
+log_file="$save_dir/wallai.log"
+
+# Function to archive the most recent wallpaper with metadata using exiftool
+archive_wall() {
+  command -v exiftool >/dev/null 2>&1 || {
+    echo "❌ exiftool is required for -s" >&2
+    return 1
+  }
+  local file="$1" meta="$2"
+  local dest_dir="$HOME/pictures/saved-generated-wallpapers"
+  mkdir -p "$dest_dir"
+  local dest
+  dest="$dest_dir/$(basename "$file")"
+  cp "$file" "$dest"
+  exiftool -overwrite_original -Comment="$meta" "$dest" >/dev/null
+  echo "📂 Archived wallpaper to: $dest"
+}
+
+# If called only with -s, archive the last generated wallpaper and exit early
+if [ "$save_wall" = true ] && [ "$generation_opts" = false ]; then
+  last_entry=$(tail -n1 "$log_file" 2>/dev/null || true)
+  if [ -z "$last_entry" ]; then
+    echo "❌ No wallpaper has been generated yet" >&2
+    exit 1
+  fi
+  last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
+  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f2-)
+  archive_wall "$save_dir/$last_file" "$last_prompt"
+  exit 0
+fi
+
 # Validate selected model using the API list
 mapfile -t models < <(
   curl -sL "https://image.pollinations.ai/models" | jq -r '.[]' 2>/dev/null
@@ -195,37 +229,7 @@ echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 echo "💾 Saved to: $output"
 
 # Log filename and prompt for later reference
-log_file="$save_dir/wallai.log"
 echo "$filename|$prompt" >> "$log_file"
-
-# Function to archive the most recent wallpaper with metadata using exiftool
-archive_wall() {
-  command -v exiftool >/dev/null 2>&1 || {
-    echo "❌ exiftool is required for -s" >&2
-    return 1
-  }
-  local file="$1" meta="$2"
-  local dest_dir="$HOME/pictures/saved-generated-wallpapers"
-  mkdir -p "$dest_dir"
-  local dest
-  dest="$dest_dir/$(basename "$file")"
-  cp "$file" "$dest"
-  exiftool -overwrite_original -Comment="$meta" "$dest" >/dev/null
-  echo "📂 Archived wallpaper to: $dest"
-}
-
-# If called only with -s, archive the last generated wallpaper and exit
-if [ "$save_wall" = true ] && [ "$generation_opts" = false ]; then
-  last_entry=$(tail -n1 "$log_file" 2>/dev/null || true)
-  if [ -z "$last_entry" ]; then
-    echo "❌ No wallpaper has been generated yet" >&2
-    exit 1
-  fi
-  last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
-  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f2-)
-  archive_wall "$save_dir/$last_file" "$last_prompt"
-  exit 0
-fi
 
 # Archive the wallpaper immediately if -s was passed alongside generation options
 [ "$save_wall" = true ] && archive_wall "$output" "$prompt"

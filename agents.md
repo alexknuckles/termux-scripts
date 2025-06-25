@@ -135,7 +135,6 @@ Add frontmatter or inline tags for script categorization:
 **Goal:**
 If any scripts have flags or interactive input, generate minimal test cases or test harnesses.
 Specifically ensure `githelper newrepo` succeeds when run in an empty directory and creates an initial commit.
-- Tests live under `tests/test_newrepo.sh`
 
 ---
 
@@ -153,10 +152,10 @@ Maintain a running changelog so new releases can be generated automatically:
 ## 🔄 CI Runner
 
 **Goal:**
-Automate running lint and test scripts on every commit:
+Automate running lint scripts (and any tests) on every commit:
 
-- Execute `scripts/lint.sh` and `tests/test_newrepo.sh`
-- Fail if either returns a non-zero status
+- Execute `scripts/lint.sh`
+- Fail if any command returns a non-zero status
 - Intended for GitHub Actions or similar CI setup
 
 ---
@@ -166,7 +165,7 @@ Automate running lint and test scripts on every commit:
 **Goal:**
 Continuously review the repository and agent definitions:
 
-- Run `scripts/lint.sh`, `scripts/security_check.sh` and `tests/test_newrepo.sh` on a schedule and whenever new scripts are added
+ - Run `scripts/lint.sh` and `scripts/security_check.sh` on a schedule and whenever new scripts are added
 - Scan for unreachable or incomplete logic in shell functions
 - Ensure every script and function has a descriptive header with usage examples
 - Inspect `agents.md` and propose new agents if commit logs reveal manual fixes

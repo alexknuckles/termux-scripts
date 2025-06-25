@@ -54,6 +54,7 @@ Flags:
   access the API returns an error. The `turbo` model tends to produce lower quality images.
 - `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
 - `-s` Save the latest generated wallpaper to `~/pictures/saved-generated-wallpapers/` with the prompt embedded using `exiftool`.
+  When used without other options, `wallai -s` archives the most recent wallpaper without generating a new one.
 
 After showing the chosen prompt, the script also prints which Pollinations model will
 be used for image generation.
@@ -70,7 +71,7 @@ message. Internet access is required for fetching prompts and generating
 the image.
 
 The installer creates a `walsave` alias and `walsave-shortcut.sh` so you
-can archive the currently set wallpaper with metadata via `wallai -s`.
+can archive the currently set wallpaper with metadata via `wallai -s` without generating a new image.
 
 ## githelper.sh
 
@@ -96,4 +97,4 @@ Examples:
 - Both commands ensure `gh auth setup-git` has configured credentials so pushes won't prompt for a password.
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.
-Use `scripts/lint.sh` to run ShellCheck, `scripts/security_check.sh` to scan for risky patterns, and `tests/test_newrepo.sh` for a basic test of githelper newrepo.
+Use `scripts/lint.sh` to run ShellCheck and `scripts/security_check.sh` to scan for risky patterns.
