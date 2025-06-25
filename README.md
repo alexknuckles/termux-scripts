@@ -3,11 +3,14 @@
 A collection of small utilities for the Termux environment.
 
 ## Requirements
-- [Termux](https://f-droid.org/packages/com.termux/) – obviously required  
+- [Termux](https://f-droid.org/packages/com.termux/)
+   obviously required  
   <a href="https://f-droid.org/packages/com.termux/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux on F-Droid" width="120" /></a>
-- [Termux Widget](https://f-droid.org/packages/com.termux.widget/) for shortcut support  
+- [Termux Widget](https://f-droid.org/packages/com.termux.widget/)
+  for shortcut support  
   <a href="https://f-droid.org/packages/com.termux.widget/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux Widget on F-Droid" width="120" /></a>
-- [Termux:API](https://f-droid.org/packages/com.termux.api/) for wallpaper and other integrations  
+- [Termux:API](https://f-droid.org/packages/com.termux.api/)
+  for wallpaper and other integrations  
   <a href="https://f-droid.org/packages/com.termux.api/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux:API on F-Droid" width="120" /></a>
 
 ## Installation
