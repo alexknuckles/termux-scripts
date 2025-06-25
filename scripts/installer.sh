@@ -13,7 +13,8 @@ SCRIPTS_DIR="$ROOT_DIR/scripts"
 ALIASES_FILE="$ROOT_DIR/aliases/termux-scripts.aliases"
 SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
 REPO_URL="https://github.com/alexknuckles/termux-scripts"
-VERSION="0.4"
+DEFAULT_VERSION="0.4"
+VERSION="$DEFAULT_VERSION"
 INSTALL_DIR="$HOME/bin/termux-scripts"
 VERSION_FILE="$INSTALL_DIR/.version"
 
@@ -103,9 +104,15 @@ elif [ "$remote" -eq 1 ]; then
   SHORTCUTS_DIR="$ROOT_DIR/termux-scripts-shortcuts"
 fi
 
+# Use git commit hash as the version when available so pulling new commits
+# triggers an update even without a new release
+if [ -d "$ROOT_DIR/.git" ]; then
+  VERSION=$(git -C "$ROOT_DIR" rev-parse --short HEAD)
+fi
+
 if [ "$remote" -eq 0 ] && [ "$clone_repo" -eq 0 ] && \
    [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" = "$VERSION" ]; then
-  echo "Termux scripts version $VERSION already installed"
+  echo "Termux scripts already installed"
   exit 0
 fi
 

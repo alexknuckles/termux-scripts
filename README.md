@@ -98,3 +98,12 @@ Examples:
 
 Dependencies: `git`, `jq`, optional `gh` for GitHub integration.
 Use `scripts/lint.sh` to run ShellCheck and `scripts/security_check.sh` to scan for risky patterns.
+
+## listcmds.sh
+
+Lists all aliases from the project alias file, every installed script and the functions provided by githelper.
+
+### Usage
+```bash
+listcmds
+```
