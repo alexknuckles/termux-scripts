@@ -93,6 +93,17 @@ Ensure scripts gracefully handle network failures or invalid API responses:
 
 ---
 
+## 🧹 InputSanitizer
+
+**Goal:**
+Ensure strings sent to APIs are properly escaped and validated:
+
+- Escape prompts before inserting into JSON bodies
+- Use `jq` to validate JSON responses when possible
+- Add tests that run scripts with quotes and other special characters
+
+---
+
 ## 🛠 Installer
 
 **Goal:**  
