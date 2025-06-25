@@ -25,7 +25,7 @@ curl -L https://github.com/alexknuckles/termux-scripts/releases/download/testing
 Use `-g` to clone the repository to `~/git/termux-scripts` first and install from that local copy, avoiding an additional download.
 The installer updates your shell configuration to source every `*.aliases` file in `~/.aliases.d/` on startup.
 Shortcut scripts are located in the `termux-scripts-shortcuts` directory.
-Run the installer with `-u` to remove the symlinks, shortcuts and alias file and clean up the shell configuration.
+Run the installer with `-u` to remove the symlinks, shortcuts and alias file and clean up the shell configuration. A new shell starts afterward so any loaded aliases are cleared.
 
 ## wallai.sh
 
@@ -69,7 +69,7 @@ If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
 
-The installer creates a `walsave` alias and `wallai-save-shortcut.sh` so you
+The installer creates a `walsave` alias and `walsave-shortcut.sh` so you
 can archive the currently set wallpaper with metadata.
 
 ## walsave.sh

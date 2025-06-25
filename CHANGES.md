@@ -23,3 +23,6 @@
 - New `walsave` alias archives the current wallpaper without generating a new image.
 - wallai now names wallpapers with the correct extension based on the API response.
 - Installer now prints the path to walsave after installation.
+
+- Renamed wallai-save shortcut to walsave-shortcut for clarity.
+- Uninstaller now spawns a fresh shell to remove loaded aliases.
