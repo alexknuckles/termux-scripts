@@ -235,7 +235,13 @@ new_repo() {
     prompt="Create a professional README.md for a software project that includes: $file_list. Include a project description, features, and usage."
   fi
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  readme=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" | jq -r '.completion' || true)
+  local response
+  response=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" || true)
+  if printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+    readme=$(printf '%s' "$response" | jq -r '.completion')
+  else
+    readme="$response"
+  fi
   [ -n "$readme" ] || readme="# $project_name"
   printf '%s\n' "$readme" > README.md
 
@@ -247,7 +253,12 @@ new_repo() {
     prompt="Create an agents.md file for a project with these files: $file_list. Define Docs agent, Code agent, Build agent, and Test agent. List their roles and goals."
   fi
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  agents=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" | jq -r '.completion' || true)
+  response=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" || true)
+  if printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+    agents=$(printf '%s' "$response" | jq -r '.completion')
+  else
+    agents="$response"
+  fi
   [ -n "$agents" ] && printf '%s\n' "$agents" > agents.md
 
   local author year

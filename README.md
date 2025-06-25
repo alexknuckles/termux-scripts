@@ -101,7 +101,7 @@ Examples:
 - `githelper init` initializes a new repo in the current directory.
 - `githelper revert-last` reverts the most recent commit.
 - `githelper clone-mine` clones all your GitHub repositories to `~/git`. Specify a different user with `-u`.
-- `githelper newrepo [-d dir] [-n] [-m description]` creates a new repo with an AI-generated README and agents file. Scanning files is enabled by default; use `-n` to disable scanning, `-d` to choose a directory and `-m` to provide a description.
+- `githelper newrepo [-d dir] [-n] [-m description]` creates a new repo with an AI-generated README and agents file. Scanning files is enabled by default; use `-n` to disable scanning, `-d` to choose a directory and `-m` to provide a description. The script uses the Pollinations API but falls back to plain text if the response isn't valid JSON.
 - `githelper set-next` creates a prerelease with the `testing` tag by default. Use `-r` for a full release which automatically increments from the latest `v*` tag.
 - `githelper set-next-all` runs the same command across every repository in `~/git`.
 - Both commands ensure `gh auth setup-git` has configured credentials so pushes won't prompt for a password.
