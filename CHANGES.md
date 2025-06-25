@@ -33,3 +33,4 @@
 - Added APIFallback agent to validate API error handling.
 - Added lint script and test harness for githelper newrepo.
 - Added SecurityCheck script and silenced shellcheck warnings in installer.
+- Updated lint, security check and test scripts to use Termux bash shebang.

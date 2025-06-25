@@ -4,6 +4,7 @@
 - ShellCheck shows no warnings across scripts and shortcuts.
 - Existing test `tests/test_newrepo.sh` passes.
 - `scripts/lint.sh` lacked documentation and dependency checks. Added header comments and a check for `shellcheck`.
+- Updated lint, security check and test scripts to use the Termux bash shebang.
 
 ## Agents Review
 - Existing agents cover linting, documentation, shortcuts, scheduling, optimization, security, API fallback, installer creation, tagging, testing and change tracking.
