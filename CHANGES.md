@@ -54,3 +54,4 @@
 - Upload workflow now triggers once and attaches the correct installer.
 - Testing installer now attaches to testing releases.
 - githelper set-next now creates annotated tags and aborts if the push fails to prevent untagged releases.
+- gnext now deletes the old testing release so GitHub Actions publishes a fresh prerelease.
