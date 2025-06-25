@@ -31,3 +31,4 @@
 - Fixed githelper newrepo failing when committing in an empty directory.
 - Improved wallai header comments and tags.
 - Added APIFallback agent to validate API error handling.
+- Added lint script and test harness for githelper newrepo.

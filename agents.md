@@ -15,6 +15,7 @@ Ensure all shell scripts follow best practices:
 - Quote variables and use `"$@"` for arguments
 - Prefer single-letter flags for command arguments
 - All scripts and commands should expose flags for each argument
+- Run `scripts/lint.sh` to check for ShellCheck warnings
 
 ---
 
@@ -123,6 +124,7 @@ Add frontmatter or inline tags for script categorization:
 **Goal:**
 If any scripts have flags or interactive input, generate minimal test cases or test harnesses.
 Specifically ensure `githelper newrepo` succeeds when run in an empty directory and creates an initial commit.
+- Tests live under `tests/test_newrepo.sh`
 
 ---
 
