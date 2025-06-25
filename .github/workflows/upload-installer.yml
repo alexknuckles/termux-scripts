@@ -2,7 +2,7 @@ name: Upload installer
 
 on:
   release:
-    types: [published, prereleased]
+    types: [published]
 
 permissions:
   contents: write
@@ -17,7 +17,7 @@ jobs:
         if: github.event.release.prerelease == true
         uses: softprops/action-gh-release@v1
         with:
-          files: scripts/testing_installer.sh#installer.sh
+          files: scripts/testing_installer.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
