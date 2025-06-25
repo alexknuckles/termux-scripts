@@ -2,6 +2,10 @@
 
 A collection of small utilities for the Termux environment.
 
+<p align="center" style="margin-bottom:0;">
+  <img src="static/termux-scripts-logo.png" alt="termux scripts logo" width="200" />
+</p>
+
 ## Requirements
 - [Termux](https://f-droid.org/packages/com.termux/)  
   <a href="https://f-droid.org/packages/com.termux/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png" alt="Get Termux on F-Droid" width="80" /></a>
