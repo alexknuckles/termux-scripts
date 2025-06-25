@@ -334,6 +334,12 @@ set_next_release() {
       desc=$(git log --pretty='format:- %s' | head -n 20)
     fi
     flag="$prerelease"
+    if [ "$release" -eq 0 ] && gh release view "$tag" >/dev/null 2>&1; then
+      gh release delete -y "$tag" >/dev/null 2>&1 || true
+      if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
+        git push -d origin "$tag" >/dev/null 2>&1 || true
+      fi
+    fi
     if gh release view "$tag" >/dev/null 2>&1; then
       gh release edit "$tag" -n "$desc" -t "${tag^} Release" $flag || true
     else
