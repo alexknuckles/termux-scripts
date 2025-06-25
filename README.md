@@ -1,6 +1,6 @@
 # Termux Scripts
 
-A collection of small utilities for the Termux environment.
+A collection of my small utilities for the Termux environment.
 
 <p align="center" style="margin-bottom:0;">
   <img src="static/termux-scripts-logo.png" alt="termux scripts logo" width="200" />
