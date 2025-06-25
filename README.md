@@ -88,6 +88,10 @@ can archive the currently set wallpaper with metadata via `wallai -s` without ge
 
 ## githelper.sh
 
+<p align="center" style="margin-bottom:0;">
+  <img src="static/githelper-logo.png" alt="githelper logo" width="200" />
+</p>
+
 Provides shortcuts for common git tasks and automates pulling
 all repositories under `~/git`.
 
