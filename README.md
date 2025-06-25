@@ -9,9 +9,31 @@ A collection of small utilities for the Termux environment.
 ## Requirements
 The scripts require a few Termux addons. Install them from F-Droid:
 
-- [![Get Termux on F-Droid](https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png)](https://f-droid.org/packages/com.termux/) **Termux** – obviously required
-- [![Get Termux Widget on F-Droid](https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png)](https://f-droid.org/packages/com.termux.widget/) **Termux Widget** – for shortcut support
-- [![Get Termux:API on F-Droid](https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/512px-Get_it_on_F-Droid.svg.png)](https://f-droid.org/packages/com.termux.api/) **Termux:API** – for wallpaper and other integrations
+<table>
+  <tr>
+    <td align="center">
+      <strong>Termux</strong><br>
+      <a href="https://f-droid.org/packages/com.termux/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="120" alt="Get Termux on F-Droid">
+      </a>
+      <br>obviously required
+    </td>
+    <td align="center">
+      <strong>Termux Widget</strong><br>
+      <a href="https://f-droid.org/packages/com.termux.widget/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="120" alt="Get Termux Widget on F-Droid">
+      </a>
+      <br>for shortcut support
+    </td>
+    <td align="center">
+      <strong>Termux:API</strong><br>
+      <a href="https://f-droid.org/packages/com.termux.api/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/256px-Get_it_on_F-Droid.svg.png" width="120" alt="Get Termux:API on F-Droid">
+      </a>
+      <br>for wallpaper and other integrations
+    </td>
+  </tr>
+</table>
 
 ## Installation
 Run `./scripts/installer.sh` to install the scripts. They are copied to `~/bin/termux-scripts`, shortcuts under `~/.shortcuts/termux-scripts`, and an alias file in `~/.aliases.d/`. Missing packages will be offered for installation automatically. The installer also sets executable permissions so commands like `gpullall` and `gpull` work immediately. It appends `~/bin/termux-scripts` to your `~/.bashrc` and exports it so the utilities are available right away. The alias file is sourced as soon as it's installed. Pass `-u` to remove everything created by a previous run.
