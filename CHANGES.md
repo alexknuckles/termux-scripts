@@ -24,6 +24,9 @@
 - wallai now names wallpapers with the correct extension based on the API response.
 - Installer now prints the path to walsave after installation.
 
+- Removed the walsave script. The alias now calls `wallai -s` to archive the
+  latest wallpaper.
+
 - Renamed wallai-save shortcut to walsave-shortcut for clarity.
 - Uninstaller now spawns a fresh shell to remove loaded aliases.
 - githelper newrepo now requires `-m` for the description and uses `-n` to disable scanning.

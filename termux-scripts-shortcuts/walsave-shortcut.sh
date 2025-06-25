@@ -4,4 +4,4 @@ set -euo pipefail
 # walsave-shortcut.sh - archive the latest generated wallpaper
 # TAG: shortcut
 
-exec "$HOME/bin/termux-scripts/walsave" "$@"
+exec "$HOME/bin/termux-scripts/wallai" -s "$@"
