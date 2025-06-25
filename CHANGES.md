@@ -50,3 +50,4 @@
 - Release installer no longer clones the repo and README clarifies the usage.
 - Removed cleanup of old git clone path from installer uninstall routine.
 - Added repo logo to README.
+- Arranged Termux app requirements into three columns in the README.
