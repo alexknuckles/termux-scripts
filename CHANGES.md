@@ -28,3 +28,4 @@
 - Uninstaller now spawns a fresh shell to remove loaded aliases.
 - githelper newrepo now requires `-m` for the description and uses `-n` to disable scanning.
 - githelper newrepo gracefully handles invalid Pollinations responses.
+- Fixed githelper newrepo failing when committing in an empty directory.
