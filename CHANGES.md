@@ -56,3 +56,4 @@
 - githelper set-next now creates annotated tags and aborts if the push fails to prevent untagged releases.
 - gnext now deletes the old testing release so GitHub Actions publishes a fresh prerelease.
 - githelper now creates a default .gitignore to skip __pycache__ and other common cruft.
+- wallai now supports a `-y` flag for picking a visual style. Styles are chosen at random if omitted, and the theme list has been expanded.

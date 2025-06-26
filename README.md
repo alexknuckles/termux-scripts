@@ -70,7 +70,7 @@ due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
-wallai [-p "prompt text"] [-t theme] [-m model] [-r] [-s]
+wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s]
 ```
 
 Environment variables:
@@ -79,6 +79,7 @@ Environment variables:
 Flags:
 - `-p` Specify your own prompt instead of fetching a random one.
 - `-t` Choose a theme for the random prompt (ignored if `-p` is used).
+- `-y` Select a visual style. If omitted, one is picked at random.
 - `-m` Select Pollinations model. Available models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
   The `gptimage` model requires a flower-tier Pollinations account; without
@@ -91,7 +92,8 @@ After showing the chosen prompt, the script also prints which Pollinations model
 be used for image generation.
 
 If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
-API using a random genre such as fantasy or cyberpunk. You can override the random choice with
+API using a random genre such as fantasy or cyberpunk. A random visual style such as watercolor or
+pixel art is also selected unless you supply `-y style`. You can override the random theme with
 `-t theme`. The API is asked to respond in exactly 15 words. A random seed parameter ensures that
 repeated calls yield different descriptions even when the theme is the same.
 
