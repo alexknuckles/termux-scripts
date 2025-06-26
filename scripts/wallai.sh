@@ -131,7 +131,7 @@ spinner() {
     sleep 0.5
   done
   tput cnorm 2>/dev/null || true
-  printf "\r\033[K"
+  printf "\r\033[K\n"
 }
 
 # If called only with -f, favorite the last generated wallpaper and exit early
@@ -233,6 +233,19 @@ if [ "$allow_nsfw" = false ]; then
 fi
 
 
+fetch_prompt() {
+  local attempt=1
+  while [ "$attempt" -le 3 ]; do
+    prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+picture+in+exactly+15+words?seed=${seed}" || true)
+    prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
+    prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
+    [ -n "$prompt" ] && return 0
+    attempt=$((attempt + 1))
+    sleep 1
+  done
+  return 1
+}
+
 if [ -z "$prompt" ]; then
   echo "🎯 Fetching random prompt from Pollinations..."
 
@@ -246,17 +259,19 @@ if [ -z "$prompt" ]; then
   fi
   echo "🔖 Selected theme: $theme"
 
-  # 🧠 Step 2: Retrieve a text prompt for that theme
-  # Ask the API for exactly 15 words and pass a seed so results are repeatable
-  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+picture+in+exactly+15+words?seed=${seed}" || true)
-  # Normalize whitespace and keep only the first 15 words
-  prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
-  prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
-
-  # 🛑 Fallback prompt
-  if [ -z "$prompt" ]; then
-    echo "❌ Failed to fetch prompt. Using fallback."
-    prompt="a neon dreamscape filled with surreal creatures"
+  # 🧠 Step 2: Retrieve a text prompt for that theme with retries
+  if ! fetch_prompt; then
+    echo "❌ Failed to fetch prompt after retries. Using fallback."
+    fallback_prompts=(
+      "surreal dreamscape with neon colors"
+      "futuristic city skyline at dusk"
+      "ancient ruins shrouded in mist"
+      "mystical forest glowing softly"
+      "retro wave grid horizon with stars"
+      "lush alien jungle under twin moons"
+      "calm desert landscape under stars"
+    )
+    prompt=$(printf '%s\n' "${fallback_prompts[@]}" | shuf -n1)
   fi
 fi
 
@@ -342,18 +357,26 @@ generate_pollinations() {
 }
 
 ctype_file=$(mktemp)
-generate_pollinations "$tmp_output" "$ctype_file" &
-gen_pid=$!
-spinner "$gen_pid" &
-spin_pid=$!
-wait "$gen_pid"
-status=$?
-kill "$spin_pid" 2>/dev/null || true
-wait "$spin_pid" 2>/dev/null || true
-if [ "$status" -ne 0 ]; then
-  echo "❌ Failed to generate image via Pollinations" >&2
-  exit 1
-fi
+attempt=1
+while true; do
+  generate_pollinations "$tmp_output" "$ctype_file" &
+  gen_pid=$!
+  spinner "$gen_pid" &
+  spin_pid=$!
+  wait "$gen_pid"
+  status=$?
+  kill "$spin_pid" 2>/dev/null || true
+  wait "$spin_pid" 2>/dev/null || true
+  if [ "$status" -eq 0 ]; then
+    break
+  fi
+  if [ "$attempt" -ge 3 ]; then
+    echo "❌ Failed to generate image via Pollinations" >&2
+    exit 1
+  fi
+  attempt=$((attempt + 1))
+  echo "⚠️  Retrying image generation ($attempt/3)..."
+done
 echo "✅ Image generated successfully"
 img_source="Pollinations"
 
