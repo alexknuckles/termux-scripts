@@ -370,6 +370,16 @@ while true; do
   wait "$spin_pid" 2>/dev/null || true
   printf '\n'
   if [ "$status" -eq 0 ]; then
+    generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
+    file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
+    if printf '%s' "$generated_content_type" | grep -qi '^image/' && \
+       printf '%s' "$file_type" | grep -qi '^image/'; then
+      break
+    fi
+    echo "❌ Invalid image file!" >&2
+    status=1
+  fi
+  if [ "$status" -eq 0 ]; then
     break
   fi
   if [ "$attempt" -ge 3 ]; then
