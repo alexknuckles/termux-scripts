@@ -367,6 +367,7 @@ while true; do
   status=$?
   kill "$spin_pid" 2>/dev/null || true
   wait "$spin_pid" 2>/dev/null || true
+  printf '\n'
   if [ "$status" -eq 0 ]; then
     break
   fi
