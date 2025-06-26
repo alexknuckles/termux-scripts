@@ -24,6 +24,21 @@ set -euo pipefail
 
 GIT_ROOT="${GIT_ROOT:-$HOME/git}"
 
+create_gitignore() {
+  cat > .gitignore <<'EOF'
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Backup files
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+EOF
+}
+
 pull_all() {
   local repo
   for repo in "$GIT_ROOT"/*/.git; do
@@ -112,6 +127,7 @@ init_here() {
     return
   fi
   git init -b main
+  [ -f .gitignore ] || create_gitignore
   git add -A
   git commit -m "Initial commit"
 }
@@ -191,6 +207,7 @@ new_repo() {
   mkdir -p "$dir"
   cd "$dir"
   git init -b main
+  [ -f .gitignore ] || create_gitignore
   git add -A
   if git diff --cached --quiet 2>/dev/null; then
     git commit --allow-empty -m "Initial commit"
