@@ -1,6 +1,6 @@
 # Short aliases for Termux scripts
 alias wal='wallai'
-alias walsave='wallai -s'
+alias walfave='wallai -f'
 alias gpullall='githelper pull-all'
 alias gpull='githelper pull'
 alias gpushall='githelper push-all'

@@ -20,14 +20,14 @@
 
 - Shortcut scripts now use absolute paths to installed commands for reliability with Termux Widget.
 - wallai now logs prompts with filenames and can archive the last wallpaper with exif metadata using `-s`.
-- New `walsave` alias archives the current wallpaper without generating a new image.
+- New `walfave` alias archives the current wallpaper without generating a new image.
 - wallai now names wallpapers with the correct extension based on the API response.
-- Installer now prints the path to walsave after installation.
+- Installer now prints the path to walfave after installation.
 
-- Removed the walsave script. The alias now calls `wallai -s` to archive the
+- Removed the walfave script. The alias now calls `wallai -f` to archive the
   latest wallpaper.
 
-- Renamed wallai-save shortcut to walsave-shortcut for clarity.
+- Renamed wallai-save shortcut to walfave-shortcut for clarity.
 - Uninstaller now spawns a fresh shell to remove loaded aliases.
 - githelper newrepo now requires `-m` for the description and uses `-n` to disable scanning.
 - githelper newrepo gracefully handles invalid Pollinations responses.
@@ -37,7 +37,7 @@
 - Added lint script and test harness for githelper newrepo.
 - Added SecurityCheck script and silenced shellcheck warnings in installer.
 - Updated lint, security check and test scripts to use Termux bash shebang.
-- `wallai -s` now archives the last wallpaper without generating a new image.
+- `wallai -f` now archives the last wallpaper without generating a new image.
 - Removed obsolete `tests/test_newrepo.sh`; its checks are now covered elsewhere.
 - Removed broken listcmds script.
 - `gpush` now stages, commits with "gpush-ed", and pushes to the main branch.
@@ -60,3 +60,5 @@
 - wallai gains theme and style weighting, negative prompt support with `-n`,
   Pollinations parameters for logo removal and enhancement, slugified filenames
   and seed logging for repeatable generations.
+- wallai adds a favorites system via `-f`, inspired mode with `-i`,
+  weather-aware prompting with `-w` and an emoji spinner during image generation.
