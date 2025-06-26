@@ -3,16 +3,18 @@ set -euo pipefail
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s] [-n "text"]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-n "text"]
 #   -p  custom prompt instead of random theme
 #   -t  choose a theme when fetching the random prompt
 #   -y  pick a visual style or use a random one
 #   -m  Pollinations model (default "flux")
 #   -r  select a random model from the available list
-#   -s  save the wallpaper with metadata using exiftool
+#   -f  mark the generated wallpaper as a favorite
+#   -i  pick theme and style inspired by past favorites
+#   -w  add weather, time and holiday context to the prompt
 #   -n  custom negative prompt
 #
-# Dependencies: curl, jq, termux-wallpaper, optional exiftool for -s
+# Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image to ~/pictures/generated-wallpapers and sets
 #         the current wallpaper
 # TAG: wallpaper
@@ -33,9 +35,11 @@ style=""
 negative_prompt=""
 model="flux"
 random_model=false
-save_wall=false
+favorite_wall=false
+inspired_mode=false
+weather_flag=false
 generation_opts=false
-while getopts ":p:t:m:ry:s:n:" opt; do
+while getopts ":p:t:m:y:rn:fiw" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -57,15 +61,21 @@ while getopts ":p:t:m:ry:s:n:" opt; do
       random_model=true
       generation_opts=true
       ;;
-    s)
-      save_wall=true
+    f)
+      favorite_wall=true
+      ;;
+    i)
+      inspired_mode=true
+      ;;
+    w)
+      weather_flag=true
       ;;
     n)
       negative_prompt="$OPTARG"
       generation_opts=true
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-s] [-n \"text\"]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-n \"text\"]" >&2
       exit 1
       ;;
   esac
@@ -88,24 +98,43 @@ slugify() {
     sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//'
 }
 
-# Function to archive the most recent wallpaper with metadata using exiftool
-archive_wall() {
+# Function to favorite the most recent wallpaper with metadata using exiftool
+favorite_image() {
   command -v exiftool >/dev/null 2>&1 || {
-    echo "❌ exiftool is required for -s" >&2
+    echo "❌ exiftool is required for -f" >&2
     return 1
   }
-  local file="$1" meta="$2"
-  local dest_dir="$HOME/pictures/saved-generated-wallpapers"
+  local file="$1" comment="$2" theme="$3" style="$4" model="$5" seed="$6" ts="$7"
+  local dest_dir="$HOME/pictures/favorites"
+  local log="$dest_dir/favorites.jsonl"
   mkdir -p "$dest_dir"
-  local dest
-  dest="$dest_dir/$(basename "$file")"
+  local dest="$dest_dir/$(basename "$file")"
   cp "$file" "$dest"
-  exiftool -overwrite_original -Comment="$meta" "$dest" >/dev/null
-  echo "📂 Archived wallpaper to: $dest"
+  exiftool -overwrite_original -Comment="$comment" "$dest" >/dev/null
+  jq -n --arg prompt "$comment" --arg theme "$theme" --arg style "$style" \
+        --arg model "$model" --arg seed "$seed" --arg ts "$ts" \
+        --arg filename "$(basename "$dest")" \
+        '{prompt:$prompt, theme:$theme, style:$style, model:$model, seed:$seed, timestamp:$ts, filename:$filename}' >> "$log"
+  echo "⭐ Added to favorites: $dest"
 }
 
-# If called only with -s, archive the last generated wallpaper and exit early
-if [ "$save_wall" = true ] && [ "$generation_opts" = false ]; then
+# Spinner that cycles through emojis while a command runs
+spinner() {
+  local pid=$1
+  local emojis=("🎨" "🧠" "✨" "🖼️" "🌀")
+  local i=0
+  tput civis 2>/dev/null || true
+  while kill -0 "$pid" 2>/dev/null; do
+    printf "\r%s Generating image..." "${emojis[i]}"
+    i=$(( (i + 1) % ${#emojis[@]} ))
+    sleep 0.5
+  done
+  tput cnorm 2>/dev/null || true
+  printf "\r"
+}
+
+# If called only with -f, favorite the last generated wallpaper and exit early
+if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ]; then
   last_entry=$(tail -n1 "$log_file" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
     echo "❌ No wallpaper has been generated yet" >&2
@@ -114,8 +143,29 @@ if [ "$save_wall" = true ] && [ "$generation_opts" = false ]; then
   last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
   last_seed=$(printf '%s' "$last_entry" | cut -d'|' -f2)
   last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f3-)
-  archive_wall "$save_dir/$last_file" "$last_prompt (seed: $last_seed)"
+  ts=$(printf '%s' "$last_file" | cut -d'_' -f1)
+  theme_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
+  style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
+  last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
+  last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
+  favorite_image "$save_dir/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts"
   exit 0
+fi
+
+# Inspired mode selects theme and style based on past favorites
+if [ "$inspired_mode" = true ]; then
+  fav_file="$HOME/pictures/favorites/favorites.jsonl"
+  if [ -f "$fav_file" ]; then
+    if [ -z "$theme" ]; then
+      theme=$(jq -r '.theme' "$fav_file" | shuf -n1 || true)
+    fi
+    if [ -z "$style" ]; then
+      style=$(jq -r '.style' "$fav_file" | shuf -n1 || true)
+    fi
+    echo "🧠 Inspired by favorites:"
+    [ -n "$theme" ] && echo "🔖 Theme: $theme"
+    [ -n "$style" ] && echo "🎨 Style: $style"
+  fi
 fi
 
 # Validate selected model using the API list
@@ -139,7 +189,7 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -149,9 +199,11 @@ fi
 #   -m model        Pollinations model (defaults to 'flux'). Supported models
 #                   are fetched from the API (fallback: flux turbo gptimage)
 #   -r              Pick a random model from the available list
-#   -s              Save the latest generated wallpaper with prompt metadata
+#   -f              Mark the latest generated wallpaper as a favorite
+#   -i              Choose theme and style inspired by favorites
+#   -w              Add weather, time and seasonal context
 #
-# Dependencies: curl, jq, termux-wallpaper, optional exiftool for -s
+# Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image under ~/pictures/generated-wallpapers
 # TAG: wallpaper
 # TAG: ai
@@ -223,6 +275,44 @@ if [ -n "$theme" ]; then
 fi
 prompt="$prompt (${style}:1.3) [negative prompt: $negative_prompt]"
 
+# Add weather-aware context if requested
+if [ "$weather_flag" = true ]; then
+  weather="$(curl -sL "https://wttr.in/?format=%C" | tr '\n' ' ' | tr '[:upper:]' '[:lower:]' | sed 's/  */ /g')"
+  [ -z "$weather" ] && weather="clear"
+  hour=$(date +%H)
+  if [ "$hour" -ge 5 ] && [ "$hour" -lt 12 ]; then
+    tod="morning"
+  elif [ "$hour" -ge 12 ] && [ "$hour" -lt 17 ]; then
+    tod="afternoon"
+  elif [ "$hour" -ge 17 ] && [ "$hour" -lt 21 ]; then
+    tod="evening"
+  else
+    tod="night"
+  fi
+  month=$(date +%m)
+  case "$month" in
+    12|01|02) season="winter" ;;
+    03|04|05) season="spring" ;;
+    06|07|08) season="summer" ;;
+    *) season="autumn" ;;
+  esac
+  holiday=""
+  today=$(date +%m-%d)
+  case "$today" in
+    12-25) holiday="christmas" ;;
+    10-31) holiday="halloween" ;;
+    07-04) holiday="independence day" ;;
+    01-01) holiday="new year" ;;
+    02-14) holiday="valentines day" ;;
+    12-31) holiday="new years eve" ;;
+  esac
+  env_parts=("(${weather} weather:1.2)" "(${tod}:1.2)" "(${season}:1.2)")
+  [ -n "$holiday" ] && env_parts+=("(${holiday}:1.2)")
+  env_text=$(printf ', %s' "${env_parts[@]}")
+  env_text=${env_text#, }
+  prompt="$prompt, $env_text"
+fi
+
 echo "🎨 Final prompt: $prompt"
 echo "🛠 Using model: $model"
 
@@ -246,11 +336,20 @@ generate_pollinations() {
   fi
 }
 
-echo "⏳ Generating image via Pollinations..."
-if ! generate_pollinations "$tmp_output"; then
+echo "🎨 Generating image..."
+generate_pollinations "$tmp_output" &
+gen_pid=$!
+spinner "$gen_pid" &
+spin_pid=$!
+wait "$gen_pid"
+status=$?
+kill "$spin_pid" 2>/dev/null || true
+wait "$spin_pid" 2>/dev/null || true
+if [ "$status" -ne 0 ]; then
   echo "❌ Failed to generate image via Pollinations" >&2
   exit 1
 fi
+echo "✅ Image generated successfully"
 img_source="Pollinations"
 
 case "$generated_content_type" in
@@ -277,7 +376,7 @@ echo "💾 Saved to: $output"
 # Log filename, seed and prompt for later reference
 echo "$filename|$seed|$prompt" >> "$log_file"
 
-# Archive the wallpaper immediately if -s was passed alongside generation options
-[ "$save_wall" = true ] && archive_wall "$output" "$prompt (seed: $seed)"
+# Favorite the wallpaper immediately if -f was passed alongside generation options
+[ "$favorite_wall" = true ] && favorite_image "$output" "$prompt" "$theme" "$style" "$model" "$seed" "$timestamp"
 
 exit 0

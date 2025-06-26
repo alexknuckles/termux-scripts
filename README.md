@@ -70,7 +70,7 @@ due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
-wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s] [-n "text"]
+wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-n "text"]
 ```
 
 Environment variables:
@@ -85,8 +85,9 @@ Flags:
   The `gptimage` model requires a flower-tier Pollinations account; without
   access the API returns an error. The `turbo` model tends to produce lower quality images.
 - `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
-- `-s` Save the latest generated wallpaper to `~/pictures/saved-generated-wallpapers/` with the prompt embedded using `exiftool`.
-  When used without other options, `wallai -s` archives the most recent wallpaper without generating a new one.
+- `-f` Copy the generated wallpaper to `~/pictures/favorites/` and log metadata.
+- `-i` Choose a theme and style inspired by previous favorites.
+- `-w` Append current weather, time, season and holiday to the prompt.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
 
 The final prompt is built as `(theme:1.5) description (style:1.3) [negative prompt: ...]` so the generated image strongly reflects the chosen theme and style.
@@ -100,14 +101,14 @@ API using a random genre such as **dreamcore** or **cyberpunk metropolis**. A st
 You can override the random theme with `-t theme`. The API is asked to respond in exactly 15 words
 and the same seed is used for both text and image generation so results can be repeated.
 
-Dependencies: `curl`, `jq`, `termux-wallpaper`, optional `exiftool` for the `-s` option (also used by the `walsave` alias).
+Dependencies: `curl`, `jq`, `termux-wallpaper`, optional `exiftool` for the `-f` option (also used by the `walfave` alias).
 Images are saved as PNG or JPEG depending on what the API returns.
 If any of these tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
 
-The installer creates a `walsave` alias and `walsave-shortcut.sh` so you
-can archive the currently set wallpaper with metadata via `wallai -s` without generating a new image.
+The installer creates a `walfave` alias and `walfave-shortcut.sh` so you
+can archive the currently set wallpaper with metadata via `wallai -f` without generating a new image.
 
 ## githelper.sh
 
