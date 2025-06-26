@@ -57,3 +57,6 @@
 - gnext now deletes the old testing release so GitHub Actions publishes a fresh prerelease.
 - githelper now creates a default .gitignore to skip __pycache__ and other common cruft.
 - wallai now supports a `-y` flag for picking a visual style. Styles are chosen at random if omitted, and the theme list has been expanded.
+- wallai gains theme and style weighting, negative prompt support with `-n`,
+  Pollinations parameters for logo removal and enhancement, slugified filenames
+  and seed logging for repeatable generations.
