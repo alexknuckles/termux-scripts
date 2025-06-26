@@ -62,3 +62,5 @@
   and seed logging for repeatable generations.
 - wallai adds a favorites system via `-f`, inspired mode with `-i`,
   weather-aware prompting with `-w` and an emoji spinner during image generation.
+- wallai now falls back to a local list of prompts if the API request fails.
+- wallai retries Pollinations API calls and prints the success message on a new line.
