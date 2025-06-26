@@ -108,7 +108,8 @@ favorite_image() {
   local dest_dir="$HOME/pictures/favorites"
   local log="$dest_dir/favorites.jsonl"
   mkdir -p "$dest_dir"
-  local dest="$dest_dir/$(basename "$file")"
+  local dest
+  dest="$dest_dir/$(basename "$file")"
   cp "$file" "$dest"
   exiftool -overwrite_original -Comment="$comment" "$dest" >/dev/null
   jq -n --arg prompt "$comment" --arg theme "$theme" --arg style "$style" \
@@ -130,7 +131,7 @@ spinner() {
     sleep 0.5
   done
   tput cnorm 2>/dev/null || true
-  printf "\r"
+  printf "\r\033[K"
 }
 
 # If called only with -f, favorite the last generated wallpaper and exit early
@@ -313,13 +314,16 @@ if [ "$weather_flag" = true ]; then
   prompt="$prompt, $env_text"
 fi
 
+# Ensure we always have a value for the generated content type
+generated_content_type=""
+
 echo "🎨 Final prompt: $prompt"
 echo "🛠 Using model: $model"
 
 # ✨ Step 3: Generate image via Pollinations
 
 generate_pollinations() {
-  local out_file="$1"
+  local out_file="$1" type_file="$2"
   local encoded headers err_msg
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
   headers=$(mktemp)
@@ -328,6 +332,7 @@ generate_pollinations() {
     return 1
   fi
   generated_content_type=$(grep -i '^content-type:' "$headers" | tr -d '\r' | awk '{print $2}')
+  printf '%s' "$generated_content_type" >"$type_file"
   rm -f "$headers"
   if printf '%s' "$generated_content_type" | grep -qi 'application/json'; then
     err_msg=$(jq -r '.message // .error // "Unknown error"' <"$out_file" 2>/dev/null)
@@ -337,7 +342,8 @@ generate_pollinations() {
 }
 
 echo "🎨 Generating image..."
-generate_pollinations "$tmp_output" &
+ctype_file=$(mktemp)
+generate_pollinations "$tmp_output" "$ctype_file" &
 gen_pid=$!
 spinner "$gen_pid" &
 spin_pid=$!
@@ -351,6 +357,9 @@ if [ "$status" -ne 0 ]; then
 fi
 echo "✅ Image generated successfully"
 img_source="Pollinations"
+
+generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
+rm -f "$ctype_file"
 
 case "$generated_content_type" in
   image/png)
