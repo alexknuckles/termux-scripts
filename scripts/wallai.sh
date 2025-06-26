@@ -234,9 +234,10 @@ fi
 
 
 fetch_prompt() {
-  local attempt=1
+  local attempt=1 encoded_theme
+  encoded_theme=$(printf '%s' "$theme" | jq -sRr @uri | sed 's/%20/+/g')
   while [ "$attempt" -le 3 ]; do
-    prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+picture+in+exactly+15+words?seed=${seed}" || true)
+    prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${encoded_theme}+picture+in+exactly+15+words?seed=${seed}" || true)
     prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
     prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
     [ -n "$prompt" ] && return 0
