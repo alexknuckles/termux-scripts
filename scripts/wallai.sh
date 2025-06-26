@@ -3,9 +3,10 @@ set -euo pipefail
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r] [-s]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s]
 #   -p  custom prompt instead of random theme
 #   -t  choose a theme when fetching the random prompt
+#   -y  pick a visual style or use a random one
 #   -m  Pollinations model (default "flux")
 #   -r  select a random model from the available list
 #   -s  save the wallpaper with metadata using exiftool
@@ -27,11 +28,12 @@ done
 # Parse options
 prompt=""
 theme=""
+style=""
 model="flux"
 random_model=false
 save_wall=false
 generation_opts=false
-while getopts ":p:t:m:rs" opt; do
+while getopts ":p:t:m:ry:s" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -45,6 +47,10 @@ while getopts ":p:t:m:rs" opt; do
       model="$OPTARG"
       generation_opts=true
       ;;
+    y)
+      style="$OPTARG"
+      generation_opts=true
+      ;;
     r)
       random_model=true
       generation_opts=true
@@ -53,7 +59,7 @@ while getopts ":p:t:m:rs" opt; do
       save_wall=true
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-m model] [-r] [-s]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-s]" >&2
       exit 1
       ;;
   esac
@@ -115,12 +121,13 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-m model] [-r] [-s]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
 #   -p prompt text  Custom prompt instead of random theme
 #   -t theme        Specify theme when fetching random prompt
+#   -y style        Pick a visual style or use a random one
 #   -m model        Pollinations model (defaults to 'flux'). Supported models
 #                   are fetched from the API (fallback: flux turbo gptimage)
 #   -r              Pick a random model from the available list
@@ -159,7 +166,11 @@ if [ -z "$prompt" ]; then
 
   # 🎲 Step 1: Pick or use provided theme
   if [ -z "$theme" ]; then
-    themes=("fantasy" "sci-fi" "cyberpunk" "steampunk" "surreal" "horror")
+    themes=(
+      "fantasy" "sci-fi" "cyberpunk" "steampunk" "surreal" "horror" "nature"
+      "futuristic" "vaporwave" "neo-noir" "whimsical" "retro" "mythology"
+      "cosmic" "minimalist" "abstract"
+    )
     theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
   fi
   echo "🔖 Selected theme: $theme"
@@ -178,6 +189,18 @@ if [ -z "$prompt" ]; then
     prompt="a neon dreamscape filled with surreal creatures"
   fi
 fi
+
+# Pick a style if none was provided
+if [ -z "$style" ]; then
+  styles=(
+    "digital painting" "watercolor" "oil painting" "pixel art" "sketch" "neon"
+    "retro" "vector art" "low poly" "paper cutout"
+  )
+  style=$(printf '%s\n' "${styles[@]}" | shuf -n1)
+fi
+echo "🖌 Selected style: $style"
+
+prompt="$prompt in $style style"
 
 echo "🎨 Final prompt: $prompt"
 echo "🛠 Using model: $model"
