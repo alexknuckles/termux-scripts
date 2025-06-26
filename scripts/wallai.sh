@@ -3,13 +3,14 @@ set -euo pipefail
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-s] [-n "text"]
 #   -p  custom prompt instead of random theme
 #   -t  choose a theme when fetching the random prompt
 #   -y  pick a visual style or use a random one
 #   -m  Pollinations model (default "flux")
 #   -r  select a random model from the available list
 #   -s  save the wallpaper with metadata using exiftool
+#   -n  custom negative prompt
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -s
 # Output: saves the generated image to ~/pictures/generated-wallpapers and sets
@@ -29,11 +30,12 @@ done
 prompt=""
 theme=""
 style=""
+negative_prompt=""
 model="flux"
 random_model=false
 save_wall=false
 generation_opts=false
-while getopts ":p:t:m:ry:s" opt; do
+while getopts ":p:t:m:ry:s:n:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -58,18 +60,33 @@ while getopts ":p:t:m:ry:s" opt; do
     s)
       save_wall=true
       ;;
+    n)
+      negative_prompt="$OPTARG"
+      generation_opts=true
+      ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-s]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-s] [-n \"text\"]" >&2
       exit 1
       ;;
   esac
 done
 shift $((OPTIND - 1))
 
+# Default negative prompt if not provided
+if [ -z "$negative_prompt" ]; then
+  negative_prompt="blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy"
+fi
+
 # Directory where generated wallpapers live and log path
 save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
 log_file="$save_dir/wallai.log"
+
+# Convert strings like "Cyberpunk Metropolis" to "cyberpunk-metropolis"
+slugify() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | \
+    sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//'
+}
 
 # Function to archive the most recent wallpaper with metadata using exiftool
 archive_wall() {
@@ -95,8 +112,9 @@ if [ "$save_wall" = true ] && [ "$generation_opts" = false ]; then
     exit 1
   fi
   last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
-  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f2-)
-  archive_wall "$save_dir/$last_file" "$last_prompt"
+  last_seed=$(printf '%s' "$last_entry" | cut -d'|' -f2)
+  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f3-)
+  archive_wall "$save_dir/$last_file" "$last_prompt (seed: $last_seed)"
   exit 0
 fi
 
@@ -142,6 +160,7 @@ save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 tmp_output="$save_dir/${timestamp}.img"
+seed=$(date +%s%N | sha256sum | head -c 8)
 
 
 # Whether to allow NSFW prompts and generations
@@ -155,9 +174,9 @@ case "$(printf '%s' "$nsfw_raw" | tr '[:upper:]' '[:lower:]')" in
     ;;
 esac
 
-params="model=$model"
+params="nologo=true&enhance=true&private=true&seed=${seed}&model=${model}"
 if [ "$allow_nsfw" = false ]; then
-  params="safe=true&$params"
+  params="safe=true&${params}"
 fi
 
 
@@ -167,18 +186,16 @@ if [ -z "$prompt" ]; then
   # 🎲 Step 1: Pick or use provided theme
   if [ -z "$theme" ]; then
     themes=(
-      "fantasy" "sci-fi" "cyberpunk" "steampunk" "surreal" "horror" "nature"
-      "futuristic" "vaporwave" "neo-noir" "whimsical" "retro" "mythology"
-      "cosmic" "minimalist" "abstract"
+      "dreamcore" "mystical forest" "cosmic horror" "ethereal landscape"
+      "retrofuturism" "alien architecture" "cyberpunk metropolis"
     )
     theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
   fi
   echo "🔖 Selected theme: $theme"
 
   # 🧠 Step 2: Retrieve a text prompt for that theme
-  # Ask the API for exactly 15 words and pass a random seed to vary results
-  random_token=$(date +%s%N | sha256sum | head -c 8)
-  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+picture+in+exactly+15+words?seed=${random_token}" || true)
+  # Ask the API for exactly 15 words and pass a seed so results are repeatable
+  prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${theme}+picture+in+exactly+15+words?seed=${seed}" || true)
   # Normalize whitespace and keep only the first 15 words
   prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
@@ -193,14 +210,18 @@ fi
 # Pick a style if none was provided
 if [ -z "$style" ]; then
   styles=(
-    "digital painting" "watercolor" "oil painting" "pixel art" "sketch" "neon"
-    "retro" "vector art" "low poly" "paper cutout"
+    "unreal engine" "cinematic lighting" "octane render" "hyperrealism" \
+    "volumetric lighting" "high detail" "4k concept art"
   )
   style=$(printf '%s\n' "${styles[@]}" | shuf -n1)
 fi
 echo "🖌 Selected style: $style"
 
-prompt="$prompt in $style style"
+# Build the final prompt with theme and style weights and negative text
+if [ -n "$theme" ]; then
+  prompt="(${theme}:1.5) $prompt"
+fi
+prompt="$prompt (${style}:1.3) [negative prompt: $negative_prompt]"
 
 echo "🎨 Final prompt: $prompt"
 echo "🛠 Using model: $model"
@@ -243,7 +264,9 @@ case "$generated_content_type" in
     ext="png"
     ;;
 esac
-filename="${timestamp}.${ext}"
+theme_slug=$(slugify "${theme:-custom}")
+style_slug=$(slugify "$style")
+filename="${timestamp}_${theme_slug}_${style_slug}.${ext}"
 output="$save_dir/$filename"
 mv "$tmp_output" "$output"
 
@@ -251,10 +274,10 @@ termux-wallpaper -f "$output"
 echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 echo "💾 Saved to: $output"
 
-# Log filename and prompt for later reference
-echo "$filename|$prompt" >> "$log_file"
+# Log filename, seed and prompt for later reference
+echo "$filename|$seed|$prompt" >> "$log_file"
 
 # Archive the wallpaper immediately if -s was passed alongside generation options
-[ "$save_wall" = true ] && archive_wall "$output" "$prompt"
+[ "$save_wall" = true ] && archive_wall "$output" "$prompt (seed: $seed)"
 
 exit 0
