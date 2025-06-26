@@ -341,7 +341,6 @@ generate_pollinations() {
   fi
 }
 
-echo "🎨 Generating image..."
 ctype_file=$(mktemp)
 generate_pollinations "$tmp_output" "$ctype_file" &
 gen_pid=$!
