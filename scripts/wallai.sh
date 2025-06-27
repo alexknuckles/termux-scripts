@@ -201,17 +201,18 @@ discover_item() {
     return
   fi
   case "$kind" in
-    theme) query="Imagine+a+theme+in+two+words" ;;
-    style) query="Imagine+an+art+style+in+two+words" ;;
+    theme) query="Imagine a theme in two words" ;;
+    style) query="Imagine an art style in two words" ;;
     *) return ;;
   esac
-  local url="https://text.pollinations.ai/?model=${gen_prompt_model}&prompt=${query}"
+  encoded=$(printf '%s' "$query" | jq -sRr @uri)
+  local url="https://text.pollinations.ai/prompt/${encoded}?model=${gen_prompt_model}"
   [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url"
   result=$(curl -sL "$url" || true)
   [ "$verbose" = true ] && echo "🔍 Response: $result"
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
-  if [ "$(printf '%s' "$result" | wc -w)" -le 2 ] && [ -n "$result" ]; then
-    printf '%s' "$result"
+  if [ -n "$result" ]; then
+    printf '%s' "$result" | awk '{print $1, $2}'
   fi
 }
 
@@ -401,9 +402,9 @@ fi
 
 fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
-  local attempt=1 encoded_theme url
-  encoded_theme=$(printf '%s' "$theme" | jq -sRr @uri | sed 's/%20/+/g')
-  url="https://text.pollinations.ai/Imagine+a+${encoded_theme}+picture+in+exactly+15+words?seed=${seed}&model=${gen_prompt_model}"
+  local attempt=1 encoded url
+  encoded=$(printf '%s' "$theme picture in exactly 15 words" | jq -sRr @uri)
+  url="https://text.pollinations.ai/prompt/${encoded}?seed=${seed}&model=${gen_prompt_model}"
   [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
   while [ "$attempt" -le 3 ]; do
     prompt=$(curl -sL "$url" || true)
