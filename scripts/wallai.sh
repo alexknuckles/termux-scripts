@@ -3,23 +3,23 @@ set -euo pipefail
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r]
-#                  [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l]
-#                  [-n "text"] [-v] [-h]
-#   -p  custom prompt instead of random theme
-#   -t  choose a theme when fetching the random prompt
-#   -y  pick a visual style or use a random one
-#   -m  Pollinations model (default "flux")
-#   -r  select a random model from the available list
+# Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] \
+#                  [-m model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
+#                  [-v] [-w] [-y style]
+#   -d  discover a new theme/style (mode: theme, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
 #   -g  generate using config from the specified group
-#   -d  discover a new theme/style (mode: theme, style or both)
-#   -i  pick theme and style inspired by past favorites
-#   -w  add weather, time and holiday context to the prompt
-#   -l  use the theme/style from the last image if not provided
-#   -n  custom negative prompt
-#   -v  verbose output for troubleshooting
 #   -h  show this help message
+#   -i  pick theme and style inspired by past favorites
+#   -l  use the theme/style from the last image if not provided
+#   -m  Pollinations model (default "flux")
+#   -n  custom negative prompt
+#   -p  custom prompt instead of random theme
+#   -r  select a random model from the available list
+#   -t  choose a theme when fetching the random prompt
+#   -v  verbose output for troubleshooting
+#   -w  add weather, time and holiday context to the prompt
+#   -y  pick a visual style or use a random one
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image to ~/pictures/generated-wallpapers and sets
@@ -29,23 +29,24 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r]
-                 [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l]
-                 [-n "text"] [-v] [-h]
-  -p  custom prompt instead of random theme
-  -t  choose a theme when fetching the random prompt
-  -y  pick a visual style or use a random one
-  -m  Pollinations model (default "flux")
-  -r  select a random model from the available list
-  -f  mark the generated wallpaper as a favorite in the optional group
-  -g  generate using config from the specified group
-  -d  discover a new theme/style (mode: theme, style or both)
-  -i  pick theme and style inspired by past favorites
-  -w  add weather, time and holiday context to the prompt
-  -l  use the theme/style from the last image if not provided
-  -n  custom negative prompt
-  -v  verbose output for troubleshooting
-  -h  show this help message
+Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] \
+                 [-m model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
+                 [-v] [-w] [-y style]
+
+  -d [mode]   discover a new theme/style (mode: theme, style or both)
+  -f [group]  mark the generated wallpaper as a favorite in the optional group
+  -g [group]  generate using config from the specified group
+  -h          show this help message
+  -i          pick theme and style inspired by past favorites
+  -l          use the theme/style from the last image if not provided
+  -m model    Pollinations model (default "flux")
+  -n text     custom negative prompt
+  -p text     custom prompt instead of random theme
+  -r          select a random model from the available list
+  -t theme    choose a theme when fetching the random prompt
+  -v          verbose output for troubleshooting
+  -w          add weather, time and holiday context to the prompt
+  -y style    pick a visual style or use a random one
 EOF
 }
 
@@ -144,13 +145,13 @@ while getopts ":p:t:m:y:rn:f:g:d:iwvlh" opt; do
           discovery_mode="both"
           ;;
         *)
-          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v] [-h]" >&2
+          echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v] [-h]" >&2
+      echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
       exit 1
       ;;
   esac

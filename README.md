@@ -70,31 +70,31 @@ due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
-wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] \
-       [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n "text"] [-h]
+wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] [-m model] \
+       [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
 ```
 
 Environment variables:
 - `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
 
 Flags:
-- `-p` Specify your own prompt instead of fetching a random one.
-- `-t` Choose a theme for the random prompt (ignored if `-p` is used).
-- `-y` Select a visual style. If omitted, one is picked at random.
+- `-d [mode]` Discover a new theme and/or style using Pollinations. Modes are `theme`, `style` or both if omitted.
+- `-f [group]` Save the wallpaper to a favorites group (defaults to `main`).
+- `-g [group]` Generate using themes and styles from a group.
+- `-h` Show help and exit.
+- `-i` Choose a theme and style inspired by previous favorites.
+- `-l` Use the theme and style from the last generated image if either is omitted.
 - `-m` Select Pollinations model. Available models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
   The `gptimage` model requires a flower-tier Pollinations account; without
   access the API returns an error. The `turbo` model tends to produce lower quality images.
-- `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
-- `-f [group]` Save the wallpaper to a favorites group (defaults to `main`).
-- `-g [group]` Generate using themes and styles from a group.
-- `-d [mode]` Discover a new theme and/or style using Pollinations. Modes are `theme`, `style` or both if omitted.
-- `-i` Choose a theme and style inspired by previous favorites.
-- `-w` Append current weather, time, season and holiday to the prompt.
-- `-l` Use the theme and style from the last generated image if either is omitted.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
+- `-p` Specify your own prompt instead of fetching a random one.
+- `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
+- `-t` Choose a theme for the random prompt (ignored if `-p` is used).
 - `-v` Enable verbose output for API requests and responses.
-- `-h` Show help and exit.
+- `-w` Append current weather, time, season and holiday to the prompt.
+- `-y` Select a visual style. If omitted, one is picked at random.
 
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a
