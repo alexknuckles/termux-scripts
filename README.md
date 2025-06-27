@@ -70,7 +70,8 @@ due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
-wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-n "text"]
+wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] \
+       [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n "text"]
 ```
 
 Environment variables:
@@ -85,10 +86,17 @@ Flags:
   The `gptimage` model requires a flower-tier Pollinations account; without
   access the API returns an error. The `turbo` model tends to produce lower quality images.
 - `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
-- `-f` Copy the generated wallpaper to `~/pictures/favorites/` and log metadata.
+- `-f [group]` Save the wallpaper to a favorites group (defaults to `main`).
+- `-g [group]` Generate using themes and styles from a group.
+- `-d [mode]` Discover a new theme and/or style using Pollinations. Modes are `theme`, `style` or both if omitted.
 - `-i` Choose a theme and style inspired by previous favorites.
 - `-w` Append current weather, time, season and holiday to the prompt.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
+
+Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
+automatically with a `main` group on first run. Each group can specify a
+favorites path, whether NSFW prompts are allowed, the prompt model used for
+discovery and lists of themes and styles.
 
 The final prompt is built as `(theme:1.5) description (style:1.3) [negative prompt: ...]` so the generated image strongly reflects the chosen theme and style.
 
