@@ -3,13 +3,16 @@ set -euo pipefail
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-n "text"]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r]
+#                  [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n "text"]
 #   -p  custom prompt instead of random theme
 #   -t  choose a theme when fetching the random prompt
 #   -y  pick a visual style or use a random one
 #   -m  Pollinations model (default "flux")
 #   -r  select a random model from the available list
-#   -f  mark the generated wallpaper as a favorite
+#   -f  mark the generated wallpaper as a favorite in the optional group
+#   -g  generate using config from the specified group
+#   -d  discover a new theme/style (mode: theme, style or both)
 #   -i  pick theme and style inspired by past favorites
 #   -w  add weather, time and holiday context to the prompt
 #   -n  custom negative prompt
@@ -36,10 +39,13 @@ negative_prompt=""
 model="flux"
 random_model=false
 favorite_wall=false
+favorite_group="main"
+gen_group="main"
+discovery_mode=""
 inspired_mode=false
 weather_flag=false
 generation_opts=false
-while getopts ":p:t:m:y:rn:fiw" opt; do
+while getopts ":p:t:m:y:rn:f::g::d::iw" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -63,6 +69,13 @@ while getopts ":p:t:m:y:rn:fiw" opt; do
       ;;
     f)
       favorite_wall=true
+      favorite_group="${OPTARG:-main}"
+      ;;
+    g)
+      gen_group="${OPTARG:-main}"
+      ;;
+    d)
+      discovery_mode="${OPTARG:-both}"
       ;;
     i)
       inspired_mode=true
@@ -75,7 +88,7 @@ while getopts ":p:t:m:y:rn:fiw" opt; do
       generation_opts=true
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-n \"text\"]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"]" >&2
       exit 1
       ;;
   esac
@@ -86,6 +99,89 @@ shift $((OPTIND - 1))
 if [ -z "$negative_prompt" ]; then
   negative_prompt="blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy"
 fi
+
+# Load configuration and bootstrap defaults if needed
+config_file="$HOME/.wallai/config.yml"
+if [ ! -f "$config_file" ]; then
+  mkdir -p "$(dirname "$config_file")"
+  cat >"$config_file" <<'EOF'
+groups:
+  main:
+    path: ~/pictures/favorites/main
+    nsfw: false
+    prompt_model: default
+    allow_prompt_fetch: true
+    themes:
+      - mystical forest
+      - retrofuturism
+    styles:
+      - unreal engine
+      - cinematic lighting
+EOF
+fi
+
+config_json=$(CFG="$config_file" python3 - <<'PY'
+import os,sys,json
+import yaml
+with open(os.environ['CFG']) as f:
+    data = yaml.safe_load(f) or {}
+json.dump(data, sys.stdout)
+PY
+)
+
+# Helper to fetch values from config JSON
+cfg() {
+  printf '%s' "$config_json" | jq -r --arg g "$1" "$2" 2>/dev/null
+}
+
+# Generation group settings
+# shellcheck disable=SC2016
+gen_path=$(cfg "$gen_group" '.groups[$g].path // empty')
+[ -z "$gen_path" ] && gen_path="$HOME/pictures/favorites/$gen_group"
+gen_path=$(eval printf '%s' "$gen_path")
+# shellcheck disable=SC2016
+gen_nsfw=$(cfg "$gen_group" '.groups[$g].nsfw // false')
+# shellcheck disable=SC2016
+gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model // "default"')
+# shellcheck disable=SC2016
+gen_allow_prompt_fetch=$(cfg "$gen_group" '.groups[$g].allow_prompt_fetch // true')
+# shellcheck disable=SC2016
+mapfile -t gen_themes < <(cfg "$gen_group" '.groups[$g].themes[]?')
+# shellcheck disable=SC2016
+mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]?')
+
+# Favorite group path
+# shellcheck disable=SC2016
+fav_path=$(cfg "$favorite_group" '.groups[$g].path // empty')
+[ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$favorite_group"
+fav_path=$(eval printf '%s' "$fav_path")
+
+# Discover new theme or style via Pollinations
+discover_item() {
+  local kind="$1" query result
+  if [ "$gen_allow_prompt_fetch" != true ]; then
+    return
+  fi
+  case "$kind" in
+    theme) query="Imagine+a+theme+in+two+words" ;;
+    style) query="Imagine+an+art+style+in+two+words" ;;
+    *) return ;;
+  esac
+  result=$(curl -sL "https://text.pollinations.ai/?model=${gen_prompt_model}&prompt=${query}" || true)
+  result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
+  if [ "$(printf '%s' "$result" | wc -w)" -le 2 ] && [ -n "$result" ]; then
+    printf '%s' "$result"
+  fi
+}
+
+# Append a discovered item to the group's config list if missing
+append_config_item() {
+  local list="$1" item="$2"
+  tmp=$(mktemp)
+  jq --arg g "$gen_group" --arg i "$item" --arg l "$list" '
+    (.groups[$g][$l] //= []) as $arr
+    | if ($arr | index($i)) then . else .groups[$g][$l] += [$i] end' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+}
 
 # Directory where generated wallpapers live and log path
 save_dir="$HOME/pictures/generated-wallpapers"
@@ -105,7 +201,8 @@ favorite_image() {
     return 1
   }
   local file="$1" comment="$2" theme="$3" style="$4" model="$5" seed="$6" ts="$7"
-  local dest_dir="$HOME/pictures/favorites"
+  local group_path="$8"
+  local dest_dir="$group_path"
   local log="$dest_dir/favorites.jsonl"
   mkdir -p "$dest_dir"
   local dest
@@ -149,7 +246,7 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ]; then
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
   last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
   last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
-  favorite_image "$save_dir/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts"
+  favorite_image "$save_dir/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path"
   exit 0
 fi
 
@@ -166,6 +263,28 @@ if [ "$inspired_mode" = true ]; then
     echo "🧠 Inspired by favorites:"
     [ -n "$theme" ] && echo "🔖 Theme: $theme"
     [ -n "$style" ] && echo "🎨 Style: $style"
+  fi
+fi
+
+# Discovery mode for new themes or styles
+discovered_theme=""
+discovered_style=""
+if [ -n "$discovery_mode" ]; then
+  if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "theme" ]; then
+    new=$(discover_item theme)
+    if [ -n "$new" ]; then
+      theme="$new"
+      discovered_theme="$new"
+      echo "🆕 Discovered theme: $theme"
+    fi
+  fi
+  if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "style" ]; then
+    new=$(discover_item style)
+    if [ -n "$new" ]; then
+      style="$new"
+      discovered_style="$new"
+      echo "🆕 Discovered style: $style"
+    fi
   fi
 fi
 
@@ -227,6 +346,11 @@ case "$(printf '%s' "$nsfw_raw" | tr '[:upper:]' '[:lower:]')" in
     ;;
 esac
 
+# Group config overrides NSFW policy
+if [ "$gen_nsfw" = true ]; then
+  allow_nsfw=true
+fi
+
 params="nologo=true&enhance=true&private=true&seed=${seed}&model=${model}"
 if [ "$allow_nsfw" = false ]; then
   params="safe=true&${params}"
@@ -234,10 +358,12 @@ fi
 
 
 fetch_prompt() {
-  local attempt=1 encoded_theme
+  [ "$gen_allow_prompt_fetch" != true ] && return 1
+  local attempt=1 encoded_theme url
   encoded_theme=$(printf '%s' "$theme" | jq -sRr @uri | sed 's/%20/+/g')
+  url="https://text.pollinations.ai/Imagine+a+${encoded_theme}+picture+in+exactly+15+words?seed=${seed}&model=${gen_prompt_model}"
   while [ "$attempt" -le 3 ]; do
-    prompt=$(curl -sL "https://text.pollinations.ai/Imagine+a+${encoded_theme}+picture+in+exactly+15+words?seed=${seed}" || true)
+    prompt=$(curl -sL "$url" || true)
     prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
     prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
     [ -n "$prompt" ] && return 0
@@ -252,11 +378,15 @@ if [ -z "$prompt" ]; then
 
   # 🎲 Step 1: Pick or use provided theme
   if [ -z "$theme" ]; then
-    themes=(
-      "dreamcore" "mystical forest" "cosmic horror" "ethereal landscape"
-      "retrofuturism" "alien architecture" "cyberpunk metropolis"
-    )
-    theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
+    if [ "${#gen_themes[@]}" -gt 0 ]; then
+      theme=$(printf '%s\n' "${gen_themes[@]}" | shuf -n1)
+    else
+      themes=(
+        "dreamcore" "mystical forest" "cosmic horror" "ethereal landscape"
+        "retrofuturism" "alien architecture" "cyberpunk metropolis"
+      )
+      theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
+    fi
   fi
   echo "🔖 Selected theme: $theme"
 
@@ -278,11 +408,15 @@ fi
 
 # Pick a style if none was provided
 if [ -z "$style" ]; then
-  styles=(
-    "unreal engine" "cinematic lighting" "octane render" "hyperrealism" \
-    "volumetric lighting" "high detail" "4k concept art"
-  )
-  style=$(printf '%s\n' "${styles[@]}" | shuf -n1)
+  if [ "${#gen_styles[@]}" -gt 0 ]; then
+    style=$(printf '%s\n' "${gen_styles[@]}" | shuf -n1)
+  else
+    styles=(
+      "unreal engine" "cinematic lighting" "octane render" "hyperrealism" \
+      "volumetric lighting" "high detail" "4k concept art"
+    )
+    style=$(printf '%s\n' "${styles[@]}" | shuf -n1)
+  fi
 fi
 echo "🖌 Selected style: $style"
 
@@ -420,6 +554,10 @@ echo "💾 Saved to: $output"
 echo "$filename|$seed|$prompt" >> "$log_file"
 
 # Favorite the wallpaper immediately if -f was passed alongside generation options
-[ "$favorite_wall" = true ] && favorite_image "$output" "$prompt" "$theme" "$style" "$model" "$seed" "$timestamp"
+[ "$favorite_wall" = true ] && {
+  favorite_image "$output" "$prompt" "$theme" "$style" "$model" "$seed" "$timestamp" "$fav_path"
+  [ -n "$discovered_theme" ] && append_config_item "themes" "$discovered_theme"
+  [ -n "$discovered_style" ] && append_config_item "styles" "$discovered_style"
+}
 
 exit 0

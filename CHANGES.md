@@ -65,3 +65,5 @@
 - wallai now falls back to a local list of prompts if the API request fails.
 - wallai retries Pollinations API calls and prints the success message on a new line.
 - wallai validates downloaded files and retries if the file is not an image.
+- wallai supports per-group configuration with auto-bootstrap, discovery mode via `-d`,
+  group-based favorites with `-f [group]` and generation with `-g [group]`.
