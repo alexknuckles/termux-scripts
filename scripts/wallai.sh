@@ -3,14 +3,14 @@ set -euo pipefail
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] \
+# Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] \
 #                  [-m model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
 #                  [-v] [-w] [-y style]
 #   -d  discover a new theme/style (mode: theme, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
 #   -g  generate using config from the specified group
 #   -h  show this help message
-#   -i  pick theme and style inspired by past favorites
+#   -i  pick theme and style inspired by past favorites from the optional group
 #   -l  use the theme/style from the last image if not provided
 #   -m  Pollinations model (default "flux")
 #   -n  custom negative prompt
@@ -29,7 +29,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] \
+Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] \
                  [-m model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
                  [-v] [-w] [-y style]
 
@@ -37,7 +37,7 @@ Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] \
   -f [group]  mark the generated wallpaper as a favorite in the optional group
   -g [group]  generate using config from the specified group
   -h          show this help message
-  -i          pick theme and style inspired by past favorites
+  -i [group]  pick theme and style inspired by past favorites from the optional group
   -l          use the theme/style from the last image if not provided
   -m model    Pollinations model (default "flux")
   -n text     custom negative prompt
@@ -70,11 +70,12 @@ favorite_group="main"
 gen_group="main"
 discovery_mode=""
 inspired_mode=false
+inspired_group="main"
 weather_flag=false
 use_last=false
 generation_opts=false
 verbose=false
-while getopts ":p:t:m:y:rn:f:g:d:iwvlh" opt; do
+while getopts ":p:t:m:y:rn:f:g:d:i:wvlh" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -113,6 +114,12 @@ while getopts ":p:t:m:y:rn:f:g:d:iwvlh" opt; do
       ;;
     i)
       inspired_mode=true
+      if [ -n "${OPTARG:-}" ] && [ "${OPTARG:0:1}" != "-" ]; then
+        inspired_group="$OPTARG"
+      else
+        inspired_group="main"
+        [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
+      fi
       ;;
     w)
       weather_flag=true
@@ -144,14 +151,18 @@ while getopts ":p:t:m:y:rn:f:g:d:iwvlh" opt; do
         d)
           discovery_mode="both"
           ;;
+        i)
+          inspired_mode=true
+          inspired_group="main"
+          ;;
         *)
-          echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+          echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+      echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
       exit 1
       ;;
   esac
@@ -228,6 +239,12 @@ mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]?')
 fav_path=$(cfg "$favorite_group" '.groups[$g].path // empty')
 [ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$favorite_group"
 fav_path=$(eval printf '%s' "$fav_path")
+
+# Inspired group path for -i
+# shellcheck disable=SC2016
+insp_path=$(cfg "$inspired_group" '.groups[$g].path // empty')
+[ -z "$insp_path" ] && insp_path="$HOME/pictures/favorites/$inspired_group"
+insp_path=$(eval printf '%s' "$insp_path")
 
 # Discover new theme or style via Pollinations
 discover_item() {
@@ -361,7 +378,7 @@ fi
 
 # Inspired mode selects theme and style based on past favorites
 if [ "$inspired_mode" = true ]; then
-  fav_file="$HOME/pictures/favorites/favorites.jsonl"
+  fav_file="$insp_path/favorites.jsonl"
   if [ -f "$fav_file" ]; then
     if [ -z "$theme" ]; then
       theme=$(jq -r '.theme' "$fav_file" | shuf -n1 || true)
@@ -419,7 +436,7 @@ fi
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f]
-#                  [-g group] [-d mode] [-i] [-w] [-l] [-n "text"] [-v] [-h]
+#                  [-g group] [-d mode] [-i group] [-w] [-l] [-n "text"] [-v] [-h]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -432,7 +449,7 @@ fi
 #   -f              Mark the latest generated wallpaper as a favorite
 #   -g group        Generate using config from the specified group
 #   -d mode         Discover a new theme/style (theme, style or both)
-#   -i              Choose theme and style inspired by favorites
+#   -i group        Choose theme and style inspired by favorites from the specified group
 #   -w              Add weather, time and seasonal context
 #   -l              Use theme and/or style from the last image
 #   -n text         Override the default negative prompt
