@@ -61,7 +61,7 @@ Run the installer with `-u` to remove the symlinks, shortcuts and alias file and
 </p>
 
 Generates an AI-based wallpaper using the free Pollinations API. The script requests a 15-word
-description for a random theme and includes a unique seed so prompts vary even for the same theme.
+description for a random theme using a random seed so prompts vary even for the same theme.
 You can choose between several Pollinations models using the `-m` flag or let the
 script pick one at random with `-r`. Models are retrieved from the Pollinations
 API. If that fails the script falls back to `flux`, `turbo` and `gptimage`. The
@@ -114,7 +114,7 @@ If no prompt is provided, the script retrieves a themed picture description from
 API using a random genre such as **dreamcore** or **cyberpunk metropolis**. A style such as
 **unreal engine** or **cinematic lighting** is also selected unless you supply `-y style`.
 You can override the random theme with `-t theme`. The API is asked to respond in exactly 15 words
-and the same seed is used for both text and image generation so results can be repeated.
+and each API request uses a new seed. These seeds are stored so results can be repeated.
 If the request fails, wallai retries up to three times before choosing a prompt from a built-in
 fallback list so generation can continue offline. Image generation itself also retries if the
 initial request fails.
