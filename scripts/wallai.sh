@@ -45,7 +45,7 @@ discovery_mode=""
 inspired_mode=false
 weather_flag=false
 generation_opts=false
-while getopts ":p:t:m:y:rn:f::g::d::iw" opt; do
+while getopts ":p:t:m:y:rn:f:g:d:iw" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -69,13 +69,13 @@ while getopts ":p:t:m:y:rn:f::g::d::iw" opt; do
       ;;
     f)
       favorite_wall=true
-      favorite_group="${OPTARG:-main}"
+      favorite_group="$OPTARG"
       ;;
     g)
-      gen_group="${OPTARG:-main}"
+      gen_group="$OPTARG"
       ;;
     d)
-      discovery_mode="${OPTARG:-both}"
+      discovery_mode="$OPTARG"
       ;;
     i)
       inspired_mode=true
@@ -86,6 +86,24 @@ while getopts ":p:t:m:y:rn:f::g::d::iw" opt; do
     n)
       negative_prompt="$OPTARG"
       generation_opts=true
+      ;;
+    :)
+      case "$OPTARG" in
+        f)
+          favorite_wall=true
+          favorite_group="main"
+          ;;
+        g)
+          gen_group="main"
+          ;;
+        d)
+          discovery_mode="both"
+          ;;
+        *)
+          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"]" >&2
+          exit 1
+          ;;
+      esac
       ;;
     *)
       echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"]" >&2
