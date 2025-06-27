@@ -70,3 +70,4 @@
 - Config bootstrapping now includes the full list of default themes and styles.
 - wallai now supports a -v flag to print API URLs and responses.
 - Fixed `-d` erroneously consuming the next flag as its argument. Verbose mode now works with discovery.
+- Added `-l` to wallai to reuse theme and style from the last image.
