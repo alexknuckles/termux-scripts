@@ -128,6 +128,7 @@ the image.
 
 The installer creates a `walfave` alias and `walfave-shortcut.sh` so you
 can archive the currently set wallpaper with metadata via `wallai -f` without generating a new image.
+It also installs `walfave-group-shortcut.sh` which lets you pick the favorites group using on-screen buttons.
 
 ## githelper.sh
 
