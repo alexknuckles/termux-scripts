@@ -77,7 +77,12 @@ while getopts ":p:t:m:y:rn:f:g:d:iwv" opt; do
       gen_group="$OPTARG"
       ;;
     d)
-      discovery_mode="$OPTARG"
+      if [ -n "${OPTARG:-}" ] && [ "${OPTARG:0:1}" != "-" ]; then
+        discovery_mode="$OPTARG"
+      else
+        discovery_mode="both"
+        [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
+      fi
       ;;
     i)
       inspired_mode=true
