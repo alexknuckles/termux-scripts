@@ -71,7 +71,7 @@ due to low quality. The default model is `flux`.
 ### Usage
 ```bash
 wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] \
-       [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n "text"]
+       [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n "text"] [-h]
 ```
 
 Environment variables:
@@ -94,6 +94,7 @@ Flags:
 - `-l` Use the theme and style from the last generated image if either is omitted.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
 - `-v` Enable verbose output for API requests and responses.
+- `-h` Show help and exit.
 
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a

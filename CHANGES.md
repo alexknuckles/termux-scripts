@@ -72,3 +72,4 @@
 - Fixed `-d` erroneously consuming the next flag as its argument. Verbose mode now works with discovery.
 - Added `-l` to wallai to reuse theme and style from the last image.
 - wallai now uses unique seeds for discovery and logs them for repeatability.
+- wallai now supports a `-h` flag to display usage information.
