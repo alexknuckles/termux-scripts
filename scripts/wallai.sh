@@ -4,7 +4,7 @@ set -euo pipefail
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r]
-#                  [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n "text"]
+#                  [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n "text"] [-v]
 #   -p  custom prompt instead of random theme
 #   -t  choose a theme when fetching the random prompt
 #   -y  pick a visual style or use a random one
@@ -16,6 +16,7 @@ set -euo pipefail
 #   -i  pick theme and style inspired by past favorites
 #   -w  add weather, time and holiday context to the prompt
 #   -n  custom negative prompt
+#   -v  verbose output for troubleshooting
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image to ~/pictures/generated-wallpapers and sets
@@ -45,7 +46,8 @@ discovery_mode=""
 inspired_mode=false
 weather_flag=false
 generation_opts=false
-while getopts ":p:t:m:y:rn:f:g:d:iw" opt; do
+verbose=false
+while getopts ":p:t:m:y:rn:f:g:d:iwv" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -87,6 +89,9 @@ while getopts ":p:t:m:y:rn:f:g:d:iw" opt; do
       negative_prompt="$OPTARG"
       generation_opts=true
       ;;
+    v)
+      verbose=true
+      ;;
     :)
       case "$OPTARG" in
         f)
@@ -100,13 +105,13 @@ while getopts ":p:t:m:y:rn:f:g:d:iw" opt; do
           discovery_mode="both"
           ;;
         *)
-          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"]" >&2
+          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"] [-v]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"] [-v]" >&2
       exit 1
       ;;
   esac
@@ -195,7 +200,10 @@ discover_item() {
     style) query="Imagine+an+art+style+in+two+words" ;;
     *) return ;;
   esac
-  result=$(curl -sL "https://text.pollinations.ai/?model=${gen_prompt_model}&prompt=${query}" || true)
+  local url="https://text.pollinations.ai/?model=${gen_prompt_model}&prompt=${query}"
+  [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url"
+  result=$(curl -sL "$url" || true)
+  [ "$verbose" = true ] && echo "🔍 Response: $result"
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   if [ "$(printf '%s' "$result" | wc -w)" -le 2 ] && [ -n "$result" ]; then
     printf '%s' "$result"
@@ -337,7 +345,7 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-v]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -350,6 +358,7 @@ fi
 #   -f              Mark the latest generated wallpaper as a favorite
 #   -i              Choose theme and style inspired by favorites
 #   -w              Add weather, time and seasonal context
+#   -v              Enable verbose output
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image under ~/pictures/generated-wallpapers
@@ -390,8 +399,10 @@ fetch_prompt() {
   local attempt=1 encoded_theme url
   encoded_theme=$(printf '%s' "$theme" | jq -sRr @uri | sed 's/%20/+/g')
   url="https://text.pollinations.ai/Imagine+a+${encoded_theme}+picture+in+exactly+15+words?seed=${seed}&model=${gen_prompt_model}"
+  [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
   while [ "$attempt" -le 3 ]; do
     prompt=$(curl -sL "$url" || true)
+    [ "$verbose" = true ] && echo "🔍 Attempt $attempt response: $prompt"
     prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
     prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
     [ -n "$prompt" ] && return 0
@@ -505,11 +516,14 @@ generate_pollinations() {
   local encoded headers err_msg
   encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
   headers=$(mktemp)
-  if ! curl -sL -D "$headers" "https://image.pollinations.ai/prompt/${encoded}?${params}" -o "$out_file"; then
+  local url="https://image.pollinations.ai/prompt/${encoded}?${params}"
+  [ "$verbose" = true ] && echo "🔍 Image URL: $url"
+  if ! curl -sL -D "$headers" "$url" -o "$out_file"; then
     rm -f "$headers"
     return 1
   fi
   generated_content_type=$(grep -i '^content-type:' "$headers" | tr -d '\r' | awk '{print $2}')
+  [ "$verbose" = true ] && echo "🔍 Content-Type: $generated_content_type"
   printf '%s' "$generated_content_type" >"$type_file"
   rm -f "$headers"
   if printf '%s' "$generated_content_type" | grep -qi 'application/json'; then
@@ -534,6 +548,7 @@ while true; do
   if [ "$status" -eq 0 ]; then
     generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
     file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
+    [ "$verbose" = true ] && echo "🔍 File type: $file_type"
     if printf '%s' "$generated_content_type" | grep -qi '^image/' && \
        printf '%s' "$file_type" | grep -qi '^image/'; then
       break
