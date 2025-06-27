@@ -96,7 +96,12 @@ Flags:
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a
 favorites path, whether NSFW prompts are allowed, the prompt model used for
-discovery and lists of themes and styles.
+discovery and lists of themes and styles. The default configuration also
+includes all built‑in themes
+(`dreamcore`, `mystical forest`, `cosmic horror`, `ethereal landscape`,
+`retrofuturism`, `alien architecture`, `cyberpunk metropolis`) and styles
+(`unreal engine`, `cinematic lighting`, `octane render`, `hyperrealism`,
+`volumetric lighting`, `high detail`, `4k concept art`).
 
 The final prompt is built as `(theme:1.5) description (style:1.3) [negative prompt: ...]` so the generated image strongly reflects the chosen theme and style.
 
