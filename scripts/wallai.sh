@@ -112,11 +112,21 @@ groups:
     prompt_model: default
     allow_prompt_fetch: true
     themes:
+      - dreamcore
       - mystical forest
+      - cosmic horror
+      - ethereal landscape
       - retrofuturism
+      - alien architecture
+      - cyberpunk metropolis
     styles:
       - unreal engine
       - cinematic lighting
+      - octane render
+      - hyperrealism
+      - volumetric lighting
+      - high detail
+      - 4k concept art
 EOF
 fi
 
