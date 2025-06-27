@@ -76,3 +76,5 @@
 - wallai -i now accepts an optional group argument.
 - Added walfave-group-shortcut for selecting the favorites group via buttons.
 - Added `-b` option to wallai for browsing existing wallpapers and favoriting them.
+
+- Fixed browse_gallery command not found when using -b due to call before function definition.

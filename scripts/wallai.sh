@@ -258,12 +258,6 @@ insp_path=$(cfg "$inspired_group" '.groups[$g].path // empty')
 [ -z "$insp_path" ] && insp_path="$HOME/pictures/favorites/$inspired_group"
 insp_path=$(eval printf '%s' "$insp_path")
 
-# Open gallery if requested
-if [ "$browse_gallery" = true ]; then
-  browse_gallery "$browse_group"
-  exit 0
-fi
-
 # Discover new theme or style via Pollinations
 discover_item() {
   local kind="$1" query result dseed
@@ -426,6 +420,12 @@ PY
     cp "$save_dir/$sel" "$dest_path/" && echo "⭐ Added to favorites: $dest_path/$sel"
   fi
 }
+
+# Open gallery if requested
+if [ "$browse_gallery" = true ]; then
+  browse_gallery "$browse_group"
+  exit 0
+fi
 
 # Spinner that cycles through emojis while a command runs
 spinner() {
