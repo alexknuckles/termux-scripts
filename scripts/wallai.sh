@@ -500,10 +500,8 @@ if [ -n "$discovery_mode" ]; then
 fi
 
 # Validate selected model using the API list
-mapfile -t models < <(
-  curl -sL "https://image.pollinations.ai/models" | jq -r '.[]' 2>/dev/null
-)
-if [ "${#models[@]}" -eq 0 ]; then
+models_json=$(curl -sL "https://image.pollinations.ai/models" || true)
+if ! mapfile -t models < <(printf '%s' "$models_json" | jq -r '.[]' 2>/dev/null); then
   models=(flux turbo gptimage)
 fi
 if [ "$random_model" = true ]; then
