@@ -289,7 +289,7 @@ log_file="$save_dir/wallai.log"
 
 # Generate a short random seed
 random_seed() {
-  date +%s%N | sha256sum | head -c 8
+  od -vN4 -An -tx4 /dev/urandom | tr -d ' \n'
 }
 
 # Seed for image generation and prompt fetch
@@ -493,10 +493,11 @@ fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
   local attempt=1 encoded url
   encoded=$(printf '%s' "$theme picture in exactly 15 words" | jq -sRr @uri)
-  prompt_seed=$(random_seed)
-  url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
-  [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
+  prompt_seed=""
   while [ "$attempt" -le 3 ]; do
+    prompt_seed=$(random_seed)
+    url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
+    [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
     prompt=$(curl -sL "$url" || true)
     [ "$verbose" = true ] && echo "🔍 Attempt $attempt response: $prompt"
     prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
