@@ -82,7 +82,7 @@ Flags:
 - `-f [group]` Save the wallpaper to a favorites group (defaults to `main`).
 - `-g [group]` Generate using themes and styles from a group.
 - `-h` Show help and exit.
-- `-i [group]` Choose a theme and style inspired by favorites from the specified group.
+- `-i [group]` Choose a theme and style inspired by favorites from the specified group (defaults to `main`).
 - `-l` Use the theme and style from the last generated image if either is omitted.
 - `-m` Select Pollinations model. Available models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
@@ -91,7 +91,7 @@ Flags:
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
 - `-p` Specify your own prompt instead of fetching a random one.
 - `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
-- `-t` Choose a theme for the random prompt (ignored if `-p` is used).
+- `-t` Choose a theme (ignored if `-p` is used).
 - `-v` Enable verbose output for API requests and responses.
 - `-w` Append current weather, time, season and holiday to the prompt.
 - `-y` Select a visual style. If omitted, one is picked at random.
@@ -114,7 +114,7 @@ be used for image generation.
 If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
 API using a random genre such as **dreamcore** or **cyberpunk metropolis**. A style such as
 **unreal engine** or **cinematic lighting** is also selected unless you supply `-y style`.
-You can override the random theme with `-t theme`. The API is asked to respond in exactly 15 words
+You can set the theme with `-t theme`. The API is asked to respond in exactly 15 words
 and each API request uses a new seed. These seeds are stored so results can be repeated.
 If the request fails, wallai retries up to three times before choosing a prompt from a built-in
 fallback list so generation can continue offline. Image generation itself also retries if the

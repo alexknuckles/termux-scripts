@@ -10,13 +10,13 @@ set -euo pipefail
 #   -f  mark the generated wallpaper as a favorite in the optional group
 #   -g  generate using config from the specified group
 #   -h  show this help message
-#   -i  pick theme and style inspired by past favorites from the optional group
+#   -i  pick theme and style inspired by past favorites from the optional group (defaults to "main")
 #   -l  use the theme/style from the last image if not provided
 #   -m  Pollinations model (default "flux")
 #   -n  custom negative prompt
 #   -p  custom prompt instead of random theme
 #   -r  select a random model from the available list
-#   -t  choose a theme when fetching the random prompt
+#   -t  choose a theme (ignored if -p is used)
 #   -v  verbose output for troubleshooting
 #   -w  add weather, time and holiday context to the prompt
 #   -y  pick a visual style or use a random one
@@ -37,13 +37,13 @@ Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] \
   -f [group]  mark the generated wallpaper as a favorite in the optional group
   -g [group]  generate using config from the specified group
   -h          show this help message
-  -i [group]  pick theme and style inspired by past favorites from the optional group
+  -i [group]  pick theme and style inspired by past favorites from the optional group (defaults to "main")
   -l          use the theme/style from the last image if not provided
   -m model    Pollinations model (default "flux")
   -n text     custom negative prompt
   -p text     custom prompt instead of random theme
   -r          select a random model from the available list
-  -t theme    choose a theme when fetching the random prompt
+  -t theme    choose a theme (ignored if -p is used)
   -v          verbose output for troubleshooting
   -w          add weather, time and holiday context to the prompt
   -y style    pick a visual style or use a random one
@@ -441,7 +441,7 @@ fi
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
 #   -p prompt text  Custom prompt instead of random theme
-#   -t theme        Specify theme when fetching random prompt
+#   -t theme        Specify theme (ignored if -p is used)
 #   -y style        Pick a visual style or use a random one
 #   -m model        Pollinations model (defaults to 'flux'). Supported models
 #                   are fetched from the API (fallback: flux turbo gptimage)
@@ -449,7 +449,7 @@ fi
 #   -f              Mark the latest generated wallpaper as a favorite
 #   -g group        Generate using config from the specified group
 #   -d mode         Discover a new theme/style (theme, style or both)
-#   -i group        Choose theme and style inspired by favorites from the specified group
+#   -i group        Choose theme and style inspired by favorites from the specified group (defaults to "main")
 #   -w              Add weather, time and seasonal context
 #   -l              Use theme and/or style from the last image
 #   -n text         Override the default negative prompt
