@@ -203,7 +203,7 @@ fav_path=$(eval printf '%s' "$fav_path")
 
 # Discover new theme or style via Pollinations
 discover_item() {
-  local kind="$1" query result
+  local kind="$1" query result dseed
   if [ "$gen_allow_prompt_fetch" != true ]; then
     return
   fi
@@ -212,8 +212,13 @@ discover_item() {
     style) query="Imagine an art style in two words" ;;
     *) return ;;
   esac
+  dseed=$(random_seed)
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
-  local url="https://text.pollinations.ai/prompt/${encoded}?model=${gen_prompt_model}"
+  local url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${gen_prompt_model}"
+  case "$kind" in
+    theme) theme_seed="$dseed" ;;
+    style) style_seed="$dseed" ;;
+  esac
   [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url"
   result=$(curl -sL "$url" || true)
   [ "$verbose" = true ] && echo "🔍 Response: $result"
@@ -236,6 +241,17 @@ append_config_item() {
 save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
 log_file="$save_dir/wallai.log"
+
+# Generate a short random seed
+random_seed() {
+  date +%s%N | sha256sum | head -c 8
+}
+
+# Seed for image generation and prompt fetch
+seed=$(random_seed)
+prompt_seed=""
+theme_seed=""
+style_seed=""
 
 # Apply theme/style from the last generated image if -l is used
 if [ "$use_last" = true ]; then
@@ -305,7 +321,7 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ]; then
   fi
   last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
   last_seed=$(printf '%s' "$last_entry" | cut -d'|' -f2)
-  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f3-)
+  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f3)
   ts=$(printf '%s' "$last_file" | cut -d'_' -f1)
   theme_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
@@ -403,7 +419,6 @@ save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 tmp_output="$save_dir/${timestamp}.img"
-seed=$(date +%s%N | sha256sum | head -c 8)
 
 
 # Whether to allow NSFW prompts and generations
@@ -432,7 +447,8 @@ fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
   local attempt=1 encoded url
   encoded=$(printf '%s' "$theme picture in exactly 15 words" | jq -sRr @uri)
-  url="https://text.pollinations.ai/prompt/${encoded}?seed=${seed}&model=${gen_prompt_model}"
+  prompt_seed=$(random_seed)
+  url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
   [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
   while [ "$attempt" -le 3 ]; do
     prompt=$(curl -sL "$url" || true)
@@ -627,8 +643,8 @@ termux-wallpaper -f "$output"
 echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 echo "💾 Saved to: $output"
 
-# Log filename, seed and prompt for later reference
-echo "$filename|$seed|$prompt" >> "$log_file"
+# Log filename, seeds and prompt for later reference
+echo "$filename|$seed|$prompt|$prompt_seed|$theme_seed|$style_seed" >> "$log_file"
 
 # Favorite the wallpaper immediately if -f was passed alongside generation options
 [ "$favorite_wall" = true ] && {
