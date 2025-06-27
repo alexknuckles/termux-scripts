@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r]
 #                  [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l]
-#                  [-n "text"] [-v]
+#                  [-n "text"] [-v] [-h]
 #   -p  custom prompt instead of random theme
 #   -t  choose a theme when fetching the random prompt
 #   -y  pick a visual style or use a random one
@@ -19,12 +19,35 @@ set -euo pipefail
 #   -l  use the theme/style from the last image if not provided
 #   -n  custom negative prompt
 #   -v  verbose output for troubleshooting
+#   -h  show this help message
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image to ~/pictures/generated-wallpapers and sets
 #         the current wallpaper
 # TAG: wallpaper
 # TAG: ai
+
+show_help() {
+  cat <<'EOF'
+Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r]
+                 [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l]
+                 [-n "text"] [-v] [-h]
+  -p  custom prompt instead of random theme
+  -t  choose a theme when fetching the random prompt
+  -y  pick a visual style or use a random one
+  -m  Pollinations model (default "flux")
+  -r  select a random model from the available list
+  -f  mark the generated wallpaper as a favorite in the optional group
+  -g  generate using config from the specified group
+  -d  discover a new theme/style (mode: theme, style or both)
+  -i  pick theme and style inspired by past favorites
+  -w  add weather, time and holiday context to the prompt
+  -l  use the theme/style from the last image if not provided
+  -n  custom negative prompt
+  -v  verbose output for troubleshooting
+  -h  show this help message
+EOF
+}
 
 # Check dependencies early so the script fails with a clear message
 for cmd in curl jq termux-wallpaper; do
@@ -50,7 +73,7 @@ weather_flag=false
 use_last=false
 generation_opts=false
 verbose=false
-while getopts ":p:t:m:y:rn:f:g:d:iwvl" opt; do
+while getopts ":p:t:m:y:rn:f:g:d:iwvlh" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -104,6 +127,10 @@ while getopts ":p:t:m:y:rn:f:g:d:iwvl" opt; do
     v)
       verbose=true
       ;;
+    h)
+      show_help
+      exit 0
+      ;;
     :)
       case "$OPTARG" in
         f)
@@ -117,13 +144,13 @@ while getopts ":p:t:m:y:rn:f:g:d:iwvl" opt; do
           discovery_mode="both"
           ;;
         *)
-          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v]" >&2
+          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v] [-h]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v] [-h]" >&2
       exit 1
       ;;
   esac
@@ -391,7 +418,7 @@ fi
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f]
-#                  [-g group] [-d mode] [-i] [-w] [-l] [-n "text"] [-v]
+#                  [-g group] [-d mode] [-i] [-w] [-l] [-n "text"] [-v] [-h]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -409,6 +436,7 @@ fi
 #   -l              Use theme and/or style from the last image
 #   -n text         Override the default negative prompt
 #   -v              Enable verbose output
+#   -h              Show help and exit
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image under ~/pictures/generated-wallpapers
