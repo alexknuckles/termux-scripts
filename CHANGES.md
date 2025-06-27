@@ -75,3 +75,4 @@
 - wallai now supports a `-h` flag to display usage information.
 - wallai -i now accepts an optional group argument.
 - Added walfave-group-shortcut for selecting the favorites group via buttons.
+- Added `-b` option to wallai for browsing existing wallpapers and favoriting them.

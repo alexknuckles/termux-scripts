@@ -130,6 +130,10 @@ The installer creates a `walfave` alias and `walfave-shortcut.sh` so you
 can archive the currently set wallpaper with metadata via `wallai -f` without generating a new image.
 It also installs `walfave-group-shortcut.sh` which lets you pick the favorites group using on-screen buttons.
 
+Use `wallai -b` to browse previously generated wallpapers and archive them to a favorites group. The option
+lists files under `~/pictures/generated-wallpapers`, opens the selected image with `termux-open`, then asks whether
+to add it to a group. If no group is specified and multiple groups exist, wallai prompts for one.
+
 ## githelper.sh
 
 <p align="center" style="margin-bottom:0;">

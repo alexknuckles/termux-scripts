@@ -3,9 +3,10 @@ set -euo pipefail
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] \
-#                  [-m model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
-#                  [-v] [-w] [-y style]
+# Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
+#                  [-i [group]] [-l] [-m model] [-n "text"] [-p "prompt text"] \
+#                  [-r] [-t theme] [-v] [-w] [-y style]
+#   -b  browse generated wallpapers and optionally favorite one to the group
 #   -d  discover a new theme/style (mode: theme, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
 #   -g  generate using config from the specified group
@@ -29,10 +30,11 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] \
-                 [-m model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
-                 [-v] [-w] [-y style]
+Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
+                 [-i [group]] [-l] [-m model] [-n "text"] [-p "prompt text"] \
+                 [-r] [-t theme] [-v] [-w] [-y style]
 
+  -b [group]  browse generated wallpapers and optionally favorite one to the group
   -d [mode]   discover a new theme/style (mode: theme, style or both)
   -f [group]  mark the generated wallpaper as a favorite in the optional group
   -g [group]  generate using config from the specified group
@@ -75,7 +77,9 @@ weather_flag=false
 use_last=false
 generation_opts=false
 verbose=false
-while getopts ":p:t:m:y:rn:f:g:d:i:wvlh" opt; do
+browse_gallery=false
+browse_group="main"
+while getopts ":p:t:m:y:rn:f:g:d:i:wvlhb:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -92,6 +96,10 @@ while getopts ":p:t:m:y:rn:f:g:d:i:wvlh" opt; do
     y)
       style="$OPTARG"
       generation_opts=true
+      ;;
+    b)
+      browse_gallery=true
+      browse_group="$OPTARG"
       ;;
     r)
       random_model=true
@@ -155,14 +163,18 @@ while getopts ":p:t:m:y:rn:f:g:d:i:wvlh" opt; do
           inspired_mode=true
           inspired_group="main"
           ;;
+        b)
+          browse_gallery=true
+          browse_group="main"
+          ;;
         *)
-          echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
       exit 1
       ;;
   esac
@@ -246,6 +258,12 @@ insp_path=$(cfg "$inspired_group" '.groups[$g].path // empty')
 [ -z "$insp_path" ] && insp_path="$HOME/pictures/favorites/$inspired_group"
 insp_path=$(eval printf '%s' "$insp_path")
 
+# Open gallery if requested
+if [ "$browse_gallery" = true ]; then
+  browse_gallery "$browse_group"
+  exit 0
+fi
+
 # Discover new theme or style via Pollinations
 discover_item() {
   local kind="$1" query result dseed
@@ -291,6 +309,8 @@ log_file="$save_dir/wallai.log"
 random_seed() {
   od -vN4 -An -tx4 /dev/urandom | tr -d ' \n'
 }
+
+# Browse existing wallpapers and optionally favorite them
 
 # Seed for image generation and prompt fetch
 seed=$(random_seed)
@@ -340,6 +360,71 @@ favorite_image() {
         --arg filename "$(basename "$dest")" \
         '{prompt:$prompt, theme:$theme, style:$style, model:$model, seed:$seed, timestamp:$ts, filename:$filename}' >> "$log"
   echo "⭐ Added to favorites: $dest"
+}
+
+# Browse existing wallpapers and optionally favorite them
+# shellcheck disable=SC2317
+browse_gallery() {
+  local fav_group="$1" list result sel decision group_list gsel gsel_val
+  for cmd in termux-dialog termux-open jq; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      echo "❌ Required command '$cmd' is not installed" >&2
+      return 1
+    fi
+  done
+  cd "$save_dir" 2>/dev/null || { echo "❌ No generated wallpapers found" >&2; return 1; }
+  mapfile -t images < <(ls -t -- *.jpg *.png 2>/dev/null || true)
+  [ "${#images[@]}" -gt 0 ] || { echo "❌ No images found" >&2; return 1; }
+  list=$(IFS=','; printf '%s' "${images[*]}")
+  result=$(termux-dialog -l "$list" -t "Select wallpaper" || true)
+  sel=$(printf '%s' "$result" | jq -r '.text')
+  [ -n "$sel" ] || return 0
+  termux-open "$save_dir/$sel"
+  result=$(termux-dialog -l "yes,no" -t "Add to favorites?" || true)
+  decision=$(printf '%s' "$result" | jq -r '.text')
+  [ "$decision" = "yes" ] || return 0
+  if [ -f "$config_file" ]; then
+    mapfile -t groups < <(CFG="$config_file" python3 - <<'PY'
+import os,yaml
+with open(os.environ['CFG']) as f:
+    data=yaml.safe_load(f) or {}
+print('\n'.join((data.get('groups') or {}).keys()))
+PY
+    )
+  else
+    groups=(main)
+  fi
+  [ "${#groups[@]}" -gt 0 ] || groups=(main)
+  if [ "$fav_group" = "main" ] && [ "${#groups[@]}" -gt 1 ]; then
+    group_list=$(IFS=','; printf '%s' "${groups[*]}")
+    gsel=$(termux-dialog -l "$group_list" -t "Select favorites group" || true)
+    gsel_val=$(printf '%s' "$gsel" | jq -r '.text')
+    [ -n "$gsel_val" ] && fav_group="$gsel_val"
+  fi
+  local dest_path="$HOME/pictures/favorites/$fav_group"
+  if [ -f "$config_file" ]; then
+    cfg_path=$(CFG="$config_file" G="$fav_group" python3 - <<'PY'
+import os,yaml
+with open(os.environ['CFG']) as f:
+    data=yaml.safe_load(f) or {}
+g=os.environ['G']
+print(os.path.expanduser(data.get('groups', {}).get(g, {}).get('path','')))
+PY
+    )
+    [ -n "$cfg_path" ] && dest_path="$cfg_path"
+  fi
+  entry=$(grep "^$sel|" "$log_file" 2>/dev/null || true)
+  if [ -n "$entry" ]; then
+    seed=$(printf '%s' "$entry" | cut -d'|' -f2)
+    prompt=$(printf '%s' "$entry" | cut -d'|' -f3)
+    theme=$(printf '%s' "$sel" | cut -d'_' -f2 | sed 's/-/ /g')
+    style=$(printf '%s' "$sel" | cut -d'_' -f3 | sed 's/\..*//' | sed 's/-/ /g')
+    ts=$(printf '%s' "$sel" | cut -d'_' -f1)
+    favorite_image "$save_dir/$sel" "$prompt (seed: $seed)" "$theme" "$style" "unknown" "$seed" "$ts" "$dest_path"
+  else
+    mkdir -p "$dest_path"
+    cp "$save_dir/$sel" "$dest_path/" && echo "⭐ Added to favorites: $dest_path/$sel"
+  fi
 }
 
 # Spinner that cycles through emojis while a command runs
@@ -435,7 +520,7 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f]
+# Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f]
 #                  [-g group] [-d mode] [-i group] [-w] [-l] [-n "text"] [-v] [-h]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
@@ -446,6 +531,7 @@ fi
 #   -m model        Pollinations model (defaults to 'flux'). Supported models
 #                   are fetched from the API (fallback: flux turbo gptimage)
 #   -r              Pick a random model from the available list
+#   -b [group]      Browse generated wallpapers and optionally favorite one
 #   -f              Mark the latest generated wallpaper as a favorite
 #   -g group        Generate using config from the specified group
 #   -d mode         Discover a new theme/style (theme, style or both)
