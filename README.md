@@ -92,6 +92,7 @@ Flags:
 - `-i` Choose a theme and style inspired by previous favorites.
 - `-w` Append current weather, time, season and holiday to the prompt.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
+- `-v` Enable verbose output for API requests and responses.
 
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a

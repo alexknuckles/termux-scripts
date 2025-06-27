@@ -68,3 +68,4 @@
 - wallai supports per-group configuration with auto-bootstrap, discovery mode via `-d`,
   group-based favorites with `-f [group]` and generation with `-g [group]`.
 - Config bootstrapping now includes the full list of default themes and styles.
+- wallai now supports a -v flag to print API URLs and responses.
