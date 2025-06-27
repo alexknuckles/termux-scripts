@@ -71,7 +71,7 @@ due to low quality. The default model is `flux`.
 ### Usage
 ```bash
 wallai [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] \
-       [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n "text"]
+       [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n "text"]
 ```
 
 Environment variables:
@@ -91,6 +91,7 @@ Flags:
 - `-d [mode]` Discover a new theme and/or style using Pollinations. Modes are `theme`, `style` or both if omitted.
 - `-i` Choose a theme and style inspired by previous favorites.
 - `-w` Append current weather, time, season and holiday to the prompt.
+- `-l` Use the theme and style from the last generated image if either is omitted.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
 - `-v` Enable verbose output for API requests and responses.
 

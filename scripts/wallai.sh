@@ -4,7 +4,8 @@ set -euo pipefail
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r]
-#                  [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n "text"] [-v]
+#                  [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l]
+#                  [-n "text"] [-v]
 #   -p  custom prompt instead of random theme
 #   -t  choose a theme when fetching the random prompt
 #   -y  pick a visual style or use a random one
@@ -15,6 +16,7 @@ set -euo pipefail
 #   -d  discover a new theme/style (mode: theme, style or both)
 #   -i  pick theme and style inspired by past favorites
 #   -w  add weather, time and holiday context to the prompt
+#   -l  use the theme/style from the last image if not provided
 #   -n  custom negative prompt
 #   -v  verbose output for troubleshooting
 #
@@ -45,9 +47,10 @@ gen_group="main"
 discovery_mode=""
 inspired_mode=false
 weather_flag=false
+use_last=false
 generation_opts=false
 verbose=false
-while getopts ":p:t:m:y:rn:f:g:d:iwv" opt; do
+while getopts ":p:t:m:y:rn:f:g:d:iwvl" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -90,6 +93,10 @@ while getopts ":p:t:m:y:rn:f:g:d:iwv" opt; do
     w)
       weather_flag=true
       ;;
+    l)
+      use_last=true
+      generation_opts=true
+      ;;
     n)
       negative_prompt="$OPTARG"
       generation_opts=true
@@ -110,13 +117,13 @@ while getopts ":p:t:m:y:rn:f:g:d:iwv" opt; do
           discovery_mode="both"
           ;;
         *)
-          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"] [-v]" >&2
+          echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-n \"text\"] [-v]" >&2
+      echo "Usage: wallai.sh [-p \"prompt text\"] [-t theme] [-y style] [-m model] [-r] [-f [group]] [-g [group]] [-d [mode]] [-i] [-w] [-l] [-n \"text\"] [-v]" >&2
       exit 1
       ;;
   esac
@@ -229,6 +236,22 @@ append_config_item() {
 save_dir="$HOME/pictures/generated-wallpapers"
 mkdir -p "$save_dir"
 log_file="$save_dir/wallai.log"
+
+# Apply theme/style from the last generated image if -l is used
+if [ "$use_last" = true ]; then
+  last_entry=$(tail -n1 "$log_file" 2>/dev/null || true)
+  if [ -z "$last_entry" ]; then
+    echo "❌ No wallpaper has been generated yet" >&2
+    exit 1
+  fi
+  last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
+  theme_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
+  style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
+  last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
+  last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
+  [ -z "$theme" ] && theme="$last_theme"
+  [ -z "$style" ] && style="$last_style"
+fi
 
 # Convert strings like "Cyberpunk Metropolis" to "cyberpunk-metropolis"
 slugify() {
@@ -351,7 +374,8 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f] [-i] [-w] [-v]
+# Usage: wallai.sh [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f]
+#                  [-g group] [-d mode] [-i] [-w] [-l] [-n "text"] [-v]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -362,8 +386,12 @@ fi
 #                   are fetched from the API (fallback: flux turbo gptimage)
 #   -r              Pick a random model from the available list
 #   -f              Mark the latest generated wallpaper as a favorite
+#   -g group        Generate using config from the specified group
+#   -d mode         Discover a new theme/style (theme, style or both)
 #   -i              Choose theme and style inspired by favorites
 #   -w              Add weather, time and seasonal context
+#   -l              Use theme and/or style from the last image
+#   -n text         Override the default negative prompt
 #   -v              Enable verbose output
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
