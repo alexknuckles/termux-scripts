@@ -62,15 +62,17 @@ Run the installer with `-u` to remove the symlinks, shortcuts and alias file and
 
 Generates an AI-based wallpaper using the free Pollinations API. The script requests a 15-word
 description for a random theme using a random seed so prompts vary even for the same theme.
-You can choose between several Pollinations models using the `-m` flag or let the
-script pick one at random with `-r`. Models are retrieved from the Pollinations
-API. If that fails the script falls back to `flux`, `turbo` and `gptimage`. The
-random option ignores `gptimage` (requires a flower-tier account) and `turbo`
-due to low quality. The default model is `flux`.
+You can choose between several Pollinations **image** models using the `-im`
+flag or let the script pick one at random with `-r`. Models are retrieved from
+the Pollinations API. If that fails the script falls back to `flux`, `turbo`
+and `gptimage`. The random option ignores `gptimage` (requires a
+flower-tier account) and `turbo` due to low quality. The default image model is
+`flux`. The text prompt can be generated with a different model selected using
+`-pm` (defaults to `default`).
 
 ### Usage
 ```bash
-wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-m model] \
+wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] \
        [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
 ```
 
@@ -85,10 +87,11 @@ Flags:
 - `-i [group]` Choose a theme and style inspired by favorites from the specified group (defaults to `main`).
 - `-k token` Save your Pollinations token to the group used with `-g` (defaults to `main`).
 - `-l` Use the theme and style from the last generated image if either is omitted.
-- `-m` Select Pollinations model. Available models come from the API and usually
+- `-im` Pollinations model for image generation. Models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
   The `gptimage` model requires a flower-tier Pollinations account; without
   access the API returns an error. The `turbo` model tends to produce lower quality images.
+- `-pm` Pollinations model for prompt generation. Defaults to `default`.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
 - `-p` Specify your own prompt instead of fetching a random one.
 - `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
@@ -100,9 +103,10 @@ Flags:
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a
 favorites path, whether NSFW prompts are allowed, the prompt model used for
-discovery and lists of themes and styles. A Pollinations token can be stored for
-each group using `-k` (saved under that group's entry, default `main`). A
-top-level `pollinations_token` is still supported for backward compatibility.
+discovery, the image model used for generation and lists of themes and styles.
+A Pollinations token can be stored for each group using `-k` (saved under that
+group's entry, default `main`). Global `pollinations_token`, `prompt_model` and
+`image_model` values are also supported for fallback when a group omits them.
 The default configuration also
 includes all built‑in themes
 (`dreamcore`, `mystical forest`, `cosmic horror`, `ethereal landscape`,
@@ -112,8 +116,8 @@ includes all built‑in themes
 
 The final prompt is built as `(theme:1.5) description (style:1.3) [negative prompt: ...]` so the generated image strongly reflects the chosen theme and style.
 
-After showing the chosen prompt, the script also prints which Pollinations model will
-be used for image generation.
+After showing the chosen prompt, the script also prints which Pollinations image
+model will be used.
 
 If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
 API using a random genre such as **dreamcore** or **cyberpunk metropolis**. A style such as
