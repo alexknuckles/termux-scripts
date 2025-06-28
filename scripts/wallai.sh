@@ -40,7 +40,7 @@ Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
   -g [group]  generate using config from the specified group
   -h          show this help message
   -i [group]  pick theme and style inspired by past favorites from the optional group (defaults to "main")
-  -k token    save Pollinations API token to the config
+  -k token    save Pollinations API token to the group used with -g (default main)
   -l          use the theme/style from the last image if not provided
   -m model    Pollinations model (default "flux")
   -n text     custom negative prompt
@@ -231,15 +231,23 @@ json.dump(data, sys.stdout)
 PY
 )
 
-# Pollinations token from config
-pollinations_token=$(printf '%s' "$config_json" | jq -r '.pollinations_token // ""')
+# Pollinations token from config (group-specific overrides global)
+pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // .pollinations_token // ""')
 
 # Update token in config if -k was provided
 if [ -n "$new_token" ]; then
   pollinations_token="$new_token"
   tmp=$(mktemp)
-  jq --arg t "$pollinations_token" '.pollinations_token=$t' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
-  config_json=$(printf '%s' "$config_json" | jq --arg t "$pollinations_token" '.pollinations_token=$t')
+  jq --arg g "$gen_group" --arg t "$pollinations_token" '
+    .pollinations_token=$t |
+    (.groups[$g] //= {}) |
+    .groups[$g].pollinations_token=$t
+  ' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+  config_json=$(printf '%s' "$config_json" | jq --arg g "$gen_group" --arg t "$pollinations_token" '
+    .pollinations_token=$t |
+    (.groups[$g] //= {}) |
+    .groups[$g].pollinations_token=$t
+  ')
 fi
 
 curl_auth=()
@@ -285,8 +293,8 @@ discover_item() {
     return
   fi
   case "$kind" in
-    theme) query="Imagine a theme in two words" ;;
-    style) query="Imagine an art style in two words" ;;
+    theme) query="Imagine a theme in two words. Respond with only two words." ;;
+    style) query="Imagine an art style in two words. Respond with only two words." ;;
     *) return ;;
   esac
   dseed=$(random_seed)
