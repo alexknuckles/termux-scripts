@@ -87,3 +87,8 @@
 - wallai now saves the token under the chosen group and loads group tokens before the global one.
 - Discovery prompts instruct Pollinations to respond with exactly two words to avoid verbose replies.
 - wallai now supports -im for image model and -pm for prompt model with new config defaults.
+- Fixed Pollinations token not applying to API requests when set via environment.
+- Improved text prompt fetch with explicit 15-word instruction.
+- Added `-tm` and `-sm` flags for theme and style discovery models.
+- `-t` can be combined with `-p` and docs clarify the relationship.
+- Style flag renamed from `-y` to `-s`.

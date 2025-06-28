@@ -4,8 +4,9 @@ set -euo pipefail
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
-#                  [-i [group]] [-k token] [-l] [-im model] [-pm model] [-n "text"] \
-#                  [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
+#                  [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
+#                  [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] \
+#                  [-w] [-s style]
 #   -b  browse generated wallpapers and optionally favorite one to the group
 #   -d  discover a new theme/style (mode: theme, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
@@ -15,13 +16,15 @@ set -euo pipefail
 #   -l  use the theme/style from the last image if not provided
 #   -im model  Pollinations model for image generation (default "flux")
 #   -pm model  Pollinations model for prompt generation (default "default")
+#   -tm model  Pollinations model for theme discovery
+#   -sm model  Pollinations model for style discovery
 #   -n  custom negative prompt
-#   -p  custom prompt instead of random theme
+#   -p  custom prompt text
 #   -r  select a random model from the available list
-#   -t  choose a theme (ignored if -p is used)
+#   -t  choose a theme
 #   -v  verbose output for troubleshooting
 #   -w  add weather, time and holiday context to the prompt
-#   -y  pick a visual style or use a random one
+#   -s  pick a visual style or use a random one
 #
 # Dependencies: curl, jq, termux-wallpaper, optional exiftool for -f
 # Output: saves the generated image to ~/pictures/generated-wallpapers and sets
@@ -32,8 +35,9 @@ set -euo pipefail
 show_help() {
   cat <<'EOF'
 Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
-                 [-i [group]] [-k token] [-l] [-im model] [-pm model] [-n "text"] \
-                 [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
+                 [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
+                 [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
+                 [-v] [-w] [-s style]
 
   -b [group]  browse generated wallpapers and optionally favorite one to the group
   -d [mode]   discover a new theme/style (mode: theme, style or both)
@@ -45,13 +49,15 @@ Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
   -l          use the theme/style from the last image if not provided
   -im model   Pollinations model for image generation (default "flux")
   -pm model   Pollinations model for prompt generation (default "default")
+  -tm model   Pollinations model for theme discovery
+  -sm model   Pollinations model for style discovery
   -n text     custom negative prompt
-  -p text     custom prompt instead of random theme
+  -p text     custom prompt text
   -r          select a random model from the available list
-  -t theme    choose a theme (ignored if -p is used)
+  -t theme    choose a theme
   -v          verbose output for troubleshooting
   -w          add weather, time and holiday context to the prompt
-  -y style    pick a visual style or use a random one
+  -s style    pick a visual style or use a random one
 EOF
 }
 
@@ -72,6 +78,9 @@ negative_prompt=""
 model=""
 # Prompt generation model override
 prompt_model_override=""
+# Theme and style discovery model overrides
+theme_model_override=""
+style_model_override=""
 random_model=false
 favorite_wall=false
 favorite_group="main"
@@ -103,6 +112,18 @@ while [ $# -gt 0 ]; do
       generation_opts=true
       shift 2
       ;;
+    -tm)
+      [ $# -ge 2 ] || { echo "Missing argument for -tm" >&2; exit 1; }
+      theme_model_override="$2"
+      generation_opts=true
+      shift 2
+      ;;
+    -sm)
+      [ $# -ge 2 ] || { echo "Missing argument for -sm" >&2; exit 1; }
+      style_model_override="$2"
+      generation_opts=true
+      shift 2
+      ;;
     -m)
       [ $# -ge 2 ] || { echo "Missing argument for -m" >&2; exit 1; }
       model="$2"
@@ -117,7 +138,7 @@ while [ $# -gt 0 ]; do
 done
 set -- "${args[@]}"
 
-while getopts ":p:t:y:rn:f:g:d:i:k:wvlhb:" opt; do
+while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -127,7 +148,7 @@ while getopts ":p:t:y:rn:f:g:d:i:k:wvlhb:" opt; do
       theme="$OPTARG"
       generation_opts=true
       ;;
-    y)
+    s)
       style="$OPTARG"
       generation_opts=true
       ;;
@@ -205,13 +226,13 @@ while getopts ":p:t:y:rn:f:g:d:i:k:wvlhb:" opt; do
           browse_group="main"
           ;;
         *)
-          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-s style]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-s style]" >&2
       exit 1
       ;;
   esac
@@ -268,6 +289,7 @@ PY
 
 # Pollinations token from config (group-specific overrides global)
 pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // .pollinations_token // ""')
+[ -z "$pollinations_token" ] && pollinations_token="${POLLINATIONS_TOKEN:-}"
 
 # Update token in config if -k was provided
 if [ -n "$new_token" ]; then
@@ -309,6 +331,10 @@ gen_nsfw=$(cfg "$gen_group" '.groups[$g].nsfw // false')
 # shellcheck disable=SC2016
 gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model // .prompt_model // "default"')
 # shellcheck disable=SC2016
+gen_theme_model=$(cfg "$gen_group" '.groups[$g].theme_model // .theme_model // empty')
+# shellcheck disable=SC2016
+gen_style_model=$(cfg "$gen_group" '.groups[$g].style_model // .style_model // empty')
+# shellcheck disable=SC2016
 gen_image_model=$(cfg "$gen_group" '.groups[$g].image_model // .image_model // "flux"')
 # shellcheck disable=SC2016
 gen_allow_prompt_fetch=$(cfg "$gen_group" '.groups[$g].allow_prompt_fetch // true')
@@ -332,6 +358,8 @@ insp_path=$(eval printf '%s' "$insp_path")
 # Apply config defaults if flags were not provided
 [ -z "$model" ] && model="$gen_image_model"
 [ -n "$prompt_model_override" ] && gen_prompt_model="$prompt_model_override"
+theme_model="${theme_model_override:-${gen_theme_model:-$gen_prompt_model}}"
+style_model="${style_model_override:-${gen_style_model:-$gen_prompt_model}}"
 
 # Discover new theme or style via Pollinations
 discover_item() {
@@ -346,7 +374,12 @@ discover_item() {
   esac
   dseed=$(random_seed)
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
-  local url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${gen_prompt_model}"
+  local m="$gen_prompt_model"
+  case "$kind" in
+    theme) m="$theme_model" ;;
+    style) m="$style_model" ;;
+  esac
+  local url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${m}"
   case "$kind" in
     theme) theme_seed="$dseed" ;;
     style) style_seed="$dseed" ;;
@@ -597,16 +630,18 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t theme] [-y style] [-im model] [-pm model] [-r] [-f]
+# Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t theme] [-s style] [-im model] [-pm model] [-tm model] [-sm model] [-r] [-f]
 #                  [-g group] [-d mode] [-i group] [-k token] [-w] [-l] [-n "text"] [-v] [-h]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
-#   -p prompt text  Custom prompt instead of random theme
-#   -t theme        Specify theme (ignored if -p is used)
-#   -y style        Pick a visual style or use a random one
+#   -p prompt text  Custom prompt text
+#   -t theme        Specify theme
+#   -s style        Pick a visual style or use a random one
 #   -im model       Pollinations model for image generation (default 'flux')
 #   -pm model       Pollinations model for prompt generation (default 'default')
+#   -tm model       Pollinations model for theme discovery
+#   -sm model       Pollinations model for style discovery
 #   -r              Pick a random model from the available list
 #   -b [group]      Browse generated wallpapers and optionally favorite one
 #   -f              Mark the latest generated wallpaper as a favorite
@@ -656,7 +691,7 @@ fi
 fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
   local attempt=1 encoded url
-  encoded=$(printf '%s' "$theme picture in exactly 15 words" | jq -sRr @uri)
+  encoded=$(printf '%s' "Generate a high quality wallpaper prompt about $theme in exactly 15 words. Respond with exactly 15 words." | jq -sRr @uri)
   prompt_seed=""
   while [ "$attempt" -le 3 ]; do
     prompt_seed=$(random_seed)
