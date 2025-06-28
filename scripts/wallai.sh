@@ -255,7 +255,12 @@ shift $((OPTIND - 1))
 
 # Default favorite group to generation group if not specified
 if [ "$favorite_wall" = true ] && [ "$favorite_group_provided" = false ]; then
-  favorite_group="$gen_group"
+  if [ "$generation_opts" = false ]; then
+    favorite_group="main"
+    gen_group="main"
+  else
+    favorite_group="$gen_group"
+  fi
 fi
 
 # Default negative prompt if not provided
@@ -272,7 +277,10 @@ groups:
   main:
     pollinations_token: ""
     image_model: flux
-    prompt_model: default
+    prompt_model:
+      base: default
+      theme_model: default
+      style_model: default
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
@@ -310,12 +318,18 @@ groups = data.setdefault('groups', {})
 new = group not in groups
 grp = groups.setdefault(group, {})
 
-def_env = os.environ.get
+def def_env(key, default=None):
+    val = os.environ.get(key)
+    return val if val else default
 
 defaults = {
     'pollinations_token': '',
     'image_model': def_env('DEF_IMAGE_MODEL', 'flux'),
-    'prompt_model': def_env('DEF_PROMPT_MODEL', 'default'),
+    'prompt_model': {
+        'base': def_env('DEF_PROMPT_MODEL', 'default'),
+        'theme_model': def_env('DEF_THEME_MODEL') or def_env('DEF_PROMPT_MODEL', 'default'),
+        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', 'default'),
+    },
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
     'allow_prompt_fetch': True,
@@ -332,15 +346,6 @@ defaults = {
     ]
 }
 
-if new:
-    # Custom discovery and style models only apply on creation
-    tm = def_env('DEF_THEME_MODEL')
-    sm = def_env('DEF_STYLE_MODEL')
-    if tm:
-        defaults['theme_model'] = tm
-    if sm:
-        defaults['style_model'] = sm
-
 updated = False
 if new:
     for k, v in defaults.items():
@@ -355,6 +360,7 @@ else:
 if updated:
     with open(cfg, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False)
+print('1' if new else '0')
 PY
 }
 
@@ -370,7 +376,7 @@ DEF_THEME_MODEL="$DEF_THEME_MODEL" \
 DEF_STYLE_MODEL="$DEF_STYLE_MODEL" \
 DEF_THEME="$DEF_THEME" \
 DEF_STYLE="$DEF_STYLE" \
-ensure_group "$gen_group"
+group_created=$(ensure_group "$gen_group")
 
 config_json=$(CFG="$config_file" python3 - <<'PY'
 import os,sys,json
@@ -429,11 +435,12 @@ gen_fav_path=$(eval printf '%s' "$gen_fav_path")
 # shellcheck disable=SC2016
 gen_nsfw=$(cfg "$gen_group" '.groups[$g].nsfw // false')
 # shellcheck disable=SC2016
-gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model // "default"')
 # shellcheck disable=SC2016
-gen_theme_model=$(cfg "$gen_group" '.groups[$g].theme_model // empty')
+gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model.base // .groups[$g].prompt_model // "default"')
 # shellcheck disable=SC2016
-gen_style_model=$(cfg "$gen_group" '.groups[$g].style_model // empty')
+gen_theme_model=$(cfg "$gen_group" '.groups[$g].prompt_model.theme_model // .groups[$g].theme_model // empty')
+# shellcheck disable=SC2016
+gen_style_model=$(cfg "$gen_group" '.groups[$g].prompt_model.style_model // .groups[$g].style_model // empty')
 # shellcheck disable=SC2016
 gen_image_model=$(cfg "$gen_group" '.groups[$g].image_model // "flux"')
 # shellcheck disable=SC2016
@@ -477,6 +484,23 @@ if item not in lst:
     lst.append(item)
     with open(cfg, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False)
+PY
+}
+
+# Overwrite the group's list with a single item
+set_config_list() {
+  local group="$1" list="$2" item="$3"
+  python3 - "$config_file" "$group" "$list" "$item" <<'PY'
+import sys, yaml, os
+cfg, group, list_name, item = sys.argv[1:]
+data = {}
+if os.path.exists(cfg):
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+grp = data.setdefault('groups', {}).setdefault(group, {})
+grp[list_name] = [item]
+with open(cfg, 'w') as f:
+    yaml.safe_dump(data, f, sort_keys=False)
 PY
 }
 # Add user provided theme and style to config
@@ -724,6 +748,16 @@ if [ -n "$discovery_mode" ]; then
       discovered_style="$new"
       echo "🆕 Discovered style: $style (model: $style_model)"
     fi
+  fi
+fi
+
+# If a new group was created and discovery supplied items, replace defaults
+if [ "$group_created" = "1" ]; then
+  if [ -n "$discovered_theme" ] && [ "$theme_provided" = false ]; then
+    set_config_list "$gen_group" "themes" "$discovered_theme"
+  fi
+  if [ -n "$discovered_style" ] && [ "$style_provided" = false ]; then
+    set_config_list "$gen_group" "styles" "$discovered_style"
   fi
 fi
 
