@@ -81,3 +81,5 @@
 - Browse mode now redirects termux-dialog errors to avoid invalid JSON messages.
 - Tester agent requires running new scripts or commands before opening pull requests.
 - wallai config now includes `pollinations_token` and the `-k` flag to save it.
+- wallai now saves the token under the chosen group and loads group tokens before the global one.
+- Discovery prompts instruct Pollinations to respond with exactly two words to avoid verbose replies.
