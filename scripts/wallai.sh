@@ -545,7 +545,7 @@ PY
 
 # Discover new theme or style via Pollinations
 discover_item() {
-  local kind="$1" query result dseed
+  local kind="$1" query result dseed m url item attempt lower_item exists
   if [ "$gen_allow_prompt_fetch" != true ]; then
     return
   fi
@@ -554,26 +554,50 @@ discover_item() {
     style) query="Imagine an art style in two words. Respond with only two words." ;;
     *) return ;;
   esac
-  dseed=$(random_seed)
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
-  local m="$gen_prompt_model"
-  case "$kind" in
-    theme) m="$theme_model" ;;
-    style) m="$style_model" ;;
-  esac
-  local url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${m}"
-  case "$kind" in
-    theme) theme_seed="$dseed" ;;
-    style) style_seed="$dseed" ;;
-  esac
-  [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url" >&2
-  # Verbose output goes to stderr to avoid affecting variable assignments
-  result=$(curl -sL "${curl_auth[@]}" "$url" || true)
-  [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
-  result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
-  if [ -n "$result" ]; then
-    printf '%s' "$result" | awk '{print $1, $2}'
-  fi
+  for attempt in 1 2 3 4 5; do
+    dseed=$(random_seed)
+    m="$gen_prompt_model"
+    case "$kind" in
+      theme) m="$theme_model" ;;
+      style) m="$style_model" ;;
+    esac
+    url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${m}"
+    case "$kind" in
+      theme) theme_seed="$dseed" ;;
+      style) style_seed="$dseed" ;;
+    esac
+    [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url" >&2
+    # Verbose output goes to stderr to avoid affecting variable assignments
+    result=$(curl -sL "${curl_auth[@]}" "$url" || true)
+    [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
+    result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
+    if [ -n "$result" ]; then
+      item=$(printf '%s' "$result" | awk '{print $1, $2}')
+      lower_item=$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')
+      exists=false
+      if [ "$kind" = "theme" ]; then
+        for i in "${gen_themes[@]}"; do
+          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
+            exists=true
+            break
+          fi
+        done
+      else
+        for i in "${gen_styles[@]}"; do
+          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
+            exists=true
+            break
+          fi
+        done
+      fi
+      if [ "$exists" = false ] || [ "$attempt" -eq 5 ]; then
+        printf '%s' "$item"
+        break
+      fi
+    fi
+    sleep 1
+  done
 }
 
 
