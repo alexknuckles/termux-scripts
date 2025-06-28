@@ -1,4 +1,5 @@
-- Applying previous commit.
+- Fixed API token updates in wallai when using -k to avoid jq errors with YAML.
+- Discovery verbose messages now print to stderr to avoid corrupting filenames.
 - Add gpull command to githelper with alias.
 - Installer now copies to `~/bin/termux-scripts` by default and no longer
   accepts the `-c` flag.
