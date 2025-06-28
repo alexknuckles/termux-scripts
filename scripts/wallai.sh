@@ -279,14 +279,12 @@ data = {}
 if os.path.exists(cfg):
     with open(cfg) as f:
         data = yaml.safe_load(f) or {}
-data['pollinations_token'] = token
 grp = data.setdefault('groups', {}).setdefault(group, {})
 grp['pollinations_token'] = token
 with open(cfg, 'w') as f:
     yaml.safe_dump(data, f, sort_keys=False)
 PY
   config_json=$(printf '%s' "$config_json" | jq --arg g "$gen_group" --arg t "$pollinations_token" '
-    .pollinations_token=$t |
     (.groups[$g] //= {}) |
     .groups[$g].pollinations_token=$t
   ')

@@ -85,7 +85,7 @@ Flags:
 - `-g [group]` Generate using themes and styles from a group.
 - `-h` Show help and exit.
 - `-i [group]` Choose a theme and style inspired by favorites from the specified group (defaults to `main`).
-- `-k token` Save your Pollinations token to the group used with `-g` (defaults to `main`).
+- `-k token` Save your Pollinations token to the group used with `-g`. This does not change any global token setting.
 - `-l` Use the theme and style from the last generated image if either is omitted.
 - `-im` Pollinations model for image generation. Models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
@@ -104,8 +104,8 @@ Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a
 favorites path, whether NSFW prompts are allowed, the prompt model used for
 discovery, the image model used for generation and lists of themes and styles.
-A Pollinations token can be stored for each group using `-k` (saved under that
-group's entry, default `main`). Global `pollinations_token`, `prompt_model` and
+You can store a Pollinations token for each group using `-k`, saved under that
+group's entry. Global `pollinations_token`, `prompt_model` and
 `image_model` values are also supported for fallback when a group omits them.
 The default configuration also
 includes all built‑in themes
