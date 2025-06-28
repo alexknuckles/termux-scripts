@@ -10,6 +10,7 @@ set -euo pipefail
 #   -b  browse generated wallpapers and optionally favorite one to the group
 #   -d  discover a new theme/style (mode: theme, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
+#       (defaults to the -g group)
 #   -g  generate using config from the specified group
 #   -h  show this help message
 #   -i  pick theme and style inspired by past favorites from the optional group (defaults to "main")
@@ -42,6 +43,7 @@ Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
   -b [group]  browse generated wallpapers and optionally favorite one to the group
   -d [mode]   discover a new theme/style (mode: theme, style or both)
   -f [group]  mark the generated wallpaper as a favorite in the optional group
+               (defaults to the -g group)
   -g [group]  generate using config from the specified group
   -h          show this help message
   -i [group]  pick theme and style inspired by past favorites from the optional group (defaults to "main")
@@ -87,6 +89,7 @@ style_model_override=""
 random_model=false
 favorite_wall=false
 favorite_group="main"
+favorite_group_provided=false
 gen_group="main"
 discovery_mode=""
 inspired_mode=false
@@ -168,6 +171,7 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
     f)
       favorite_wall=true
       favorite_group="$OPTARG"
+      favorite_group_provided=true
       ;;
     g)
       gen_group="$OPTARG"
@@ -214,7 +218,7 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
       case "$OPTARG" in
         f)
           favorite_wall=true
-          favorite_group="main"
+          favorite_group_provided=false
           ;;
         g)
           gen_group="main"
@@ -244,6 +248,11 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
 done
 shift $((OPTIND - 1))
 
+# Default favorite group to generation group if not specified
+if [ "$favorite_wall" = true ] && [ "$favorite_group_provided" = false ]; then
+  favorite_group="$gen_group"
+fi
+
 # Default negative prompt if not provided
 if [ -z "$negative_prompt" ]; then
   negative_prompt="blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy"
@@ -261,7 +270,7 @@ groups:
     prompt_model: default
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
-    nsfw: false
+    nsfw: true
     allow_prompt_fetch: true
     themes:
       - dreamcore
@@ -299,7 +308,7 @@ defaults = {
     'prompt_model': 'default',
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
-    'nsfw': False,
+    'nsfw': True,
     'allow_prompt_fetch': True,
     'themes': [
         'dreamcore', 'mystical forest', 'cosmic horror',
@@ -760,7 +769,7 @@ fi
 fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
   local attempt=1 encoded url
-  encoded=$(printf '%s' "Generate a high quality wallpaper prompt about $theme in exactly 15 words. Respond with exactly 15 words." | jq -sRr @uri)
+  encoded=$(printf '%s' "Describe a $theme wallpaper scene in exactly 15 words. Respond with only those 15 words." | jq -sRr @uri)
   prompt_seed=""
   while [ "$attempt" -le 3 ]; do
     prompt_seed=$(random_seed)
@@ -769,6 +778,7 @@ fetch_prompt() {
     prompt=$(curl -sL "${curl_auth[@]}" "$url" || true)
     [ "$verbose" = true ] && echo "🔍 Attempt $attempt response: $prompt"
     prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
+    prompt=$(printf '%s' "$prompt" | sed -E 's/^[Cc]reate a wallpaper of (a )?//')
     prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
     [ -n "$prompt" ] && return 0
     attempt=$((attempt + 1))
@@ -778,7 +788,7 @@ fetch_prompt() {
 }
 
 if [ -z "$prompt" ]; then
-  echo "🎯 Fetching random prompt from Pollinations..."
+  echo "🎯 Fetching random prompt from Pollinations (model: $gen_prompt_model)..."
 
   # 🎲 Step 1: Pick or use provided theme
   if [ -z "$theme" ]; then
@@ -792,7 +802,9 @@ if [ -z "$prompt" ]; then
       theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
     fi
   fi
-  echo "🔖 Selected theme: $theme (model: $gen_prompt_model)"
+  if [ -z "$discovered_theme" ]; then
+    echo "🔖 Selected theme: $theme"
+  fi
 
   # 🧠 Step 2: Retrieve a text prompt for that theme with retries
   if ! fetch_prompt; then
@@ -822,7 +834,9 @@ if [ -z "$style" ]; then
     style=$(printf '%s\n' "${styles[@]}" | shuf -n1)
   fi
 fi
-echo "🖌 Selected style: $style"
+if [ -z "$discovered_style" ]; then
+  echo "🖌 Selected style: $style"
+fi
 
 # Build the final prompt with theme and style weights and negative text
 if [ -n "$theme" ]; then
