@@ -92,3 +92,4 @@
 - Added `-tm` and `-sm` flags for theme and style discovery models.
 - `-t` can be combined with `-p` and docs clarify the relationship.
 - Style flag renamed from `-y` to `-s`.
+- Removed fallback to POLLINATIONS_TOKEN environment variable; token must come from config.
