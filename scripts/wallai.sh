@@ -370,14 +370,14 @@ browse_gallery() {
   mapfile -t images < <(ls -t -- *.jpg *.png 2>/dev/null || true)
   [ "${#images[@]}" -gt 0 ] || { echo "❌ No images found" >&2; return 1; }
   list=$(IFS=','; printf '%s' "${images[*]}")
-  result=$(termux-dialog -l "$list" -t "Select wallpaper" || true)
+  result=$(termux-dialog -l "$list" -t "Select wallpaper" 2>/dev/null || true)
   if ! sel=$(printf '%s' "$result" | jq -e -r '.text' 2>/dev/null); then
     echo "❌ Invalid JSON from termux-dialog" >&2
     return 1
   fi
   [ -n "$sel" ] || return 0
   termux-open "$save_dir/$sel"
-  result=$(termux-dialog -l "yes,no" -t "Add to favorites?" || true)
+  result=$(termux-dialog -l "yes,no" -t "Add to favorites?" 2>/dev/null || true)
   decision=$(printf '%s' "$result" | jq -r '.text')
   [ "$decision" = "yes" ] || return 0
   if [ -f "$config_file" ]; then
