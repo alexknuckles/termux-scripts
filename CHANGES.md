@@ -96,3 +96,4 @@
 - Configuration values no longer appear at the top level of `config.yml`; they are stored under each group.
 - Wallai config now separates `favorites_path` and `generations_path` per group and auto-creates groups used with `-g`.
 - Fixed append_config_item not defined error when adding theme or style
+- wallai updates: NSFW defaults to true, fetch message shows model, discovery output no longer duplicates selected lines, prompts clean "create a wallpaper" phrases, and -f defaults to the -g group
