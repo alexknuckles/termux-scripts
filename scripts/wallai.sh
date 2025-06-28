@@ -370,14 +370,14 @@ browse_gallery() {
   mapfile -t images < <(ls -t -- *.jpg *.png 2>/dev/null || true)
   [ "${#images[@]}" -gt 0 ] || { echo "❌ No images found" >&2; return 1; }
   list=$(IFS=','; printf '%s' "${images[*]}")
-  result=$(termux-dialog -l "$list" -t "Select wallpaper" 2>/dev/null || true)
+  result=$(termux-dialog -l "$list" -t "Select wallpaper" 2>/dev/null | tail -n1 || true)
   if ! sel=$(printf '%s' "$result" | jq -e -r '.text' 2>/dev/null); then
     echo "❌ Invalid JSON from termux-dialog" >&2
     return 1
   fi
   [ -n "$sel" ] || return 0
   termux-open "$save_dir/$sel"
-  result=$(termux-dialog -l "yes,no" -t "Add to favorites?" 2>/dev/null || true)
+  result=$(termux-dialog -l "yes,no" -t "Add to favorites?" 2>/dev/null | tail -n1 || true)
   decision=$(printf '%s' "$result" | jq -r '.text')
   [ "$decision" = "yes" ] || return 0
   if [ -f "$config_file" ]; then
@@ -394,7 +394,7 @@ PY
   [ "${#groups[@]}" -gt 0 ] || groups=(main)
   if [ "$fav_group" = "main" ] && [ "${#groups[@]}" -gt 1 ]; then
     group_list=$(IFS=','; printf '%s' "${groups[*]}")
-    gsel=$(termux-dialog -l "$group_list" -t "Select favorites group" || true)
+    gsel=$(termux-dialog -l "$group_list" -t "Select favorites group" 2>/dev/null | tail -n1 || true)
     gsel_val=$(printf '%s' "$gsel" | jq -r '.text')
     [ -n "$gsel_val" ] && fav_group="$gsel_val"
   fi

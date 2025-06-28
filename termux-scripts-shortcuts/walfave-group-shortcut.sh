@@ -27,7 +27,7 @@ if ! command -v termux-dialog >/dev/null 2>&1; then
   exit 1
 fi
 
-result=$(termux-dialog -l "$list" -t "Select favorites group" || true)
+result=$(termux-dialog -l "$list" -t "Select favorites group" 2>/dev/null | tail -n1 || true)
 selection=$(printf '%s' "$result" | jq -r '.text')
 
 [ -n "$selection" ] || exit 0
