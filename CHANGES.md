@@ -99,3 +99,6 @@
 - wallai updates: NSFW defaults to true, fetch message shows model, discovery output no longer duplicates selected lines, prompts clean "create a wallpaper" phrases, and -f defaults to the -g group
 - wallai improves favorite handling: -f uses -g group, ignores flag arguments, and token message only shows when the token is used.
 - New groups inherit custom models, themes and styles when created via -g and the main group defaults to NSFW disabled.
+- Config nests theme and style discovery models under `prompt_model` with defaults,
+  new groups created via discovery use the discovered theme/style only,
+  and `wal -f` now defaults to favoriting to the main group when no group is specified.
