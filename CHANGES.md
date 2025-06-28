@@ -102,3 +102,6 @@
 - Config nests theme and style discovery models under `prompt_model` with defaults,
   new groups created via discovery use the discovered theme/style only,
   and `wal -f` now defaults to favoriting to the main group when no group is specified.
+- Group creation now records `-tm` and `-sm` models under `prompt_model` and `-f` favors the correct group's last image.
+- All generations are now recorded in `~/.wallai/wallai.log` allowing favorites
+  to be added from any group.

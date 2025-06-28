@@ -109,6 +109,10 @@ the prompt model used for discovery, the image model used for generation and
 lists of themes and styles.
 You can store a Pollinations token for each group using `-k`, saved under that
 group's entry along with `prompt_model` and `image_model` preferences.
+If `-tm` or `-sm` are supplied when a new group is created, the selected models
+are also stored under `prompt_model`.
+All generation activity is logged to `~/.wallai/wallai.log` so commands like
+`wallai -f` always operate on the most recent wallpaper regardless of group.
 The default configuration also
 includes all built‑in themes
 (`dreamcore`, `mystical forest`, `cosmic horror`, `ethereal landscape`,
