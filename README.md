@@ -70,7 +70,7 @@ due to low quality. The default model is `flux`.
 
 ### Usage
 ```bash
-wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] \
+wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-m model] \
        [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
 ```
 
@@ -83,6 +83,7 @@ Flags:
 - `-g [group]` Generate using themes and styles from a group.
 - `-h` Show help and exit.
 - `-i [group]` Choose a theme and style inspired by favorites from the specified group (defaults to `main`).
+- `-k token` Save your Pollinations token to the config for authenticated requests.
 - `-l` Use the theme and style from the last generated image if either is omitted.
 - `-m` Select Pollinations model. Available models come from the API and usually
   include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
@@ -99,7 +100,8 @@ Flags:
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a
 favorites path, whether NSFW prompts are allowed, the prompt model used for
-discovery and lists of themes and styles. The default configuration also
+discovery and lists of themes and styles. A top-level `pollinations_token`
+field stores your API token if needed. The default configuration also
 includes all built‑in themes
 (`dreamcore`, `mystical forest`, `cosmic horror`, `ethereal landscape`,
 `retrofuturism`, `alien architecture`, `cyberpunk metropolis`) and styles

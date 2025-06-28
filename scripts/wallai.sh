@@ -4,8 +4,8 @@ set -euo pipefail
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
-#                  [-i [group]] [-l] [-m model] [-n "text"] [-p "prompt text"] \
-#                  [-r] [-t theme] [-v] [-w] [-y style]
+#                  [-i [group]] [-k token] [-l] [-m model] [-n "text"] \
+#                  [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
 #   -b  browse generated wallpapers and optionally favorite one to the group
 #   -d  discover a new theme/style (mode: theme, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
@@ -31,8 +31,8 @@ set -euo pipefail
 show_help() {
   cat <<'EOF'
 Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
-                 [-i [group]] [-l] [-m model] [-n "text"] [-p "prompt text"] \
-                 [-r] [-t theme] [-v] [-w] [-y style]
+                 [-i [group]] [-k token] [-l] [-m model] [-n "text"] \
+                 [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
 
   -b [group]  browse generated wallpapers and optionally favorite one to the group
   -d [mode]   discover a new theme/style (mode: theme, style or both)
@@ -40,6 +40,7 @@ Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
   -g [group]  generate using config from the specified group
   -h          show this help message
   -i [group]  pick theme and style inspired by past favorites from the optional group (defaults to "main")
+  -k token    save Pollinations API token to the config
   -l          use the theme/style from the last image if not provided
   -m model    Pollinations model (default "flux")
   -n text     custom negative prompt
@@ -79,7 +80,8 @@ generation_opts=false
 verbose=false
 browse_gallery=false
 browse_group="main"
-while getopts ":p:t:m:y:rn:f:g:d:i:wvlhb:" opt; do
+new_token=""
+while getopts ":p:t:m:y:rn:f:g:d:i:k:wvlhb:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -111,6 +113,9 @@ while getopts ":p:t:m:y:rn:f:g:d:i:wvlhb:" opt; do
       ;;
     g)
       gen_group="$OPTARG"
+      ;;
+    k)
+      new_token="$OPTARG"
       ;;
     d)
       if [ -n "${OPTARG:-}" ] && [ "${OPTARG:0:1}" != "-" ]; then
@@ -168,13 +173,13 @@ while getopts ":p:t:m:y:rn:f:g:d:i:wvlhb:" opt; do
           browse_group="main"
           ;;
         *)
-          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
+      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-m model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-y style]" >&2
       exit 1
       ;;
   esac
@@ -191,6 +196,7 @@ config_file="$HOME/.wallai/config.yml"
 if [ ! -f "$config_file" ]; then
   mkdir -p "$(dirname "$config_file")"
   cat >"$config_file" <<'EOF'
+pollinations_token: ""
 groups:
   main:
     path: ~/pictures/favorites/main
@@ -224,6 +230,20 @@ with open(os.environ['CFG']) as f:
 json.dump(data, sys.stdout)
 PY
 )
+
+# Pollinations token from config
+pollinations_token=$(printf '%s' "$config_json" | jq -r '.pollinations_token // ""')
+
+# Update token in config if -k was provided
+if [ -n "$new_token" ]; then
+  pollinations_token="$new_token"
+  tmp=$(mktemp)
+  jq --arg t "$pollinations_token" '.pollinations_token=$t' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+  config_json=$(printf '%s' "$config_json" | jq --arg t "$pollinations_token" '.pollinations_token=$t')
+fi
+
+curl_auth=()
+[ -n "$pollinations_token" ] && curl_auth=(-H "Authorization: Bearer $pollinations_token")
 
 # Helper to fetch values from config JSON
 cfg() {
@@ -277,7 +297,7 @@ discover_item() {
     style) style_seed="$dseed" ;;
   esac
   [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url"
-  result=$(curl -sL "$url" || true)
+  result=$(curl -sL "${curl_auth[@]}" "$url" || true)
   [ "$verbose" = true ] && echo "🔍 Response: $result"
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   if [ -n "$result" ]; then
@@ -503,7 +523,7 @@ if [ -n "$discovery_mode" ]; then
 fi
 
 # Validate selected model using the API list
-models_json=$(curl -sL "https://image.pollinations.ai/models" || true)
+models_json=$(curl -sL "${curl_auth[@]}" "https://image.pollinations.ai/models" || true)
 if ! mapfile -t models < <(printf '%s' "$models_json" | jq -r '.[]' 2>/dev/null); then
   models=(flux turbo gptimage)
 fi
@@ -522,7 +542,7 @@ fi
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t theme] [-y style] [-m model] [-r] [-f]
-#                  [-g group] [-d mode] [-i group] [-w] [-l] [-n "text"] [-v] [-h]
+#                  [-g group] [-d mode] [-i group] [-k token] [-w] [-l] [-n "text"] [-v] [-h]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
@@ -537,6 +557,7 @@ fi
 #   -g group        Generate using config from the specified group
 #   -d mode         Discover a new theme/style (theme, style or both)
 #   -i group        Choose theme and style inspired by favorites from the specified group (defaults to "main")
+#   -k token        Save Pollinations API token to the config
 #   -w              Add weather, time and seasonal context
 #   -l              Use theme and/or style from the last image
 #   -n text         Override the default negative prompt
@@ -585,7 +606,7 @@ fetch_prompt() {
     prompt_seed=$(random_seed)
     url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
     [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
-    prompt=$(curl -sL "$url" || true)
+    prompt=$(curl -sL "${curl_auth[@]}" "$url" || true)
     [ "$verbose" = true ] && echo "🔍 Attempt $attempt response: $prompt"
     prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
     prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
@@ -702,7 +723,7 @@ generate_pollinations() {
   headers=$(mktemp)
   local url="https://image.pollinations.ai/prompt/${encoded}?${params}"
   [ "$verbose" = true ] && echo "🔍 Image URL: $url"
-  if ! curl -sL -D "$headers" "$url" -o "$out_file"; then
+  if ! curl -sL "${curl_auth[@]}" -D "$headers" "$url" -o "$out_file"; then
     rm -f "$headers"
     return 1
   fi
