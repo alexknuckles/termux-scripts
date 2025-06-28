@@ -545,17 +545,26 @@ PY
 
 # Discover new theme or style via Pollinations
 discover_item() {
-  local kind="$1" query result dseed m url item attempt lower_item exists
+  local kind="$1" query result dseed m url item attempt lower_item exists list
   if [ "$gen_allow_prompt_fetch" != true ]; then
     return
   fi
   case "$kind" in
-    theme) query="Imagine a theme in two words. Respond with only two words." ;;
-    style) query="Imagine an art style in two words. Respond with only two words." ;;
-    *) return ;;
+    theme)
+      list=$(printf '%s, ' "${gen_themes[@]}" | sed 's/, $//')
+      query="Imagine a two-word theme not including any of: ${list}. Respond with exactly two words."
+      ;;
+    style)
+      list=$(printf '%s, ' "${gen_styles[@]}" | sed 's/, $//')
+      query="Imagine a two-word art style not including any of: ${list}. Respond with exactly two words."
+      ;;
+    *)
+      return
+      ;;
   esac
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
   for attempt in 1 2 3 4 5; do
+    echo "🔄 Discovering $kind (attempt $attempt/5)..."
     dseed=$(random_seed)
     m="$gen_prompt_model"
     case "$kind" in
@@ -1067,6 +1076,7 @@ generate_pollinations() {
 ctype_file=$(mktemp)
 attempt=1
 while true; do
+  echo "🖼  Generating image (attempt $attempt/3)..."
   generate_pollinations "$tmp_output" "$ctype_file" &
   gen_pid=$!
   spinner "$gen_pid" &

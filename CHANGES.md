@@ -108,3 +108,4 @@
   to be added from any group.
 - `-pm` during group creation now sets the `prompt_model.base` value.
 - Styles and themes are only appended to a group's lists if they aren't already present.
+- Discovery now excludes existing themes/styles in the request and shows attempt progress during discovery and image retries.
