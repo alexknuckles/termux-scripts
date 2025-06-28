@@ -417,10 +417,20 @@ style_model="${style_model_override:-${gen_style_model:-$gen_prompt_model}}"
 # Append a discovered item to the group's config list if missing
 append_config_item() {
   local group="$1" list="$2" item="$3"
-  tmp=$(mktemp)
-  jq --arg g "$group" --arg i "$item" --arg l "$list" '
-    (.groups[$g][$l] //= []) as $arr
-    | if ($arr | index($i)) then . else .groups[$g][$l] += [$i] end' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+  python3 - "$config_file" "$group" "$list" "$item" <<'PY'
+import sys, yaml, os
+cfg, group, list_name, item = sys.argv[1:]
+data = {}
+if os.path.exists(cfg):
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+grp = data.setdefault('groups', {}).setdefault(group, {})
+lst = grp.setdefault(list_name, [])
+if item not in lst:
+    lst.append(item)
+    with open(cfg, 'w') as f:
+        yaml.safe_dump(data, f, sort_keys=False)
+PY
 }
 # Add user provided theme and style to config
 [ "$theme_provided" = true ] && append_config_item "$gen_group" "themes" "$theme"
