@@ -382,6 +382,26 @@ DEF_THEME="$DEF_THEME" \
 DEF_STYLE="$DEF_STYLE" \
 group_created=$(ensure_group "$gen_group")
 
+set_config_value() {
+  local group="$1" key="$2" value="$3"
+  python3 - "$config_file" "$group" "$key" "$value" <<'PY'
+import sys, yaml, os
+cfg, group, key, value = sys.argv[1:]
+data = {}
+if os.path.exists(cfg):
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+grp = data.setdefault('groups', {}).setdefault(group, {})
+d = grp
+parts = key.split('.')
+for p in parts[:-1]:
+    d = d.setdefault(p, {})
+d[parts[-1]] = value
+with open(cfg, 'w') as f:
+    yaml.safe_dump(data, f, sort_keys=False)
+PY
+}
+
 if [ "$group_created" = "1" ]; then
   [ -n "$theme_model_override" ] && \
     set_config_value "$gen_group" "prompt_model.theme_model" "$theme_model_override"
@@ -516,25 +536,6 @@ PY
 }
 
 # Set a nested value in the group's config
-set_config_value() {
-  local group="$1" key="$2" value="$3"
-  python3 - "$config_file" "$group" "$key" "$value" <<'PY'
-import sys, yaml, os
-cfg, group, key, value = sys.argv[1:]
-data = {}
-if os.path.exists(cfg):
-    with open(cfg) as f:
-        data = yaml.safe_load(f) or {}
-grp = data.setdefault('groups', {}).setdefault(group, {})
-d = grp
-parts = key.split('.')
-for p in parts[:-1]:
-    d = d.setdefault(p, {})
-d[parts[-1]] = value
-with open(cfg, 'w') as f:
-    yaml.safe_dump(data, f, sort_keys=False)
-PY
-}
 # Add user provided theme and style to config
 [ "$theme_provided" = true ] && append_config_item "$gen_group" "themes" "$theme"
 [ "$style_provided" = true ] && append_config_item "$gen_group" "styles" "$style"
