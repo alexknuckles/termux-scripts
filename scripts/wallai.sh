@@ -275,7 +275,7 @@ groups:
     prompt_model: default
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
-    nsfw: true
+    nsfw: false
     allow_prompt_fetch: true
     themes:
       - dreamcore
@@ -306,37 +306,70 @@ data = {}
 if os.path.exists(cfg):
     with open(cfg) as f:
         data = yaml.safe_load(f) or {}
-grp = data.setdefault('groups', {}).setdefault(group, {})
+groups = data.setdefault('groups', {})
+new = group not in groups
+grp = groups.setdefault(group, {})
+
+def_env = os.environ.get
+
 defaults = {
     'pollinations_token': '',
-    'image_model': 'flux',
-    'prompt_model': 'default',
+    'image_model': def_env('DEF_IMAGE_MODEL', 'flux'),
+    'prompt_model': def_env('DEF_PROMPT_MODEL', 'default'),
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
-    'nsfw': True,
     'allow_prompt_fetch': True,
-    'themes': [
+    'nsfw': False if group == 'main' else True,
+    'themes': [def_env('DEF_THEME')] if new and def_env('DEF_THEME') else [
         'dreamcore', 'mystical forest', 'cosmic horror',
         'ethereal landscape', 'retrofuturism', 'alien architecture',
         'cyberpunk metropolis'
     ],
-    'styles': [
+    'styles': [def_env('DEF_STYLE')] if new and def_env('DEF_STYLE') else [
         'unreal engine', 'cinematic lighting', 'octane render',
         'hyperrealism', 'volumetric lighting', 'high detail',
         '4k concept art'
     ]
 }
+
+if new:
+    # Custom discovery and style models only apply on creation
+    tm = def_env('DEF_THEME_MODEL')
+    sm = def_env('DEF_STYLE_MODEL')
+    if tm:
+        defaults['theme_model'] = tm
+    if sm:
+        defaults['style_model'] = sm
+
 updated = False
-for k, v in defaults.items():
-    if k not in grp:
+if new:
+    for k, v in defaults.items():
         grp[k] = v
         updated = True
+else:
+    for k, v in defaults.items():
+        if k not in grp:
+            grp[k] = v
+            updated = True
+
 if updated:
     with open(cfg, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False)
 PY
 }
 
+DEF_IMAGE_MODEL="${model:-}"
+DEF_PROMPT_MODEL="${prompt_model_override:-}"
+DEF_THEME_MODEL="${theme_model_override:-}"
+DEF_STYLE_MODEL="${style_model_override:-}"
+[ "$theme_provided" = true ] && DEF_THEME="$theme" || DEF_THEME=""
+[ "$style_provided" = true ] && DEF_STYLE="$style" || DEF_STYLE=""
+DEF_IMAGE_MODEL="$DEF_IMAGE_MODEL" \
+DEF_PROMPT_MODEL="$DEF_PROMPT_MODEL" \
+DEF_THEME_MODEL="$DEF_THEME_MODEL" \
+DEF_STYLE_MODEL="$DEF_STYLE_MODEL" \
+DEF_THEME="$DEF_THEME" \
+DEF_STYLE="$DEF_STYLE" \
 ensure_group "$gen_group"
 
 config_json=$(CFG="$config_file" python3 - <<'PY'

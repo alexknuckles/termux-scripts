@@ -98,3 +98,4 @@
 - Fixed append_config_item not defined error when adding theme or style
 - wallai updates: NSFW defaults to true, fetch message shows model, discovery output no longer duplicates selected lines, prompts clean "create a wallpaper" phrases, and -f defaults to the -g group
 - wallai improves favorite handling: -f uses -g group, ignores flag arguments, and token message only shows when the token is used.
+- New groups inherit custom models, themes and styles when created via -g and the main group defaults to NSFW disabled.
