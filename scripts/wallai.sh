@@ -289,7 +289,6 @@ PY
 
 # Pollinations token from config (group-specific overrides global)
 pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // .pollinations_token // ""')
-[ -z "$pollinations_token" ] && pollinations_token="${POLLINATIONS_TOKEN:-}"
 
 # Update token in config if -k was provided
 if [ -n "$new_token" ]; then
