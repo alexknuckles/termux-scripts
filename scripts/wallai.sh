@@ -414,6 +414,14 @@ insp_path=$(eval printf '%s' "$insp_path")
 theme_model="${theme_model_override:-${gen_theme_model:-$gen_prompt_model}}"
 style_model="${style_model_override:-${gen_style_model:-$gen_prompt_model}}"
 
+# Append a discovered item to the group's config list if missing
+append_config_item() {
+  local group="$1" list="$2" item="$3"
+  tmp=$(mktemp)
+  jq --arg g "$group" --arg i "$item" --arg l "$list" '
+    (.groups[$g][$l] //= []) as $arr
+    | if ($arr | index($i)) then . else .groups[$g][$l] += [$i] end' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+}
 # Add user provided theme and style to config
 [ "$theme_provided" = true ] && append_config_item "$gen_group" "themes" "$theme"
 [ "$style_provided" = true ] && append_config_item "$gen_group" "styles" "$style"
@@ -451,14 +459,6 @@ discover_item() {
   fi
 }
 
-# Append a discovered item to the group's config list if missing
-append_config_item() {
-  local group="$1" list="$2" item="$3"
-  tmp=$(mktemp)
-  jq --arg g "$group" --arg i "$item" --arg l "$list" '
-    (.groups[$g][$l] //= []) as $arr
-    | if ($arr | index($i)) then . else .groups[$g][$l] += [$i] end' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
-}
 
 # Directory where generated wallpapers live and log path
 save_dir="$gen_gen_path"
