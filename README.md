@@ -72,8 +72,8 @@ flower-tier account) and `turbo` due to low quality. The default image model is
 
 ### Usage
 ```bash
-wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] \
-       [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-y style]
+wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] \
+       [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-s style]
 ```
 
 Environment variables:
@@ -92,13 +92,15 @@ Flags:
   The `gptimage` model requires a flower-tier Pollinations account; without
   access the API returns an error. The `turbo` model tends to produce lower quality images.
 - `-pm` Pollinations model for prompt generation. Defaults to `default`.
+- `-tm` Pollinations model for theme discovery.
+- `-sm` Pollinations model for style discovery.
 - `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
-- `-p` Specify your own prompt instead of fetching a random one.
+- `-p` Specify your own prompt text.
 - `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
-- `-t` Choose a theme (ignored if `-p` is used).
+- `-t` Choose a theme.
 - `-v` Enable verbose output for API requests and responses.
 - `-w` Append current weather, time, season and holiday to the prompt.
-- `-y` Select a visual style. If omitted, one is picked at random.
+- `-s` Select a visual style. If omitted, one is picked at random.
 
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify a
