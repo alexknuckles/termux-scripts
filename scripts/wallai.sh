@@ -170,8 +170,13 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
       ;;
     f)
       favorite_wall=true
-      favorite_group="$OPTARG"
-      favorite_group_provided=true
+      if [ -n "${OPTARG:-}" ] && [ "${OPTARG:0:1}" != "-" ]; then
+        favorite_group="$OPTARG"
+        favorite_group_provided=true
+      else
+        favorite_group_provided=false
+        [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
+      fi
       ;;
     g)
       gen_group="$OPTARG"
@@ -367,12 +372,12 @@ PY
   ')
 fi
 
-# Use Pollinations token for authenticated requests if available
+# Use Pollinations token only if it will actually be used
 curl_auth=()
-[ -n "$pollinations_token" ] && {
+if [ -n "$pollinations_token" ] && { [ "$generation_opts" = true ] || [ -n "$discovery_mode" ]; }; then
   curl_auth=(-H "Authorization: Bearer $pollinations_token")
   echo "🔑 Using Pollinations token"
-}
+fi
 
 # Helper to fetch values from config JSON
 cfg() {
