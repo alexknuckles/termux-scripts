@@ -78,3 +78,5 @@
 - Added `-b` option to wallai for browsing existing wallpapers and favoriting them.
 
 - Fixed browse_gallery command not found when using -b due to call before function definition.
+- Browse mode now redirects termux-dialog errors to avoid invalid JSON messages.
+- Tester agent requires running new scripts or commands before opening pull requests.
