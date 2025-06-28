@@ -103,9 +103,10 @@ Flags:
 - `-s` Select a visual style. If omitted, one is picked at random.
 
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
-automatically with a `main` group on first run. Each group can specify a
-favorites path, whether NSFW prompts are allowed, the prompt model used for
-discovery, the image model used for generation and lists of themes and styles.
+automatically with a `main` group on first run. Each group can specify
+paths for generated images and favorites, whether NSFW prompts are allowed,
+the prompt model used for discovery, the image model used for generation and
+lists of themes and styles.
 You can store a Pollinations token for each group using `-k`, saved under that
 group's entry along with `prompt_model` and `image_model` preferences.
 The default configuration also
