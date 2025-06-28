@@ -93,3 +93,4 @@
 - `-t` can be combined with `-p` and docs clarify the relationship.
 - Style flag renamed from `-y` to `-s`.
 - Removed fallback to POLLINATIONS_TOKEN environment variable; token must come from config.
+- Configuration values no longer appear at the top level of `config.yml`; they are stored under each group.

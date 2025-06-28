@@ -249,15 +249,13 @@ config_file="$HOME/.wallai/config.yml"
 if [ ! -f "$config_file" ]; then
   mkdir -p "$(dirname "$config_file")"
   cat >"$config_file" <<'EOF'
-pollinations_token: ""
-image_model: flux
-prompt_model: default
 groups:
   main:
+    pollinations_token: ""
+    image_model: flux
+    prompt_model: default
     path: ~/pictures/favorites/main
     nsfw: false
-    prompt_model: default
-    image_model: flux
     allow_prompt_fetch: true
     themes:
       - dreamcore
@@ -287,8 +285,8 @@ json.dump(data, sys.stdout)
 PY
 )
 
-# Pollinations token from config (group-specific overrides global)
-pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // .pollinations_token // ""')
+# Pollinations token from config
+pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // ""')
 
 # Update token in config if -k was provided
 if [ -n "$new_token" ]; then
@@ -328,13 +326,13 @@ gen_path=$(eval printf '%s' "$gen_path")
 # shellcheck disable=SC2016
 gen_nsfw=$(cfg "$gen_group" '.groups[$g].nsfw // false')
 # shellcheck disable=SC2016
-gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model // .prompt_model // "default"')
+gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model // "default"')
 # shellcheck disable=SC2016
-gen_theme_model=$(cfg "$gen_group" '.groups[$g].theme_model // .theme_model // empty')
+gen_theme_model=$(cfg "$gen_group" '.groups[$g].theme_model // empty')
 # shellcheck disable=SC2016
-gen_style_model=$(cfg "$gen_group" '.groups[$g].style_model // .style_model // empty')
+gen_style_model=$(cfg "$gen_group" '.groups[$g].style_model // empty')
 # shellcheck disable=SC2016
-gen_image_model=$(cfg "$gen_group" '.groups[$g].image_model // .image_model // "flux"')
+gen_image_model=$(cfg "$gen_group" '.groups[$g].image_model // "flux"')
 # shellcheck disable=SC2016
 gen_allow_prompt_fetch=$(cfg "$gen_group" '.groups[$g].allow_prompt_fetch // true')
 # shellcheck disable=SC2016
