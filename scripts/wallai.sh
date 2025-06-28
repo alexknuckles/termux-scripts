@@ -237,12 +237,17 @@ pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.g
 # Update token in config if -k was provided
 if [ -n "$new_token" ]; then
   pollinations_token="$new_token"
-  tmp=$(mktemp)
-  jq --arg g "$gen_group" --arg t "$pollinations_token" '
-    .pollinations_token=$t |
-    (.groups[$g] //= {}) |
-    .groups[$g].pollinations_token=$t
-  ' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+  python3 - "$config_file" "$gen_group" "$pollinations_token" <<'PY'
+import sys, yaml
+cfg, group, token = sys.argv[1:]
+with open(cfg) as f:
+    data = yaml.safe_load(f) or {}
+data['pollinations_token'] = token
+grp = data.setdefault('groups', {}).setdefault(group, {})
+grp['pollinations_token'] = token
+with open(cfg, 'w') as f:
+    yaml.safe_dump(data, f, sort_keys=False)
+PY
   config_json=$(printf '%s' "$config_json" | jq --arg g "$gen_group" --arg t "$pollinations_token" '
     .pollinations_token=$t |
     (.groups[$g] //= {}) |
@@ -250,6 +255,7 @@ if [ -n "$new_token" ]; then
   ')
 fi
 
+# Use Pollinations token for authenticated requests if available
 curl_auth=()
 [ -n "$pollinations_token" ] && curl_auth=(-H "Authorization: Bearer $pollinations_token")
 
@@ -304,9 +310,10 @@ discover_item() {
     theme) theme_seed="$dseed" ;;
     style) style_seed="$dseed" ;;
   esac
-  [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url"
+  [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url" >&2
+  # Verbose output goes to stderr to avoid affecting variable assignments
   result=$(curl -sL "${curl_auth[@]}" "$url" || true)
-  [ "$verbose" = true ] && echo "🔍 Response: $result"
+  [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   if [ -n "$result" ]; then
     printf '%s' "$result" | awk '{print $1, $2}'
