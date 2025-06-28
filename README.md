@@ -130,9 +130,8 @@ API using a random genre such as **dreamcore** or **cyberpunk metropolis**. A st
 **unreal engine** or **cinematic lighting** is also selected unless you supply `-y style`.
 You can set the theme with `-t theme`. The API is asked to respond in exactly 15 words
 and each API request uses a new seed. These seeds are stored so results can be repeated.
-If the request fails, wallai retries up to three times before choosing a prompt from a built-in
-fallback list so generation can continue offline. Image generation itself also retries if the
-initial request fails.
+If the request fails, wallai chooses a prompt from a built-in
+fallback list so generation can continue offline. Image generation exits on failure without retrying.
 
 Dependencies: `curl`, `jq`, `termux-wallpaper`, optional `exiftool` for the `-f` option (also used by the `walfave` alias).
 Images are saved as PNG or JPEG depending on what the API returns.

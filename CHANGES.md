@@ -110,3 +110,4 @@
 - `-pm` during group creation now sets the `prompt_model.base` value.
 - Styles and themes are only appended to a group's lists if they aren't already present.
 - Discovery now excludes existing themes/styles in the request and shows attempt progress during discovery and image retries.
+- Generation no longer retries on failures, discovery messages combine theme and style with a spinner.

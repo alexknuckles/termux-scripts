@@ -563,7 +563,6 @@ discover_item() {
       ;;
   esac
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
-  echo "🔄 Discovering $kind..." >&2
   dseed=$(random_seed)
   m="$gen_prompt_model"
   case "$kind" in
@@ -754,12 +753,37 @@ fi
 
 # Spinner that cycles through emojis while a command runs
 spinner() {
-  local pid=$1
+  local pid=$1 msg="${2:-Generating image}"
   local emojis=("🎨" "🧠" "✨" "🖼️" "🌀")
   local i=0
   tput civis 2>/dev/null || true
   while kill -0 "$pid" 2>/dev/null; do
-    printf "\r%s Generating image..." "${emojis[i]}"
+    printf "\r%s %s..." "${emojis[i]}" "$msg"
+    i=$(( (i + 1) % ${#emojis[@]} ))
+    sleep 0.5
+  done
+  tput cnorm 2>/dev/null || true
+  printf "\r\033[K\n"
+}
+
+# Spinner that tracks multiple PIDs
+spinner_multi() {
+  local msg="$1"
+  shift
+  local pids=("$@")
+  local emojis=("🎨" "🧠" "✨" "🖼️" "🌀")
+  local i=0
+  tput civis 2>/dev/null || true
+  while :; do
+    local running=false
+    for pid in "${pids[@]}"; do
+      if kill -0 "$pid" 2>/dev/null; then
+        running=true
+        break
+      fi
+    done
+    [ "$running" = false ] && break
+    printf "\r%s %s..." "${emojis[i]}" "$msg"
     i=$(( (i + 1) % ${#emojis[@]} ))
     sleep 0.5
   done
@@ -828,15 +852,22 @@ if [ -n "$discovery_mode" ]; then
     discover_item style >"$tmpd/style" &
     pids+=("$!")
   fi
+  case "$discovery_mode" in
+    both) desc="theme & style" ;;
+    theme) desc="theme" ;;
+    style) desc="style" ;;
+  esac
+  spinner_multi "Discovering $desc" "${pids[@]}" &
+  spin_pid=$!
   for pid in "${pids[@]}"; do
     wait "$pid"
   done
+  wait "$spin_pid" 2>/dev/null || true
   if [ -f "$tmpd/theme" ]; then
     new=$(cat "$tmpd/theme")
     if [ -n "$new" ]; then
       theme="$new"
       discovered_theme="$new"
-      echo "🆕 Discovered theme: $theme (model: $theme_model)"
     fi
   fi
   if [ -f "$tmpd/style" ]; then
@@ -844,9 +875,15 @@ if [ -n "$discovery_mode" ]; then
     if [ -n "$new" ]; then
       style="$new"
       discovered_style="$new"
-      echo "🆕 Discovered style: $style (model: $style_model)"
     fi
   fi
+  msg=""
+  [ -n "$discovered_theme" ] && msg="theme: $theme (model: $theme_model)"
+  if [ -n "$discovered_style" ]; then
+    [ -n "$msg" ] && msg="$msg | "
+    msg="${msg}style: $style (model: $style_model)"
+  fi
+  [ -n "$msg" ] && echo "🆕 Discovered $msg"
   rm -rf "$tmpd"
 fi
 
@@ -939,23 +976,17 @@ fi
 
 fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
-  local attempt=1 encoded url
+  local encoded url
   encoded=$(printf '%s' "Describe a $theme wallpaper scene in exactly 15 words. Respond with only those 15 words." | jq -sRr @uri)
-  prompt_seed=""
-  while [ "$attempt" -le 3 ]; do
-    prompt_seed=$(random_seed)
-    url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
-    [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
-    prompt=$(curl -sL "${curl_auth[@]}" "$url" || true)
-    [ "$verbose" = true ] && echo "🔍 Attempt $attempt response: $prompt"
-    prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
-    prompt=$(printf '%s' "$prompt" | sed -E 's/^[Cc]reate a wallpaper of (a )?//')
-    prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
-    [ -n "$prompt" ] && return 0
-    attempt=$((attempt + 1))
-    sleep 1
-  done
-  return 1
+  prompt_seed=$(random_seed)
+  url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
+  [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
+  prompt=$(curl -sL "${curl_auth[@]}" "$url" || true)
+  [ "$verbose" = true ] && echo "🔍 Response: $prompt"
+  prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
+  prompt=$(printf '%s' "$prompt" | sed -E 's/^[Cc]reate a wallpaper of (a )?//')
+  prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
+  [ -n "$prompt" ]
 }
 
 if [ -z "$prompt" ]; then
@@ -977,9 +1008,9 @@ if [ -z "$prompt" ]; then
     echo "🔖 Selected theme: $theme"
   fi
 
-  # 🧠 Step 2: Retrieve a text prompt for that theme with retries
+  # 🧠 Step 2: Retrieve a text prompt for that theme
   if ! fetch_prompt; then
-    echo "❌ Failed to fetch prompt after retries. Using fallback."
+    echo "❌ Failed to fetch prompt. Using fallback."
     fallback_prompts=(
       "surreal dreamscape with neon colors"
       "futuristic city skyline at dusk"
@@ -1084,39 +1115,27 @@ generate_pollinations() {
 }
 
 ctype_file=$(mktemp)
-attempt=1
-while true; do
-  echo "🖼  Generating image (attempt $attempt/3)..."
-  generate_pollinations "$tmp_output" "$ctype_file" &
-  gen_pid=$!
-  spinner "$gen_pid" &
-  spin_pid=$!
-  wait "$gen_pid"
-  status=$?
-  kill "$spin_pid" 2>/dev/null || true
-  wait "$spin_pid" 2>/dev/null || true
-  printf '\n'
-  if [ "$status" -eq 0 ]; then
-    generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
-    file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
-    [ "$verbose" = true ] && echo "🔍 File type: $file_type"
-    if printf '%s' "$generated_content_type" | grep -qi '^image/' && \
-       printf '%s' "$file_type" | grep -qi '^image/'; then
-      break
-    fi
-    echo "❌ Invalid image file!" >&2
-    status=1
-  fi
-  if [ "$status" -eq 0 ]; then
-    break
-  fi
-  if [ "$attempt" -ge 3 ]; then
-    echo "❌ Failed to generate image via Pollinations" >&2
-    exit 1
-  fi
-  attempt=$((attempt + 1))
-  echo "⚠️  Retrying image generation ($attempt/3)..."
-done
+echo "🖼  Generating image..."
+generate_pollinations "$tmp_output" "$ctype_file" &
+gen_pid=$!
+spinner "$gen_pid" "Generating image" &
+spin_pid=$!
+wait "$gen_pid"
+status=$?
+wait "$spin_pid" 2>/dev/null || true
+printf '\n'
+if [ "$status" -ne 0 ]; then
+  echo "❌ Failed to generate image via Pollinations" >&2
+  exit 1
+fi
+generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
+file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
+[ "$verbose" = true ] && echo "🔍 File type: $file_type"
+if ! printf '%s' "$generated_content_type" | grep -qi '^image/' || \
+   ! printf '%s' "$file_type" | grep -qi '^image/'; then
+  echo "❌ Invalid image file!" >&2
+  exit 1
+fi
 echo "✅ Image generated successfully"
 img_source="Pollinations"
 
