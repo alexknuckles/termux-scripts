@@ -106,3 +106,5 @@
 - Group creation now records `-tm` and `-sm` models under `prompt_model` and `-f` favors the correct group's last image.
 - All generations are now recorded in `~/.wallai/wallai.log` allowing favorites
   to be added from any group.
+- `-pm` during group creation now sets the `prompt_model.base` value.
+- Styles and themes are only appended to a group's lists if they aren't already present.

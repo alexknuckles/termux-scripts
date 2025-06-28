@@ -407,6 +407,8 @@ if [ "$group_created" = "1" ]; then
     set_config_value "$gen_group" "prompt_model.theme_model" "$theme_model_override"
   [ -n "$style_model_override" ] && \
     set_config_value "$gen_group" "prompt_model.style_model" "$style_model_override"
+  [ -n "$prompt_model_override" ] && \
+    set_config_value "$gen_group" "prompt_model.base" "$prompt_model_override"
 fi
 
 config_json=$(CFG="$config_file" python3 - <<'PY'
@@ -511,7 +513,8 @@ if os.path.exists(cfg):
         data = yaml.safe_load(f) or {}
 grp = data.setdefault('groups', {}).setdefault(group, {})
 lst = grp.setdefault(list_name, [])
-if item not in lst:
+item_lower = item.lower()
+if item_lower not in [i.lower() for i in lst]:
     lst.append(item)
     with open(cfg, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False)
