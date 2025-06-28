@@ -84,3 +84,4 @@
 - wallai config now includes `pollinations_token` and the `-k` flag to save it.
 - wallai now saves the token under the chosen group and loads group tokens before the global one.
 - Discovery prompts instruct Pollinations to respond with exactly two words to avoid verbose replies.
+- wallai now supports -im for image model and -pm for prompt model with new config defaults.
