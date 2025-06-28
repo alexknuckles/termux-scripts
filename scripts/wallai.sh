@@ -371,7 +371,10 @@ browse_gallery() {
   [ "${#images[@]}" -gt 0 ] || { echo "❌ No images found" >&2; return 1; }
   list=$(IFS=','; printf '%s' "${images[*]}")
   result=$(termux-dialog -l "$list" -t "Select wallpaper" || true)
-  sel=$(printf '%s' "$result" | jq -r '.text')
+  if ! sel=$(printf '%s' "$result" | jq -e -r '.text' 2>/dev/null); then
+    echo "❌ Invalid JSON from termux-dialog" >&2
+    return 1
+  fi
   [ -n "$sel" ] || return 0
   termux-open "$save_dir/$sel"
   result=$(termux-dialog -l "yes,no" -t "Add to favorites?" || true)
