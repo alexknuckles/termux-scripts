@@ -564,7 +564,7 @@ discover_item() {
   esac
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
   for attempt in 1 2 3 4 5; do
-    echo "🔄 Discovering $kind (attempt $attempt/5)..."
+    echo "🔄 Discovering $kind (attempt $attempt/5)..." >&2
     dseed=$(random_seed)
     m="$gen_prompt_model"
     case "$kind" in
