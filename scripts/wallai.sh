@@ -253,12 +253,16 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
 done
 shift $((OPTIND - 1))
 
-# Default favorite group to generation group if not specified
-if [ "$favorite_wall" = true ] && [ "$favorite_group_provided" = false ]; then
+# Adjust groups for favorites
+if [ "$favorite_wall" = true ]; then
   if [ "$generation_opts" = false ]; then
-    favorite_group="main"
-    gen_group="main"
-  else
+    if [ "$favorite_group_provided" = true ]; then
+      gen_group="$favorite_group"
+    else
+      favorite_group="main"
+      gen_group="main"
+    fi
+  elif [ "$favorite_group_provided" = false ]; then
     favorite_group="$gen_group"
   fi
 fi
@@ -377,6 +381,13 @@ DEF_STYLE_MODEL="$DEF_STYLE_MODEL" \
 DEF_THEME="$DEF_THEME" \
 DEF_STYLE="$DEF_STYLE" \
 group_created=$(ensure_group "$gen_group")
+
+if [ "$group_created" = "1" ]; then
+  [ -n "$theme_model_override" ] && \
+    set_config_value "$gen_group" "prompt_model.theme_model" "$theme_model_override"
+  [ -n "$style_model_override" ] && \
+    set_config_value "$gen_group" "prompt_model.style_model" "$style_model_override"
+fi
 
 config_json=$(CFG="$config_file" python3 - <<'PY'
 import os,sys,json
@@ -500,6 +511,27 @@ if os.path.exists(cfg):
 grp = data.setdefault('groups', {}).setdefault(group, {})
 grp[list_name] = [item]
 with open(cfg, 'w') as f:
+  yaml.safe_dump(data, f, sort_keys=False)
+PY
+}
+
+# Set a nested value in the group's config
+set_config_value() {
+  local group="$1" key="$2" value="$3"
+  python3 - "$config_file" "$group" "$key" "$value" <<'PY'
+import sys, yaml, os
+cfg, group, key, value = sys.argv[1:]
+data = {}
+if os.path.exists(cfg):
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+grp = data.setdefault('groups', {}).setdefault(group, {})
+d = grp
+parts = key.split('.')
+for p in parts[:-1]:
+    d = d.setdefault(p, {})
+d[parts[-1]] = value
+with open(cfg, 'w') as f:
     yaml.safe_dump(data, f, sort_keys=False)
 PY
 }
@@ -545,6 +577,9 @@ discover_item() {
 save_dir="$gen_gen_path"
 mkdir -p "$save_dir"
 log_file="$save_dir/wallai.log"
+# Global log that records wallpapers across all groups
+main_log="$HOME/.wallai/wallai.log"
+mkdir -p "$(dirname "$main_log")"
 
 # Generate a short random seed
 random_seed() {
@@ -561,12 +596,17 @@ style_seed=""
 
 # Apply theme/style from the last generated image if -l is used
 if [ "$use_last" = true ]; then
-  last_entry=$(tail -n1 "$log_file" 2>/dev/null || true)
+  last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
     echo "❌ No wallpaper has been generated yet" >&2
     exit 1
   fi
-  last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
+  fields=$(printf '%s' "$last_entry" | awk -F'|' '{print NF}')
+  if [ "$fields" -ge 7 ]; then
+    last_file=$(printf '%s' "$last_entry" | cut -d'|' -f2)
+  else
+    last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
+  fi
   theme_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
   last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
@@ -696,20 +736,32 @@ spinner() {
 
 # If called only with -f, favorite the last generated wallpaper and exit early
 if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ]; then
-  last_entry=$(tail -n1 "$log_file" 2>/dev/null || true)
+  last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
     echo "❌ No wallpaper has been generated yet" >&2
     exit 1
   fi
-  last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
-  last_seed=$(printf '%s' "$last_entry" | cut -d'|' -f2)
-  last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f3)
+  fields=$(printf '%s' "$last_entry" | awk -F'|' '{print NF}')
+  if [ "$fields" -ge 7 ]; then
+    last_group=$(printf '%s' "$last_entry" | cut -d'|' -f1)
+    last_file=$(printf '%s' "$last_entry" | cut -d'|' -f2)
+    last_seed=$(printf '%s' "$last_entry" | cut -d'|' -f3)
+    last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f4)
+  else
+    last_group="main"
+    last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
+    last_seed=$(printf '%s' "$last_entry" | cut -d'|' -f2)
+    last_prompt=$(printf '%s' "$last_entry" | cut -d'|' -f3)
+  fi
+  last_gen_path=$(cfg "$last_group" '.groups[$g].generations_path // empty')
+  [ -z "$last_gen_path" ] && last_gen_path="$HOME/pictures/generated-wallpapers/$last_group"
+  last_gen_path=$(eval printf '%s' "$last_gen_path")
   ts=$(printf '%s' "$last_file" | cut -d'_' -f1)
   theme_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
   last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
   last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
-  favorite_image "$save_dir/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
+  favorite_image "$last_gen_path/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
   exit 0
 fi
 
@@ -1045,7 +1097,9 @@ echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 echo "💾 Saved to: $output"
 
 # Log filename, seeds and prompt for later reference
-echo "$filename|$seed|$prompt|$prompt_seed|$theme_seed|$style_seed" >> "$log_file"
+entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$theme_seed|$style_seed"
+echo "$entry" >> "$log_file"
+echo "$entry" >> "$main_log"
 
 # Favorite the wallpaper immediately if -f was passed alongside generation options
 [ "$favorite_wall" = true ] && {
