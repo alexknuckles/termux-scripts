@@ -91,6 +91,7 @@ favorite_wall=false
 favorite_group="main"
 favorite_group_provided=false
 gen_group="main"
+gen_group_set=false
 discovery_mode=""
 inspired_mode=false
 inspired_group="main"
@@ -180,6 +181,7 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
       ;;
     g)
       gen_group="$OPTARG"
+      gen_group_set=true
       ;;
     k)
       new_token="$OPTARG"
@@ -255,15 +257,15 @@ shift $((OPTIND - 1))
 
 # Adjust groups for favorites
 if [ "$favorite_wall" = true ]; then
-  if [ "$generation_opts" = false ]; then
+  if [ "$generation_opts" = false ] && [ "$gen_group_set" = false ]; then
     if [ "$favorite_group_provided" = true ]; then
       gen_group="$favorite_group"
     else
       favorite_group="main"
       gen_group="main"
     fi
-  elif [ "$favorite_group_provided" = false ]; then
-    favorite_group="$gen_group"
+  else
+    [ "$favorite_group_provided" = false ] && favorite_group="$gen_group"
   fi
 fi
 
@@ -792,7 +794,7 @@ spinner_multi() {
 }
 
 # If called only with -f, favorite the last generated wallpaper and exit early
-if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ]; then
+if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_group_set" = false ]; then
   last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
     echo "❌ No wallpaper has been generated yet" >&2
@@ -1115,7 +1117,6 @@ generate_pollinations() {
 }
 
 ctype_file=$(mktemp)
-echo "🖼  Generating image..."
 generate_pollinations "$tmp_output" "$ctype_file" &
 gen_pid=$!
 spinner "$gen_pid" "Generating image" &
