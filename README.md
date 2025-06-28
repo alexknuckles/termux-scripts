@@ -81,7 +81,8 @@ Environment variables:
 
 - Flags:
 - `-d [mode]` Discover a new theme and/or style using Pollinations. Modes are `theme`, `style` or both if omitted.
-- `-f [group]` Save the wallpaper to a favorites group (defaults to `main`).
+- `-f [group]` Save the wallpaper to a favorites group (defaults to `main`; when
+  combined with `-g`, it uses that group if no favorites group is given).
 - `-g [group]` Generate using themes and styles from a group.
 - `-h` Show help and exit.
 - `-i [group]` Choose a theme and style inspired by favorites from the specified group (defaults to `main`).
