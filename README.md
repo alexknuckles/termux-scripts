@@ -107,8 +107,7 @@ automatically with a `main` group on first run. Each group can specify a
 favorites path, whether NSFW prompts are allowed, the prompt model used for
 discovery, the image model used for generation and lists of themes and styles.
 You can store a Pollinations token for each group using `-k`, saved under that
-group's entry. Global `pollinations_token`, `prompt_model` and
-`image_model` values are also supported for fallback when a group omits them.
+group's entry along with `prompt_model` and `image_model` preferences.
 The default configuration also
 includes all built‑in themes
 (`dreamcore`, `mystical forest`, `cosmic horror`, `ethereal landscape`,
