@@ -1,3 +1,4 @@
+- Fixed missing set_config_value definition causing command not found in wallai.
 - Fixed API token updates in wallai when using -k to avoid jq errors with YAML.
 - `-k` now saves the Pollinations token only under the selected group instead of
   modifying the global entry.
