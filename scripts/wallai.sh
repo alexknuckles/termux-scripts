@@ -74,6 +74,9 @@ prompt=""
 theme=""
 style=""
 negative_prompt=""
+# Flags to record user-provided theme or style
+theme_provided=false
+style_provided=false
 # Image generation model
 model=""
 # Prompt generation model override
@@ -147,10 +150,12 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
     t)
       theme="$OPTARG"
       generation_opts=true
+      theme_provided=true
       ;;
     s)
       style="$OPTARG"
       generation_opts=true
+      style_provided=true
       ;;
     b)
       browse_gallery=true
@@ -254,7 +259,8 @@ groups:
     pollinations_token: ""
     image_model: flux
     prompt_model: default
-    path: ~/pictures/favorites/main
+    favorites_path: ~/pictures/favorites/main
+    generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
     allow_prompt_fetch: true
     themes:
@@ -275,6 +281,49 @@ groups:
       - 4k concept art
 EOF
 fi
+
+# Ensure the selected generation group exists with default settings
+ensure_group() {
+  local group="$1"
+  python3 - "$config_file" "$group" <<'PY'
+import sys, yaml, os
+cfg, group = sys.argv[1:3]
+data = {}
+if os.path.exists(cfg):
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+grp = data.setdefault('groups', {}).setdefault(group, {})
+defaults = {
+    'pollinations_token': '',
+    'image_model': 'flux',
+    'prompt_model': 'default',
+    'favorites_path': f'~/pictures/favorites/{group}',
+    'generations_path': f'~/pictures/generated-wallpapers/{group}',
+    'nsfw': False,
+    'allow_prompt_fetch': True,
+    'themes': [
+        'dreamcore', 'mystical forest', 'cosmic horror',
+        'ethereal landscape', 'retrofuturism', 'alien architecture',
+        'cyberpunk metropolis'
+    ],
+    'styles': [
+        'unreal engine', 'cinematic lighting', 'octane render',
+        'hyperrealism', 'volumetric lighting', 'high detail',
+        '4k concept art'
+    ]
+}
+updated = False
+for k, v in defaults.items():
+    if k not in grp:
+        grp[k] = v
+        updated = True
+if updated:
+    with open(cfg, 'w') as f:
+        yaml.safe_dump(data, f, sort_keys=False)
+PY
+}
+
+ensure_group "$gen_group"
 
 config_json=$(CFG="$config_file" python3 - <<'PY'
 import os,sys,json
@@ -311,7 +360,10 @@ fi
 
 # Use Pollinations token for authenticated requests if available
 curl_auth=()
-[ -n "$pollinations_token" ] && curl_auth=(-H "Authorization: Bearer $pollinations_token")
+[ -n "$pollinations_token" ] && {
+  curl_auth=(-H "Authorization: Bearer $pollinations_token")
+  echo "🔑 Using Pollinations token"
+}
 
 # Helper to fetch values from config JSON
 cfg() {
@@ -320,9 +372,13 @@ cfg() {
 
 # Generation group settings
 # shellcheck disable=SC2016
-gen_path=$(cfg "$gen_group" '.groups[$g].path // empty')
-[ -z "$gen_path" ] && gen_path="$HOME/pictures/favorites/$gen_group"
-gen_path=$(eval printf '%s' "$gen_path")
+gen_gen_path=$(cfg "$gen_group" '.groups[$g].generations_path // empty')
+[ -z "$gen_gen_path" ] && gen_gen_path="$HOME/pictures/generated-wallpapers/$gen_group"
+gen_gen_path=$(eval printf '%s' "$gen_gen_path")
+# shellcheck disable=SC2016
+gen_fav_path=$(cfg "$gen_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
+[ -z "$gen_fav_path" ] && gen_fav_path="$HOME/pictures/favorites/$gen_group"
+gen_fav_path=$(eval printf '%s' "$gen_fav_path")
 # shellcheck disable=SC2016
 gen_nsfw=$(cfg "$gen_group" '.groups[$g].nsfw // false')
 # shellcheck disable=SC2016
@@ -342,13 +398,13 @@ mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]?')
 
 # Favorite group path
 # shellcheck disable=SC2016
-fav_path=$(cfg "$favorite_group" '.groups[$g].path // empty')
+fav_path=$(cfg "$favorite_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
 [ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$favorite_group"
 fav_path=$(eval printf '%s' "$fav_path")
 
 # Inspired group path for -i
 # shellcheck disable=SC2016
-insp_path=$(cfg "$inspired_group" '.groups[$g].path // empty')
+insp_path=$(cfg "$inspired_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
 [ -z "$insp_path" ] && insp_path="$HOME/pictures/favorites/$inspired_group"
 insp_path=$(eval printf '%s' "$insp_path")
 
@@ -357,6 +413,10 @@ insp_path=$(eval printf '%s' "$insp_path")
 [ -n "$prompt_model_override" ] && gen_prompt_model="$prompt_model_override"
 theme_model="${theme_model_override:-${gen_theme_model:-$gen_prompt_model}}"
 style_model="${style_model_override:-${gen_style_model:-$gen_prompt_model}}"
+
+# Add user provided theme and style to config
+[ "$theme_provided" = true ] && append_config_item "$gen_group" "themes" "$theme"
+[ "$style_provided" = true ] && append_config_item "$gen_group" "styles" "$style"
 
 # Discover new theme or style via Pollinations
 discover_item() {
@@ -393,15 +453,15 @@ discover_item() {
 
 # Append a discovered item to the group's config list if missing
 append_config_item() {
-  local list="$1" item="$2"
+  local group="$1" list="$2" item="$3"
   tmp=$(mktemp)
-  jq --arg g "$gen_group" --arg i "$item" --arg l "$list" '
+  jq --arg g "$group" --arg i "$item" --arg l "$list" '
     (.groups[$g][$l] //= []) as $arr
     | if ($arr | index($i)) then . else .groups[$g][$l] += [$i] end' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
 }
 
 # Directory where generated wallpapers live and log path
-save_dir="$HOME/pictures/generated-wallpapers"
+save_dir="$gen_gen_path"
 mkdir -p "$save_dir"
 log_file="$save_dir/wallai.log"
 
@@ -446,8 +506,7 @@ favorite_image() {
     echo "❌ exiftool is required for -f" >&2
     return 1
   }
-  local file="$1" comment="$2" theme="$3" style="$4" model="$5" seed="$6" ts="$7"
-  local group_path="$8"
+  local file="$1" comment="$2" theme="$3" style="$4" model="$5" seed="$6" ts="$7" group_path="$8" group_name="$9"
   local dest_dir="$group_path"
   local log="$dest_dir/favorites.jsonl"
   mkdir -p "$dest_dir"
@@ -460,6 +519,8 @@ favorite_image() {
         --arg filename "$(basename "$dest")" \
         '{prompt:$prompt, theme:$theme, style:$style, model:$model, seed:$seed, timestamp:$ts, filename:$filename}' >> "$log"
   echo "⭐ Added to favorites: $dest"
+  append_config_item "$group_name" "themes" "$theme"
+  append_config_item "$group_name" "styles" "$style"
 }
 
 # Browse existing wallpapers and optionally favorite them
@@ -511,7 +572,8 @@ import os,yaml
 with open(os.environ['CFG']) as f:
     data=yaml.safe_load(f) or {}
 g=os.environ['G']
-print(os.path.expanduser(data.get('groups', {}).get(g, {}).get('path','')))
+grp=data.get('groups', {}).get(g, {})
+print(os.path.expanduser(grp.get('favorites_path', grp.get('path',''))))
 PY
     )
     [ -n "$cfg_path" ] && dest_path="$cfg_path"
@@ -523,7 +585,7 @@ PY
     theme=$(printf '%s' "$sel" | cut -d'_' -f2 | sed 's/-/ /g')
     style=$(printf '%s' "$sel" | cut -d'_' -f3 | sed 's/\..*//' | sed 's/-/ /g')
     ts=$(printf '%s' "$sel" | cut -d'_' -f1)
-    favorite_image "$save_dir/$sel" "$prompt (seed: $seed)" "$theme" "$style" "unknown" "$seed" "$ts" "$dest_path"
+    favorite_image "$save_dir/$sel" "$prompt (seed: $seed)" "$theme" "$style" "unknown" "$seed" "$ts" "$dest_path" "$fav_group"
   else
     mkdir -p "$dest_path"
     cp "$save_dir/$sel" "$dest_path/" && echo "⭐ Added to favorites: $dest_path/$sel"
@@ -566,7 +628,7 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ]; then
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
   last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
   last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
-  favorite_image "$save_dir/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path"
+  favorite_image "$save_dir/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
   exit 0
 fi
 
@@ -595,7 +657,7 @@ if [ -n "$discovery_mode" ]; then
     if [ -n "$new" ]; then
       theme="$new"
       discovered_theme="$new"
-      echo "🆕 Discovered theme: $theme"
+      echo "🆕 Discovered theme: $theme (model: $theme_model)"
     fi
   fi
   if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "style" ]; then
@@ -603,7 +665,7 @@ if [ -n "$discovery_mode" ]; then
     if [ -n "$new" ]; then
       style="$new"
       discovered_style="$new"
-      echo "🆕 Discovered style: $style"
+      echo "🆕 Discovered style: $style (model: $style_model)"
     fi
   fi
 fi
@@ -657,7 +719,7 @@ fi
 # TAG: wallpaper
 # TAG: ai
 
-save_dir="$HOME/pictures/generated-wallpapers"
+save_dir="$gen_gen_path"
 mkdir -p "$save_dir"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 tmp_output="$save_dir/${timestamp}.img"
@@ -720,7 +782,7 @@ if [ -z "$prompt" ]; then
       theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
     fi
   fi
-  echo "🔖 Selected theme: $theme"
+  echo "🔖 Selected theme: $theme (model: $gen_prompt_model)"
 
   # 🧠 Step 2: Retrieve a text prompt for that theme with retries
   if ! fetch_prompt; then
@@ -891,9 +953,9 @@ echo "$filename|$seed|$prompt|$prompt_seed|$theme_seed|$style_seed" >> "$log_fil
 
 # Favorite the wallpaper immediately if -f was passed alongside generation options
 [ "$favorite_wall" = true ] && {
-  favorite_image "$output" "$prompt" "$theme" "$style" "$model" "$seed" "$timestamp" "$fav_path"
-  [ -n "$discovered_theme" ] && append_config_item "themes" "$discovered_theme"
-  [ -n "$discovered_style" ] && append_config_item "styles" "$discovered_style"
+  favorite_image "$output" "$prompt" "$theme" "$style" "$model" "$seed" "$timestamp" "$fav_path" "$favorite_group"
+  [ -n "$discovered_theme" ] && append_config_item "$gen_group" "themes" "$discovered_theme"
+  [ -n "$discovered_style" ] && append_config_item "$gen_group" "styles" "$discovered_style"
 }
 
 exit 0

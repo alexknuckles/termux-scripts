@@ -94,3 +94,4 @@
 - Style flag renamed from `-y` to `-s`.
 - Removed fallback to POLLINATIONS_TOKEN environment variable; token must come from config.
 - Configuration values no longer appear at the top level of `config.yml`; they are stored under each group.
+- Wallai config now separates `favorites_path` and `generations_path` per group and auto-creates groups used with `-g`.
