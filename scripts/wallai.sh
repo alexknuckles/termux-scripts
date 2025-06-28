@@ -545,7 +545,7 @@ PY
 
 # Discover new theme or style via Pollinations
 discover_item() {
-  local kind="$1" query result dseed m url item attempt lower_item exists list
+  local kind="$1" query result dseed m url item lower_item exists list
   if [ "$gen_allow_prompt_fetch" != true ]; then
     return
   fi
@@ -563,50 +563,46 @@ discover_item() {
       ;;
   esac
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
-  for attempt in 1 2 3 4 5; do
-    echo "🔄 Discovering $kind (attempt $attempt/5)..." >&2
-    dseed=$(random_seed)
-    m="$gen_prompt_model"
-    case "$kind" in
-      theme) m="$theme_model" ;;
-      style) m="$style_model" ;;
-    esac
-    url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${m}"
-    case "$kind" in
-      theme) theme_seed="$dseed" ;;
-      style) style_seed="$dseed" ;;
-    esac
-    [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url" >&2
-    # Verbose output goes to stderr to avoid affecting variable assignments
-    result=$(curl -sL "${curl_auth[@]}" "$url" || true)
-    [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
-    result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
-    if [ -n "$result" ]; then
-      item=$(printf '%s' "$result" | awk '{print $1, $2}')
-      lower_item=$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')
-      exists=false
-      if [ "$kind" = "theme" ]; then
-        for i in "${gen_themes[@]}"; do
-          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
-            exists=true
-            break
-          fi
-        done
-      else
-        for i in "${gen_styles[@]}"; do
-          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
-            exists=true
-            break
-          fi
-        done
-      fi
-      if [ "$exists" = false ] || [ "$attempt" -eq 5 ]; then
-        printf '%s' "$item"
-        break
-      fi
+  echo "🔄 Discovering $kind..." >&2
+  dseed=$(random_seed)
+  m="$gen_prompt_model"
+  case "$kind" in
+    theme) m="$theme_model" ;;
+    style) m="$style_model" ;;
+  esac
+  url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${m}"
+  case "$kind" in
+    theme) theme_seed="$dseed" ;;
+    style) style_seed="$dseed" ;;
+  esac
+  [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url" >&2
+  # Verbose output goes to stderr to avoid affecting variable assignments
+  result=$(curl -sL "${curl_auth[@]}" "$url" || true)
+  [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
+  result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
+  if [ -n "$result" ]; then
+    item=$(printf '%s' "$result" | awk '{print $1, $2}')
+    lower_item=$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')
+    exists=false
+    if [ "$kind" = "theme" ]; then
+      for i in "${gen_themes[@]}"; do
+        if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
+          exists=true
+          break
+        fi
+      done
+    else
+      for i in "${gen_styles[@]}"; do
+        if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
+          exists=true
+          break
+        fi
+      done
     fi
-    sleep 1
-  done
+    if [ "$exists" = false ]; then
+      printf '%s' "$item"
+    fi
+  fi
 }
 
 
@@ -822,22 +818,36 @@ fi
 discovered_theme=""
 discovered_style=""
 if [ -n "$discovery_mode" ]; then
+  tmpd=$(mktemp -d)
+  pids=()
   if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "theme" ]; then
-    new=$(discover_item theme)
+    discover_item theme >"$tmpd/theme" &
+    pids+=("$!")
+  fi
+  if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "style" ]; then
+    discover_item style >"$tmpd/style" &
+    pids+=("$!")
+  fi
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
+  if [ -f "$tmpd/theme" ]; then
+    new=$(cat "$tmpd/theme")
     if [ -n "$new" ]; then
       theme="$new"
       discovered_theme="$new"
       echo "🆕 Discovered theme: $theme (model: $theme_model)"
     fi
   fi
-  if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "style" ]; then
-    new=$(discover_item style)
+  if [ -f "$tmpd/style" ]; then
+    new=$(cat "$tmpd/style")
     if [ -n "$new" ]; then
       style="$new"
       discovered_style="$new"
       echo "🆕 Discovered style: $style (model: $style_model)"
     fi
   fi
+  rm -rf "$tmpd"
 fi
 
 # If a new group was created and discovery supplied items, replace defaults

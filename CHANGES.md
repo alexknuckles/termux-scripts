@@ -3,6 +3,7 @@
 - `-k` now saves the Pollinations token only under the selected group instead of
   modifying the global entry.
 - Discovery verbose messages now print to stderr to avoid corrupting filenames.
+- Discovery now fetches theme and style concurrently without retries.
 - Add gpull command to githelper with alias.
 - Installer now copies to `~/bin/termux-scripts` by default and no longer
   accepts the `-c` flag.

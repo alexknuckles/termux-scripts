@@ -79,7 +79,7 @@ wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [
 Environment variables:
 - `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
 
-Flags:
+- Flags:
 - `-d [mode]` Discover a new theme and/or style using Pollinations. Modes are `theme`, `style` or both if omitted.
 - `-f [group]` Save the wallpaper to a favorites group (defaults to `main`).
 - `-g [group]` Generate using themes and styles from a group.
