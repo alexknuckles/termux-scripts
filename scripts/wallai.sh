@@ -105,6 +105,12 @@ browse_gallery=false
 browse_group="main"
 new_token=""
 
+# Inspired mode selections
+top_tag=""
+top_style=""
+tag_weight=1.5
+style_weight=1.3
+
 batch_tag_count=1
 batch_style_count=1
 discovery_arg=""
@@ -207,6 +213,8 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:" opt; do
       else
         inspired_group="main"
         [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
+      fi
+      ;;
     w)
       weather_flag=true
       ;;
@@ -584,12 +592,22 @@ discover_item() {
   else
     case "$kind" in
       tag)
-        list=$(printf '%s, ' "${gen_tags[@]}" | sed 's/, $//')
-        query="Imagine a two-word tag not including any of: ${list}. Respond with exactly two words."
+        if [ -n "$top_tag" ]; then
+          [ "$verbose" = true ] && echo "🎯 Influencing discovery using top tag: $top_tag" >&2
+          query="Give me a two-word tag similar to: $top_tag. Respond with one new two-word tag."
+        else
+          list=$(printf '%s, ' "${gen_tags[@]}" | sed 's/, $//')
+          query="Imagine a two-word tag not including any of: ${list}. Respond with exactly two words."
+        fi
         ;;
       style)
-        list=$(printf '%s, ' "${gen_styles[@]}" | sed 's/, $//')
-        query="Imagine a two-word art style not including any of: ${list}. Respond with exactly two words."
+        if [ -n "$top_style" ]; then
+          [ "$verbose" = true ] && echo "🎨 Influencing discovery using top style: $top_style" >&2
+          query="Give me a two-word art style similar to: $top_style. Respond with one new two-word style."
+        else
+          list=$(printf '%s, ' "${gen_styles[@]}" | sed 's/, $//')
+          query="Imagine a two-word art style not including any of: ${list}. Respond with exactly two words."
+        fi
         ;;
       *)
         return
@@ -880,15 +898,63 @@ fi
 if [ "$inspired_mode" = true ]; then
   fav_file="$insp_path/favorites.jsonl"
   if [ -f "$fav_file" ]; then
-    if [ -z "$tag" ]; then
-      tag=$(jq -r '.tag' "$fav_file" | shuf -n1 || true)
-    fi
-    if [ -z "$style" ]; then
-      style=$(jq -r '.style' "$fav_file" | shuf -n1 || true)
-    fi
+    IFS=$'\n' read -r top_tag tag_weight < <(
+      python3 - "$fav_file" <<'PY'
+import sys, json, random
+file = sys.argv[1]
+counts = {}
+with open(file) as f:
+    for line in f:
+        try:
+            tag = json.loads(line).get("tag")
+            if tag:
+                counts[tag] = counts.get(tag, 0) + 1
+        except Exception:
+            pass
+if counts:
+    items = list(counts.keys())
+    weights = [counts[i] for i in items]
+    choice = random.choices(items, weights=weights)[0]
+    mx = max(counts.values())
+    freq = counts[choice]
+    weight = 1.1 + (freq / mx) * (2.0 - 1.1)
+    weight = max(1.1, min(2.0, weight))
+    print(choice)
+    print(f"{weight:.1f}")
+PY
+    )
+    IFS=$'\n' read -r top_style style_weight < <(
+      python3 - "$fav_file" <<'PY'
+import sys, json, random
+file = sys.argv[1]
+counts = {}
+with open(file) as f:
+    for line in f:
+        try:
+            style = json.loads(line).get("style")
+            if style:
+                counts[style] = counts.get(style, 0) + 1
+        except Exception:
+            pass
+if counts:
+    items = list(counts.keys())
+    weights = [counts[i] for i in items]
+    choice = random.choices(items, weights=weights)[0]
+    mx = max(counts.values())
+    freq = counts[choice]
+    weight = 1.1 + (freq / mx) * (2.0 - 1.1)
+    weight = max(1.1, min(2.0, weight))
+    print(choice)
+    print(f"{weight:.1f}")
+PY
+    )
+    tag_weight=${tag_weight:-1.5}
+    style_weight=${style_weight:-1.3}
+    [ -n "$tag" ] || tag="$top_tag"
+    [ -n "$style" ] || style="$top_style"
     echo "🧠 Inspired by favorites:"
-    [ -n "$tag" ] && echo "🔖 Tag: $tag"
-    [ -n "$style" ] && echo "🎨 Style: $style"
+    [ -n "$top_tag" ] && printf '🔖 Tag: %s (weight: %s)\n' "$top_tag" "$tag_weight"
+    [ -n "$top_style" ] && printf '🎨 Style: %s (weight: %s)\n' "$top_style" "$style_weight"
   fi
 fi
 
@@ -1114,10 +1180,7 @@ if [ -z "$discovered_style" ]; then
 fi
 
 # Build the final prompt with tag and style weights and negative text
-if [ -n "$tag" ]; then
-  prompt="(${tag}:1.5) $prompt"
-fi
-prompt="$prompt (${style}:1.3) [negative prompt: $negative_prompt]"
+prompt="(${tag}:${tag_weight}) $prompt (${style}:${style_weight}) [negative prompt: $negative_prompt]"
 
 # Add weather-aware context if requested
 if [ "$weather_flag" = true ]; then
