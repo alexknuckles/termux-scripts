@@ -6,12 +6,12 @@ set -euo pipefail
 # Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
 #                  [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
 #                  [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag] [-v] \
-#                  [-w] [-s style] [-m mood] [-u mode]
+#                  [-w] [-s style] [-m mood] [-u mode] [-x [count]]
 #   -b  browse generated wallpapers and optionally favorite one to the group
 #   -d  discover a new tag/style (mode: tag, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
 #       (defaults to the -g group)
-#   -x  force image generation after discovery
+#   -x  force image generation after discovery (optional count for batch)
 #   -g  generate using config from the specified group
 #   -h  show this help message
 #   -i  pick components inspired by favorites using mode pair|tag|style (default pair)
@@ -38,7 +38,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h]
+Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h]
                  [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model]
                  [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag]
                  [-v] [-w] [-s style] [-m mood] [-u mode]
@@ -47,7 +47,7 @@ Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h]
   -d [mode]   discover a new tag/style (mode: tag, style or both)
   -f [group]  mark the generated wallpaper as a favorite in the optional group
                (defaults to the -g group)
-    -x          force image generation after discovery
+  -x [count] force image generation after discovery (generate count images)
   -g [group]  generate using config from the specified group
   -h          show this help message
   -i [mode]   pick components inspired by favorites (mode: pair, tag or style)
@@ -117,6 +117,8 @@ top_tag=""
 top_style=""
 tag_weight=1.5
 style_weight=1.3
+
+batch_count=1
 
 batch_tag_count=1
 batch_style_count=1
@@ -226,6 +228,12 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
       ;;
     x)
       force_generate=true
+      if [ -n "${OPTARG:-}" ] && [ "${OPTARG:0:1}" != "-" ]; then
+        batch_count="$OPTARG"
+      else
+        batch_count=1
+        [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
+      fi
       ;;
     l)
       use_last=true
@@ -263,16 +271,20 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
           ;;
         b)
           browse_gallery=true
-          browse_group="main"
-          ;;
-        *)
-          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
+      browse_group="main"
+      ;;
+      x)
+        force_generate=true
+        batch_count=1
+        ;;
+      *)
+          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
+      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
       exit 1
       ;;
   esac
@@ -517,9 +529,13 @@ gen_image_model=$(cfg "$gen_group" '.groups[$g].image_model // "flux"')
 # shellcheck disable=SC2016
 gen_allow_prompt_fetch=$(cfg "$gen_group" '.groups[$g].allow_prompt_fetch // true')
 # shellcheck disable=SC2016
-mapfile -t gen_tags < <(cfg "$gen_group" '.groups[$g].tags[]?')
+mapfile -t gen_tags < <(cfg "$gen_group" '.groups[$g].tags[]? | if type=="string" then . else keys[0] end')
 # shellcheck disable=SC2016
-mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]?')
+mapfile -t gen_tag_weights < <(cfg "$gen_group" '.groups[$g].tags[]? | if type=="string" then 1.5 else .[keys[0]] end')
+# shellcheck disable=SC2016
+mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]? | if type=="string" then . else keys[0] end')
+# shellcheck disable=SC2016
+mapfile -t gen_style_weights < <(cfg "$gen_group" '.groups[$g].styles[]? | if type=="string" then 1.3 else .[keys[0]] end')
 
 # Favorite group path
 # shellcheck disable=SC2016
@@ -738,6 +754,35 @@ fi
 slugify() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | \
     sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//'
+}
+
+# Clamp a weight to the range 1.1-2.0
+clamp_weight() {
+  awk -v w="$1" 'BEGIN{w+=0; if(w<1.1)w=1.1; if(w>2.0)w=2.0; printf "%.1f", w}'
+}
+
+# Find the weight for a tag from config or return default
+find_tag_weight() {
+  local name="$1" default="${2:-1.5}" i
+  for i in "${!gen_tags[@]}"; do
+    if [ "${gen_tags[i]}" = "$name" ]; then
+      printf '%s' "${gen_tag_weights[i]}"
+      return
+    fi
+  done
+  printf '%s' "$default"
+}
+
+# Find the weight for a style from config or return default
+find_style_weight() {
+  local name="$1" default="${2:-1.3}" i
+  for i in "${!gen_styles[@]}"; do
+    if [ "${gen_styles[i]}" = "$name" ]; then
+      printf '%s' "${gen_style_weights[i]}"
+      return
+    fi
+  done
+  printf '%s' "$default"
 }
 
 # Function to favorite the most recent wallpaper with metadata using exiftool
@@ -1113,7 +1158,7 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t tag] [-s style] [-im model] [-pm model] [-tm model] [-sm model] [-r] [-f] [-x]
+# Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t tag] [-s style] [-im model] [-pm model] [-tm model] [-sm model] [-r] [-f] [-x [count]]
 #                  [-g group] [-d mode] [-i group] [-k token] [-w] [-l] [-n "text"] [-v] [-h]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
@@ -1242,6 +1287,16 @@ if [ -z "$discovered_style" ]; then
   echo "🖌 Selected style: $style"
 fi
 
+# Determine weights from config if not set by inspiration
+if [ "$tag_weight" = "1.5" ]; then
+  tag_weight=$(find_tag_weight "$tag")
+fi
+if [ "$style_weight" = "1.3" ]; then
+  style_weight=$(find_style_weight "$style")
+fi
+tag_weight=$(clamp_weight "$tag_weight")
+style_weight=$(clamp_weight "$style_weight")
+
 # Build the final prompt with tag and style weights and negative text
 prompt="(${tag}:${tag_weight}) $prompt (${style}:${style_weight}) [negative prompt: $negative_prompt]"
 
@@ -1313,62 +1368,77 @@ generate_pollinations() {
   fi
 }
 
-ctype_file=$(mktemp)
-generate_pollinations "$tmp_output" "$ctype_file" &
-gen_pid=$!
-spinner "$gen_pid" "Generating image" &
-spin_pid=$!
-wait "$gen_pid"
-status=$?
-wait "$spin_pid" 2>/dev/null || true
-printf '\n'
-if [ "$status" -ne 0 ]; then
-  echo "❌ Failed to generate image via Pollinations" >&2
-  exit 1
-fi
-generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
-file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
-[ "$verbose" = true ] && echo "🔍 File type: $file_type"
-if ! printf '%s' "$generated_content_type" | grep -qi '^image/' || \
-   ! printf '%s' "$file_type" | grep -qi '^image/'; then
-  echo "❌ Invalid image file!" >&2
-  exit 1
-fi
-echo "✅ Image generated successfully"
-img_source="Pollinations"
+last_output=""
+last_timestamp=""
+last_seed=""
+for ((i=1;i<=batch_count;i++)); do
+  [ "$verbose" = true ] && [ "$batch_count" -gt 1 ] && \
+    echo "🖼 Generating image $i of $batch_count..."
+  seed=$(random_seed)
+  params="nologo=true&enhance=true&private=true&seed=${seed}&model=${model}"
+  [ "$allow_nsfw" = false ] && params="safe=true&${params}"
+  timestamp="$(date +%Y%m%d-%H%M%S)"
+  tmp_output="$save_dir/${timestamp}.img"
 
-generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
-rm -f "$ctype_file"
+  ctype_file=$(mktemp)
+  generate_pollinations "$tmp_output" "$ctype_file" &
+  gen_pid=$!
+  spinner "$gen_pid" "Generating image" &
+  spin_pid=$!
+  wait "$gen_pid"
+  status=$?
+  wait "$spin_pid" 2>/dev/null || true
+  printf '\n'
+  if [ "$status" -ne 0 ]; then
+    echo "❌ Failed to generate image via Pollinations" >&2
+    exit 1
+  fi
+  generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
+  file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
+  [ "$verbose" = true ] && echo "🔍 File type: $file_type"
+  if ! printf '%s' "$generated_content_type" | grep -qi '^image/' || \
+     ! printf '%s' "$file_type" | grep -qi '^image/'; then
+    echo "❌ Invalid image file!" >&2
+    exit 1
+  fi
+  echo "✅ Image generated successfully"
+  img_source="Pollinations"
 
-case "$generated_content_type" in
-  image/png)
-    ext="png"
-    ;;
-  image/jpeg|image/jpg)
-    ext="jpg"
-    ;;
-  *)
-    ext="png"
-    ;;
-esac
-tag_slug=$(slugify "${tag:-custom}")
-style_slug=$(slugify "$style")
-filename="${timestamp}_${tag_slug}_${style_slug}.${ext}"
-output="$save_dir/$filename"
-mv "$tmp_output" "$output"
+  generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
+  rm -f "$ctype_file"
 
-termux-wallpaper -f "$output"
+  case "$generated_content_type" in
+    image/png)
+      ext="png"
+      ;;
+    image/jpeg|image/jpg)
+      ext="jpg"
+      ;;
+    *)
+      ext="png"
+      ;;
+  esac
+  tag_slug=$(slugify "${tag:-custom}")
+  style_slug=$(slugify "$style")
+  filename="${timestamp}_${tag_slug}_${style_slug}.${ext}"
+  output="$save_dir/$filename"
+  mv "$tmp_output" "$output"
+  echo "💾 Saved to: $output"
+
+  entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$tag_seed|$style_seed"
+  echo "$entry" >> "$log_file"
+  echo "$entry" >> "$main_log"
+
+  last_output="$output"
+  last_timestamp="$timestamp"
+  last_seed="$seed"
+done
+
+termux-wallpaper -f "$last_output"
 echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
-echo "💾 Saved to: $output"
 
-# Log filename, seeds and prompt for later reference
-entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$tag_seed|$style_seed"
-echo "$entry" >> "$log_file"
-echo "$entry" >> "$main_log"
-
-# Favorite the wallpaper immediately if -f was passed alongside generation options
 [ "$favorite_wall" = true ] && {
-  favorite_image "$output" "$prompt" "$tag" "$style" "$model" "$seed" "$timestamp" "$fav_path" "$favorite_group"
+  favorite_image "$last_output" "$prompt" "$tag" "$style" "$model" "$last_seed" "$last_timestamp" "$fav_path" "$favorite_group"
   for t in "${discovered_tags[@]}"; do
     append_config_item "$gen_group" "tags" "$t"
   done
