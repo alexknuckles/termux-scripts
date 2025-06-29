@@ -359,7 +359,11 @@ if [ -n "$discovery_arg" ]; then
     both:*) discovery_mode="both"; batch_tag_count=${discovery_arg#both:}; batch_style_count=$batch_tag_count ;;
     [0-9]*) discovery_mode="both"; batch_tag_count=$discovery_arg; batch_style_count=$discovery_arg ;;
     tag|style|both) discovery_mode="$discovery_arg" ;;
-    *) discovery_mode="$discovery_arg" ;;
+    *)
+      echo "❌ Invalid discovery mode: $discovery_arg" >&2
+      echo "Valid modes are: tag, style, or both" >&2
+      cleanup_and_exit 1
+      ;;
   esac
 fi
 
