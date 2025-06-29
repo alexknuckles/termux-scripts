@@ -114,3 +114,4 @@
 - `-g` with `-f` now favorites the generated image to the `-g` group and the
   generating image message prints on a single line.
 - wallai adds mood prompts (-m), improved inspiration modes with weighted pairs, and a -u flag to reuse wallpapers.
+- wallai now supports weighted tags/styles in config and batch generation with `-x [count]`.
