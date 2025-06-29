@@ -410,7 +410,6 @@ try:
 except Exception:
     sys.exit(1)
 PY
-then
   echo "❌ Invalid config.yml format. Please check YAML syntax or run yamllint." >&2
   cleanup_and_exit 1
 fi
