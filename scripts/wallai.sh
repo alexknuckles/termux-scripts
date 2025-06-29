@@ -5,24 +5,25 @@ set -euo pipefail
 #
 # Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
 #                  [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
-#                  [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] \
+#                  [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag] [-v] \
 #                  [-w] [-s style]
 #   -b  browse generated wallpapers and optionally favorite one to the group
-#   -d  discover a new theme/style (mode: theme, style or both)
+#   -d  discover a new tag/style (mode: tag, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
 #       (defaults to the -g group)
+#   -x  force image generation after discovery
 #   -g  generate using config from the specified group
 #   -h  show this help message
-#   -i  pick theme and style inspired by past favorites from the optional group (defaults to "main")
-#   -l  use the theme/style from the last image if not provided
+#   -i  pick tag and style inspired by past favorites from the optional group (defaults to "main")
+#   -l  use the tag/style from the last image if not provided
 #   -im model  Pollinations model for image generation (default "flux")
 #   -pm model  Pollinations model for prompt generation (default "default")
-#   -tm model  Pollinations model for theme discovery
+#   -tm model  Pollinations model for tag discovery
 #   -sm model  Pollinations model for style discovery
 #   -n  custom negative prompt
 #   -p  custom prompt text
 #   -r  select a random model from the available list
-#   -t  choose a theme
+#   -t  choose a tag
 #   -v  verbose output for troubleshooting
 #   -w  add weather, time and holiday context to the prompt
 #   -s  pick a visual style or use a random one
@@ -35,28 +36,29 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
-                 [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
-                 [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t theme] \
+Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] 
+                 [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] 
+                 [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag] 
                  [-v] [-w] [-s style]
 
   -b [group]  browse generated wallpapers and optionally favorite one to the group
-  -d [mode]   discover a new theme/style (mode: theme, style or both)
+  -d [mode]   discover a new tag/style (mode: tag, style or both)
   -f [group]  mark the generated wallpaper as a favorite in the optional group
                (defaults to the -g group)
+    -x          force image generation after discovery
   -g [group]  generate using config from the specified group
   -h          show this help message
-  -i [group]  pick theme and style inspired by past favorites from the optional group (defaults to "main")
+  -i [group]  pick tag and style inspired by past favorites from the optional group (defaults to "main")
   -k token    save Pollinations API token to the group used with -g (default main)
-  -l          use the theme/style from the last image if not provided
+  -l          use the tag/style from the last image if not provided
   -im model   Pollinations model for image generation (default "flux")
   -pm model   Pollinations model for prompt generation (default "default")
-  -tm model   Pollinations model for theme discovery
+  -tm model   Pollinations model for tag discovery
   -sm model   Pollinations model for style discovery
   -n text     custom negative prompt
   -p text     custom prompt text
   -r          select a random model from the available list
-  -t theme    choose a theme
+  -t tag    choose a tag
   -v          verbose output for troubleshooting
   -w          add weather, time and holiday context to the prompt
   -s style    pick a visual style or use a random one
@@ -73,18 +75,18 @@ done
 
 # Parse options
 prompt=""
-theme=""
+tag=""
 style=""
 negative_prompt=""
-# Flags to record user-provided theme or style
-theme_provided=false
+# Flags to record user-provided tag or style
+tag_provided=false
 style_provided=false
 # Image generation model
 model=""
 # Prompt generation model override
 prompt_model_override=""
-# Theme and style discovery model overrides
-theme_model_override=""
+# Tag and style discovery model overrides
+tag_model_override=""
 style_model_override=""
 random_model=false
 favorite_wall=false
@@ -103,7 +105,11 @@ browse_gallery=false
 browse_group="main"
 new_token=""
 
+batch_tag_count=1
+batch_style_count=1
+discovery_arg=""
 # Handle multi-letter flags before getopts
+force_generate=false
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -121,7 +127,7 @@ while [ $# -gt 0 ]; do
       ;;
     -tm)
       [ $# -ge 2 ] || { echo "Missing argument for -tm" >&2; exit 1; }
-      theme_model_override="$2"
+      tag_model_override="$2"
       generation_opts=true
       shift 2
       ;;
@@ -145,16 +151,16 @@ while [ $# -gt 0 ]; do
 done
 set -- "${args[@]}"
 
-while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
+while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
       generation_opts=true
       ;;
     t)
-      theme="$OPTARG"
+      tag="$OPTARG"
       generation_opts=true
-      theme_provided=true
+      tag_provided=true
       ;;
     s)
       style="$OPTARG"
@@ -188,9 +194,9 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
       ;;
     d)
       if [ -n "${OPTARG:-}" ] && [ "${OPTARG:0:1}" != "-" ]; then
-        discovery_mode="$OPTARG"
+        discovery_arg="$OPTARG"
       else
-        discovery_mode="both"
+        discovery_arg="both"
         [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
       fi
       ;;
@@ -201,10 +207,11 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
       else
         inspired_group="main"
         [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
-      fi
-      ;;
     w)
       weather_flag=true
+      ;;
+    x)
+      force_generate=true
       ;;
     l)
       use_last=true
@@ -242,18 +249,29 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhb:" opt; do
           browse_group="main"
           ;;
         *)
-          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-s style]" >&2
+          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t theme] [-v] [-w] [-s style]" >&2
+      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style]" >&2
       exit 1
       ;;
   esac
 done
 shift $((OPTIND - 1))
+# Parse discovery argument
+if [ -n "$discovery_arg" ]; then
+  case "$discovery_arg" in
+    tag:*) discovery_mode="tag"; batch_tag_count=${discovery_arg#tag:} ;;
+    style:*) discovery_mode="style"; batch_style_count=${discovery_arg#style:} ;;
+    both:*) discovery_mode="both"; batch_tag_count=${discovery_arg#both:}; batch_style_count=$batch_tag_count ;;
+    [0-9]*) discovery_mode="both"; batch_tag_count=$discovery_arg; batch_style_count=$discovery_arg ;;
+    tag|style|both) discovery_mode="$discovery_arg" ;;
+    *) discovery_mode="$discovery_arg" ;;
+  esac
+fi
 
 # Adjust groups for favorites
 if [ "$favorite_wall" = true ]; then
@@ -285,13 +303,13 @@ groups:
     image_model: flux
     prompt_model:
       base: default
-      theme_model: default
+      tag_model: default
       style_model: default
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
     allow_prompt_fetch: true
-    themes:
+    tags:
       - dreamcore
       - mystical forest
       - cosmic horror
@@ -333,14 +351,14 @@ defaults = {
     'image_model': def_env('DEF_IMAGE_MODEL', 'flux'),
     'prompt_model': {
         'base': def_env('DEF_PROMPT_MODEL', 'default'),
-        'theme_model': def_env('DEF_THEME_MODEL') or def_env('DEF_PROMPT_MODEL', 'default'),
+        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', 'default'),
         'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', 'default'),
     },
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
     'allow_prompt_fetch': True,
     'nsfw': False if group == 'main' else True,
-    'themes': [def_env('DEF_THEME')] if new and def_env('DEF_THEME') else [
+    'tags': [def_env('DEF_TAG')] if new and def_env('DEF_TAG') else [
         'dreamcore', 'mystical forest', 'cosmic horror',
         'ethereal landscape', 'retrofuturism', 'alien architecture',
         'cyberpunk metropolis'
@@ -372,15 +390,15 @@ PY
 
 DEF_IMAGE_MODEL="${model:-}"
 DEF_PROMPT_MODEL="${prompt_model_override:-}"
-DEF_THEME_MODEL="${theme_model_override:-}"
+DEF_TAG_MODEL="${tag_model_override:-}"
 DEF_STYLE_MODEL="${style_model_override:-}"
-[ "$theme_provided" = true ] && DEF_THEME="$theme" || DEF_THEME=""
+[ "$tag_provided" = true ] && DEF_TAG="$tag" || DEF_TAG=""
 [ "$style_provided" = true ] && DEF_STYLE="$style" || DEF_STYLE=""
 DEF_IMAGE_MODEL="$DEF_IMAGE_MODEL" \
 DEF_PROMPT_MODEL="$DEF_PROMPT_MODEL" \
-DEF_THEME_MODEL="$DEF_THEME_MODEL" \
+DEF_TAG_MODEL="$DEF_TAG_MODEL" \
 DEF_STYLE_MODEL="$DEF_STYLE_MODEL" \
-DEF_THEME="$DEF_THEME" \
+DEF_TAG="$DEF_TAG" \
 DEF_STYLE="$DEF_STYLE" \
 group_created=$(ensure_group "$gen_group")
 
@@ -405,8 +423,8 @@ PY
 }
 
 if [ "$group_created" = "1" ]; then
-  [ -n "$theme_model_override" ] && \
-    set_config_value "$gen_group" "prompt_model.theme_model" "$theme_model_override"
+  [ -n "$tag_model_override" ] && \
+    set_config_value "$gen_group" "prompt_model.tag_model" "$tag_model_override"
   [ -n "$style_model_override" ] && \
     set_config_value "$gen_group" "prompt_model.style_model" "$style_model_override"
   [ -n "$prompt_model_override" ] && \
@@ -473,7 +491,7 @@ gen_nsfw=$(cfg "$gen_group" '.groups[$g].nsfw // false')
 # shellcheck disable=SC2016
 gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model.base // .groups[$g].prompt_model // "default"')
 # shellcheck disable=SC2016
-gen_theme_model=$(cfg "$gen_group" '.groups[$g].prompt_model.theme_model // .groups[$g].theme_model // empty')
+gen_tag_model=$(cfg "$gen_group" '.groups[$g].prompt_model.tag_model // .groups[$g].tag_model // empty')
 # shellcheck disable=SC2016
 gen_style_model=$(cfg "$gen_group" '.groups[$g].prompt_model.style_model // .groups[$g].style_model // empty')
 # shellcheck disable=SC2016
@@ -481,7 +499,7 @@ gen_image_model=$(cfg "$gen_group" '.groups[$g].image_model // "flux"')
 # shellcheck disable=SC2016
 gen_allow_prompt_fetch=$(cfg "$gen_group" '.groups[$g].allow_prompt_fetch // true')
 # shellcheck disable=SC2016
-mapfile -t gen_themes < <(cfg "$gen_group" '.groups[$g].themes[]?')
+mapfile -t gen_tags < <(cfg "$gen_group" '.groups[$g].tags[]?')
 # shellcheck disable=SC2016
 mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]?')
 
@@ -500,7 +518,7 @@ insp_path=$(eval printf '%s' "$insp_path")
 # Apply config defaults if flags were not provided
 [ -z "$model" ] && model="$gen_image_model"
 [ -n "$prompt_model_override" ] && gen_prompt_model="$prompt_model_override"
-theme_model="${theme_model_override:-${gen_theme_model:-$gen_prompt_model}}"
+tag_model="${tag_model_override:-${gen_tag_model:-$gen_prompt_model}}"
 style_model="${style_model_override:-${gen_style_model:-$gen_prompt_model}}"
 
 # Append a discovered item to the group's config list if missing
@@ -541,67 +559,101 @@ PY
 }
 
 # Set a nested value in the group's config
-# Add user provided theme and style to config
-[ "$theme_provided" = true ] && append_config_item "$gen_group" "themes" "$theme"
+# Add user provided tag and style to config
+[ "$tag_provided" = true ] && append_config_item "$gen_group" "tags" "$tag"
 [ "$style_provided" = true ] && append_config_item "$gen_group" "styles" "$style"
 
-# Discover new theme or style via Pollinations
+# Discover new tag or style via Pollinations
 discover_item() {
-  local kind="$1" query result dseed m url item lower_item exists list
+  local kind="$1" count="${2:-1}" query result dseed m url item lower_item exists list
   if [ "$gen_allow_prompt_fetch" != true ]; then
     return
   fi
-  case "$kind" in
-    theme)
-      list=$(printf '%s, ' "${gen_themes[@]}" | sed 's/, $//')
-      query="Imagine a two-word theme not including any of: ${list}. Respond with exactly two words."
-      ;;
-    style)
-      list=$(printf '%s, ' "${gen_styles[@]}" | sed 's/, $//')
-      query="Imagine a two-word art style not including any of: ${list}. Respond with exactly two words."
-      ;;
-    *)
-      return
-      ;;
-  esac
+  if [ "$count" -gt 1 ]; then
+    case "$kind" in
+      tag)
+        query="Give me ${count} unique wallpaper tags, each 1 to 3 words, in a comma-separated list."
+        ;;
+      style)
+        query="Give me ${count} unique art styles for digital wallpapers, each 1 to 3 words, in a comma-separated list."
+        ;;
+      *)
+        return
+        ;;
+    esac
+  else
+    case "$kind" in
+      tag)
+        list=$(printf '%s, ' "${gen_tags[@]}" | sed 's/, $//')
+        query="Imagine a two-word tag not including any of: ${list}. Respond with exactly two words."
+        ;;
+      style)
+        list=$(printf '%s, ' "${gen_styles[@]}" | sed 's/, $//')
+        query="Imagine a two-word art style not including any of: ${list}. Respond with exactly two words."
+        ;;
+      *)
+        return
+        ;;
+    esac
+  fi
   encoded=$(printf '%s' "$query" | jq -sRr @uri)
   dseed=$(random_seed)
   m="$gen_prompt_model"
   case "$kind" in
-    theme) m="$theme_model" ;;
+    tag) m="$tag_model" ;;
     style) m="$style_model" ;;
   esac
   url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${m}"
   case "$kind" in
-    theme) theme_seed="$dseed" ;;
+    tag) tag_seed="$dseed" ;;
     style) style_seed="$dseed" ;;
   esac
   [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url" >&2
-  # Verbose output goes to stderr to avoid affecting variable assignments
   result=$(curl -sL "${curl_auth[@]}" "$url" || true)
   [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
-  if [ -n "$result" ]; then
-    item=$(printf '%s' "$result" | awk '{print $1, $2}')
-    lower_item=$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')
-    exists=false
-    if [ "$kind" = "theme" ]; then
-      for i in "${gen_themes[@]}"; do
-        if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
-          exists=true
-          break
+  if [ "$count" -gt 1 ]; then
+    printf '%s' "$result" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | tr '[:upper:]' '[:lower:]' |
+      awk 'NF>=1 && NF<=3' | sed 's/  */ /g' | while read -r item; do
+        exists=false
+        if [ "$kind" = "tag" ]; then
+          for i in "${gen_tags[@]}"; do
+            if [ "$(printf '%s' "$i" | tr "[:upper:]" "[:lower:]")" = "$item" ]; then
+              exists=true
+              break
+            fi
+          done
+        else
+          for i in "${gen_styles[@]}"; do
+            if [ "$(printf '%s' "$i" | tr "[:upper:]" "[:lower:]")" = "$item" ]; then
+              exists=true
+              break
+            fi
+          done
         fi
-      done
-    else
-      for i in "${gen_styles[@]}"; do
-        if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
-          exists=true
-          break
-        fi
-      done
-    fi
-    if [ "$exists" = false ]; then
-      printf '%s' "$item"
+        [ "$exists" = false ] && echo "$item"
+      done | awk '!seen[$0]++'
+  else
+    if [ -n "$result" ]; then
+      item=$(printf '%s' "$result" | awk '{print $1, $2}')
+      lower_item=$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')
+      exists=false
+      if [ "$kind" = "tag" ]; then
+        for i in "${gen_tags[@]}"; do
+          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
+            exists=true
+            break
+          fi
+        done
+      else
+        for i in "${gen_styles[@]}"; do
+          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
+            exists=true
+            break
+          fi
+        done
+      fi
+      [ "$exists" = false ] && printf '%s\n' "$item"
     fi
   fi
 }
@@ -625,10 +677,10 @@ random_seed() {
 # Seed for image generation and prompt fetch
 seed=$(random_seed)
 prompt_seed=""
-theme_seed=""
+tag_seed=""
 style_seed=""
 
-# Apply theme/style from the last generated image if -l is used
+# Apply tag/style from the last generated image if -l is used
 if [ "$use_last" = true ]; then
   last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
@@ -641,11 +693,11 @@ if [ "$use_last" = true ]; then
   else
     last_file=$(printf '%s' "$last_entry" | cut -d'|' -f1)
   fi
-  theme_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
+  tag_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
-  last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
+  last_tag=$(printf '%s' "$tag_slug" | sed 's/-/ /g')
   last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
-  [ -z "$theme" ] && theme="$last_theme"
+  [ -z "$tag" ] && tag="$last_tag"
   [ -z "$style" ] && style="$last_style"
 fi
 
@@ -661,7 +713,7 @@ favorite_image() {
     echo "❌ exiftool is required for -f" >&2
     return 1
   }
-  local file="$1" comment="$2" theme="$3" style="$4" model="$5" seed="$6" ts="$7" group_path="$8" group_name="$9"
+  local file="$1" comment="$2" tag="$3" style="$4" model="$5" seed="$6" ts="$7" group_path="$8" group_name="$9"
   local dest_dir="$group_path"
   local log="$dest_dir/favorites.jsonl"
   mkdir -p "$dest_dir"
@@ -669,12 +721,12 @@ favorite_image() {
   dest="$dest_dir/$(basename "$file")"
   cp "$file" "$dest"
   exiftool -overwrite_original -Comment="$comment" "$dest" >/dev/null
-  jq -n --arg prompt "$comment" --arg theme "$theme" --arg style "$style" \
+  jq -n --arg prompt "$comment" --arg tag "$tag" --arg style "$style" \
         --arg model "$model" --arg seed "$seed" --arg ts "$ts" \
         --arg filename "$(basename "$dest")" \
-        '{prompt:$prompt, theme:$theme, style:$style, model:$model, seed:$seed, timestamp:$ts, filename:$filename}' >> "$log"
+        '{prompt:$prompt, tag:$tag, style:$style, model:$model, seed:$seed, timestamp:$ts, filename:$filename}' >> "$log"
   echo "⭐ Added to favorites: $dest"
-  append_config_item "$group_name" "themes" "$theme"
+  append_config_item "$group_name" "tags" "$tag"
   append_config_item "$group_name" "styles" "$style"
 }
 
@@ -737,10 +789,10 @@ PY
   if [ -n "$entry" ]; then
     seed=$(printf '%s' "$entry" | cut -d'|' -f2)
     prompt=$(printf '%s' "$entry" | cut -d'|' -f3)
-    theme=$(printf '%s' "$sel" | cut -d'_' -f2 | sed 's/-/ /g')
+    tag=$(printf '%s' "$sel" | cut -d'_' -f2 | sed 's/-/ /g')
     style=$(printf '%s' "$sel" | cut -d'_' -f3 | sed 's/\..*//' | sed 's/-/ /g')
     ts=$(printf '%s' "$sel" | cut -d'_' -f1)
-    favorite_image "$save_dir/$sel" "$prompt (seed: $seed)" "$theme" "$style" "unknown" "$seed" "$ts" "$dest_path" "$fav_group"
+    favorite_image "$save_dir/$sel" "$prompt (seed: $seed)" "$tag" "$style" "unknown" "$seed" "$ts" "$dest_path" "$fav_group"
   else
     mkdir -p "$dest_path"
     cp "$save_dir/$sel" "$dest_path/" && echo "⭐ Added to favorites: $dest_path/$sel"
@@ -816,47 +868,47 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_grou
   [ -z "$last_gen_path" ] && last_gen_path="$HOME/pictures/generated-wallpapers/$last_group"
   last_gen_path=$(eval printf '%s' "$last_gen_path")
   ts=$(printf '%s' "$last_file" | cut -d'_' -f1)
-  theme_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
+  tag_slug=$(printf '%s' "$last_file" | cut -d'_' -f2)
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
-  last_theme=$(printf '%s' "$theme_slug" | sed 's/-/ /g')
+  last_tag=$(printf '%s' "$tag_slug" | sed 's/-/ /g')
   last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
-  favorite_image "$last_gen_path/$last_file" "$last_prompt (seed: $last_seed)" "$last_theme" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
+  favorite_image "$last_gen_path/$last_file" "$last_prompt (seed: $last_seed)" "$last_tag" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
   exit 0
 fi
 
-# Inspired mode selects theme and style based on past favorites
+# Inspired mode selects tag and style based on past favorites
 if [ "$inspired_mode" = true ]; then
   fav_file="$insp_path/favorites.jsonl"
   if [ -f "$fav_file" ]; then
-    if [ -z "$theme" ]; then
-      theme=$(jq -r '.theme' "$fav_file" | shuf -n1 || true)
+    if [ -z "$tag" ]; then
+      tag=$(jq -r '.tag' "$fav_file" | shuf -n1 || true)
     fi
     if [ -z "$style" ]; then
       style=$(jq -r '.style' "$fav_file" | shuf -n1 || true)
     fi
     echo "🧠 Inspired by favorites:"
-    [ -n "$theme" ] && echo "🔖 Theme: $theme"
+    [ -n "$tag" ] && echo "🔖 Tag: $tag"
     [ -n "$style" ] && echo "🎨 Style: $style"
   fi
 fi
 
-# Discovery mode for new themes or styles
-discovered_theme=""
-discovered_style=""
+# Discovery mode for new tags or styles
+discovered_tags=()
+discovered_styles=()
 if [ -n "$discovery_mode" ]; then
   tmpd=$(mktemp -d)
   pids=()
-  if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "theme" ]; then
-    discover_item theme >"$tmpd/theme" &
+  if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "tag" ]; then
+    discover_item tag "$batch_tag_count" >"$tmpd/tag" &
     pids+=("$!")
   fi
   if [ "$discovery_mode" = "both" ] || [ "$discovery_mode" = "style" ]; then
-    discover_item style >"$tmpd/style" &
+    discover_item style "$batch_style_count" >"$tmpd/style" &
     pids+=("$!")
   fi
   case "$discovery_mode" in
-    both) desc="theme & style" ;;
-    theme) desc="theme" ;;
+    both) desc="tag & style" ;;
+    tag) desc="tag" ;;
     style) desc="style" ;;
   esac
   spinner_multi "Discovering $desc" "${pids[@]}" &
@@ -865,40 +917,59 @@ if [ -n "$discovery_mode" ]; then
     wait "$pid"
   done
   wait "$spin_pid" 2>/dev/null || true
-  if [ -f "$tmpd/theme" ]; then
-    new=$(cat "$tmpd/theme")
-    if [ -n "$new" ]; then
-      theme="$new"
-      discovered_theme="$new"
-    fi
+  if [ -f "$tmpd/tag" ]; then
+    mapfile -t discovered_tags <"$tmpd/tag"
   fi
   if [ -f "$tmpd/style" ]; then
-    new=$(cat "$tmpd/style")
-    if [ -n "$new" ]; then
-      style="$new"
-      discovered_style="$new"
-    fi
+    mapfile -t discovered_styles <"$tmpd/style"
   fi
   msg=""
-  [ -n "$discovered_theme" ] && msg="theme: $theme (model: $theme_model)"
-  if [ -n "$discovered_style" ]; then
+  if [ "${#discovered_tags[@]}" -gt 0 ]; then
+    msg="tags: ${discovered_tags[*]} (model: $tag_model)"
+  fi
+  if [ "${#discovered_styles[@]}" -gt 0 ]; then
     [ -n "$msg" ] && msg="$msg | "
-    msg="${msg}style: $style (model: $style_model)"
+    msg="${msg}styles: ${discovered_styles[*]} (model: $style_model)"
   fi
   [ -n "$msg" ] && echo "🆕 Discovered $msg"
+  for t in "${discovered_tags[@]}"; do
+    append_config_item "$gen_group" "tags" "$t"
+  done
+  for s in "${discovered_styles[@]}"; do
+    append_config_item "$gen_group" "styles" "$s"
+  done
+  if [ "$force_generate" != true ]; then
+    echo "✅ Discovery complete. No image generated (use -x to generate)"
+    rm -rf "$tmpd"
+    exit 0
+  fi
   rm -rf "$tmpd"
 fi
 
 # If a new group was created and discovery supplied items, replace defaults
 if [ "$group_created" = "1" ]; then
-  if [ -n "$discovered_theme" ] && [ "$theme_provided" = false ]; then
-    set_config_list "$gen_group" "themes" "$discovered_theme"
+  if [ "${#discovered_tags[@]}" -gt 0 ] && [ "$tag_provided" = false ]; then
+    set_config_list "$gen_group" "tags" "${discovered_tags[0]}"
   fi
-  if [ -n "$discovered_style" ] && [ "$style_provided" = false ]; then
-    set_config_list "$gen_group" "styles" "$discovered_style"
+  if [ "${#discovered_styles[@]}" -gt 0 ] && [ "$style_provided" = false ]; then
+    set_config_list "$gen_group" "styles" "${discovered_styles[0]}"
   fi
 fi
-
+if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
+  if [ -z "$tag" ] && [ "${#discovered_tags[@]}" -gt 0 ]; then
+    tag=$(printf '%s\n' "${discovered_tags[@]}" | shuf -n1)
+  fi
+  if [ -z "$style" ] && [ "${#discovered_styles[@]}" -gt 0 ]; then
+    style=$(printf '%s\n' "${discovered_styles[@]}" | shuf -n1)
+  fi
+  if [ -z "$tag" ] && [ "${#gen_tags[@]}" -gt 0 ]; then
+    tag=$(printf '%s\n' "${gen_tags[@]}" | shuf -n1)
+  fi
+  if [ -z "$style" ] && [ "${#gen_styles[@]}" -gt 0 ]; then
+    style=$(printf '%s\n' "${gen_styles[@]}" | shuf -n1)
+  fi
+  { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; exit 1; }
+fi
 # Validate selected model using the API list
 models_json=$(curl -sL "${curl_auth[@]}" "https://image.pollinations.ai/models" || true)
 if ! mapfile -t models < <(printf '%s' "$models_json" | jq -r '.[]' 2>/dev/null); then
@@ -918,27 +989,27 @@ fi
 
 # wallai.sh - generate a wallpaper using Pollinations
 #
-# Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t theme] [-s style] [-im model] [-pm model] [-tm model] [-sm model] [-r] [-f]
+# Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t tag] [-s style] [-im model] [-pm model] [-tm model] [-sm model] [-r] [-f] [-x]
 #                  [-g group] [-d mode] [-i group] [-k token] [-w] [-l] [-n "text"] [-v] [-h]
 # Environment variables:
 #   ALLOW_NSFW         Set to 'false' to disallow NSFW prompts (default 'true')
 # Flags:
 #   -p prompt text  Custom prompt text
-#   -t theme        Specify theme
+#   -t tag        Specify tag
 #   -s style        Pick a visual style or use a random one
 #   -im model       Pollinations model for image generation (default 'flux')
 #   -pm model       Pollinations model for prompt generation (default 'default')
-#   -tm model       Pollinations model for theme discovery
+#   -tm model       Pollinations model for tag discovery
 #   -sm model       Pollinations model for style discovery
 #   -r              Pick a random model from the available list
 #   -b [group]      Browse generated wallpapers and optionally favorite one
 #   -f              Mark the latest generated wallpaper as a favorite
 #   -g group        Generate using config from the specified group
-#   -d mode         Discover a new theme/style (theme, style or both)
-#   -i group        Choose theme and style inspired by favorites from the specified group (defaults to "main")
+#   -d mode         Discover a new tag/style (tag, style or both)
+#   -i group        Choose tag and style inspired by favorites from the specified group (defaults to "main")
 #   -k token        Save Pollinations API token to the config
 #   -w              Add weather, time and seasonal context
-#   -l              Use theme and/or style from the last image
+#   -l              Use tag and/or style from the last image
 #   -n text         Override the default negative prompt
 #   -v              Enable verbose output
 #   -h              Show help and exit
@@ -979,7 +1050,7 @@ fi
 fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
   local encoded url
-  encoded=$(printf '%s' "Describe a $theme wallpaper scene in exactly 15 words. Respond with only those 15 words." | jq -sRr @uri)
+  encoded=$(printf '%s' "Describe a $tag wallpaper scene in exactly 15 words. Respond with only those 15 words." | jq -sRr @uri)
   prompt_seed=$(random_seed)
   url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
   [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
@@ -994,23 +1065,23 @@ fetch_prompt() {
 if [ -z "$prompt" ]; then
   echo "🎯 Fetching random prompt from Pollinations (model: $gen_prompt_model)..."
 
-  # 🎲 Step 1: Pick or use provided theme
-  if [ -z "$theme" ]; then
-    if [ "${#gen_themes[@]}" -gt 0 ]; then
-      theme=$(printf '%s\n' "${gen_themes[@]}" | shuf -n1)
+  # 🎲 Step 1: Pick or use provided tag
+  if [ -z "$tag" ]; then
+    if [ "${#gen_tags[@]}" -gt 0 ]; then
+      tag=$(printf '%s\n' "${gen_tags[@]}" | shuf -n1)
     else
-      themes=(
+      tags=(
         "dreamcore" "mystical forest" "cosmic horror" "ethereal landscape"
         "retrofuturism" "alien architecture" "cyberpunk metropolis"
       )
-      theme=$(printf '%s\n' "${themes[@]}" | shuf -n1)
+      tag=$(printf '%s\n' "${tags[@]}" | shuf -n1)
     fi
   fi
-  if [ -z "$discovered_theme" ]; then
-    echo "🔖 Selected theme: $theme"
+  if [ -z "$discovered_tag" ]; then
+    echo "🔖 Selected tag: $tag"
   fi
 
-  # 🧠 Step 2: Retrieve a text prompt for that theme
+  # 🧠 Step 2: Retrieve a text prompt for that tag
   if ! fetch_prompt; then
     echo "❌ Failed to fetch prompt. Using fallback."
     fallback_prompts=(
@@ -1042,9 +1113,9 @@ if [ -z "$discovered_style" ]; then
   echo "🖌 Selected style: $style"
 fi
 
-# Build the final prompt with theme and style weights and negative text
-if [ -n "$theme" ]; then
-  prompt="(${theme}:1.5) $prompt"
+# Build the final prompt with tag and style weights and negative text
+if [ -n "$tag" ]; then
+  prompt="(${tag}:1.5) $prompt"
 fi
 prompt="$prompt (${style}:1.3) [negative prompt: $negative_prompt]"
 
@@ -1154,9 +1225,9 @@ case "$generated_content_type" in
     ext="png"
     ;;
 esac
-theme_slug=$(slugify "${theme:-custom}")
+tag_slug=$(slugify "${tag:-custom}")
 style_slug=$(slugify "$style")
-filename="${timestamp}_${theme_slug}_${style_slug}.${ext}"
+filename="${timestamp}_${tag_slug}_${style_slug}.${ext}"
 output="$save_dir/$filename"
 mv "$tmp_output" "$output"
 
@@ -1165,15 +1236,19 @@ echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 echo "💾 Saved to: $output"
 
 # Log filename, seeds and prompt for later reference
-entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$theme_seed|$style_seed"
+entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$tag_seed|$style_seed"
 echo "$entry" >> "$log_file"
 echo "$entry" >> "$main_log"
 
 # Favorite the wallpaper immediately if -f was passed alongside generation options
 [ "$favorite_wall" = true ] && {
-  favorite_image "$output" "$prompt" "$theme" "$style" "$model" "$seed" "$timestamp" "$fav_path" "$favorite_group"
-  [ -n "$discovered_theme" ] && append_config_item "$gen_group" "themes" "$discovered_theme"
-  [ -n "$discovered_style" ] && append_config_item "$gen_group" "styles" "$discovered_style"
+  favorite_image "$output" "$prompt" "$tag" "$style" "$model" "$seed" "$timestamp" "$fav_path" "$favorite_group"
+  for t in "${discovered_tags[@]}"; do
+    append_config_item "$gen_group" "tags" "$t"
+  done
+  for s in "${discovered_styles[@]}"; do
+    append_config_item "$gen_group" "styles" "$s"
+  done
 }
 
 exit 0
