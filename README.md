@@ -72,8 +72,8 @@ flower-tier account) and `turbo` due to low quality. The default image model is
 
 ### Usage
 ```bash
-wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] \
-       [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-s style]
+wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] \
+       [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-s style] [-m mood] [-u mode]
 ```
 
 Environment variables:
@@ -85,7 +85,9 @@ Environment variables:
   combined with `-g`, it uses that group if no favorites group is given).
 - `-g [group]` Generate using themes and styles from a group.
 - `-h` Show help and exit.
-- `-i [group]` Choose a theme and style inspired by favorites from the specified group (defaults to `main`).
+- `-i [mode]` Choose components inspired by favorites. Modes are `pair`, `tag` or `style`.
+- `-u mode` Reuse a previous wallpaper: `latest`, `random` or `favorites`.
+- `-m mood` Insert a mood tone into the generated prompt.
 - `-k token` Save your Pollinations token to the group used with `-g`. This does not change any global token setting.
 - `-l` Use the theme and style from the last generated image if either is omitted.
 - `-im` Pollinations model for image generation. Models come from the API and usually
