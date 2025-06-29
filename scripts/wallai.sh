@@ -4,9 +4,9 @@ set -euo pipefail
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
-#                  [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
+#                  [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
 #                  [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag] [-v] \
-#                  [-w] [-s style]
+#                  [-w] [-s style] [-m mood] [-u mode]
 #   -b  browse generated wallpapers and optionally favorite one to the group
 #   -d  discover a new tag/style (mode: tag, style or both)
 #   -f  mark the generated wallpaper as a favorite in the optional group
@@ -14,7 +14,9 @@ set -euo pipefail
 #   -x  force image generation after discovery
 #   -g  generate using config from the specified group
 #   -h  show this help message
-#   -i  pick tag and style inspired by past favorites from the optional group (defaults to "main")
+#   -i  pick components inspired by favorites using mode pair|tag|style (default pair)
+#   -u  reuse a previous wallpaper: latest, random or favorites
+#   -m  specify a mood tone for the prompt
 #   -l  use the tag/style from the last image if not provided
 #   -im model  Pollinations model for image generation (default "flux")
 #   -pm model  Pollinations model for prompt generation (default "default")
@@ -36,10 +38,10 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] 
-                 [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] 
-                 [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag] 
-                 [-v] [-w] [-s style]
+Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h]
+                 [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model]
+                 [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag]
+                 [-v] [-w] [-s style] [-m mood] [-u mode]
 
   -b [group]  browse generated wallpapers and optionally favorite one to the group
   -d [mode]   discover a new tag/style (mode: tag, style or both)
@@ -48,7 +50,7 @@ Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h]
     -x          force image generation after discovery
   -g [group]  generate using config from the specified group
   -h          show this help message
-  -i [group]  pick tag and style inspired by past favorites from the optional group (defaults to "main")
+  -i [mode]   pick components inspired by favorites (mode: pair, tag or style)
   -k token    save Pollinations API token to the group used with -g (default main)
   -l          use the tag/style from the last image if not provided
   -im model   Pollinations model for image generation (default "flux")
@@ -62,6 +64,8 @@ Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h]
   -v          verbose output for troubleshooting
   -w          add weather, time and holiday context to the prompt
   -s style    pick a visual style or use a random one
+  -m mood     specify a mood tone for the prompt
+  -u mode     reuse a previous wallpaper (latest, random or favorites)
 EOF
 }
 
@@ -78,9 +82,11 @@ prompt=""
 tag=""
 style=""
 negative_prompt=""
+mood=""
 # Flags to record user-provided tag or style
 tag_provided=false
 style_provided=false
+mood_provided=false
 # Image generation model
 model=""
 # Prompt generation model override
@@ -96,7 +102,7 @@ gen_group="main"
 gen_group_set=false
 discovery_mode=""
 inspired_mode=false
-inspired_group="main"
+inspired_type="pair"
 weather_flag=false
 use_last=false
 generation_opts=false
@@ -104,6 +110,7 @@ verbose=false
 browse_gallery=false
 browse_group="main"
 new_token=""
+reuse_mode=""
 
 # Inspired mode selections
 top_tag=""
@@ -143,12 +150,6 @@ while [ $# -gt 0 ]; do
       generation_opts=true
       shift 2
       ;;
-    -m)
-      [ $# -ge 2 ] || { echo "Missing argument for -m" >&2; exit 1; }
-      model="$2"
-      generation_opts=true
-      shift 2
-      ;;
     *)
       args+=("$1")
       shift
@@ -157,7 +158,7 @@ while [ $# -gt 0 ]; do
 done
 set -- "${args[@]}"
 
-while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:" opt; do
+while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
@@ -172,6 +173,11 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:" opt; do
       style="$OPTARG"
       generation_opts=true
       style_provided=true
+      ;;
+    m)
+      mood="$OPTARG"
+      mood_provided=true
+      generation_opts=true
       ;;
     b)
       browse_gallery=true
@@ -209,9 +215,9 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:" opt; do
     i)
       inspired_mode=true
       if [ -n "${OPTARG:-}" ] && [ "${OPTARG:0:1}" != "-" ]; then
-        inspired_group="$OPTARG"
+        inspired_type="$OPTARG"
       else
-        inspired_group="main"
+        inspired_type="pair"
         [ -n "${OPTARG:-}" ] && OPTIND=$((OPTIND - 1))
       fi
       ;;
@@ -232,6 +238,9 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:" opt; do
     v)
       verbose=true
       ;;
+    u)
+      reuse_mode="$OPTARG"
+      ;;
     h)
       show_help
       exit 0
@@ -250,20 +259,20 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:" opt; do
           ;;
         i)
           inspired_mode=true
-          inspired_group="main"
+          inspired_type="pair"
           ;;
         b)
           browse_gallery=true
           browse_group="main"
           ;;
         *)
-          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style]" >&2
+          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
           exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [group]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style]" >&2
+      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
       exit 1
       ;;
   esac
@@ -375,7 +384,8 @@ defaults = {
         'unreal engine', 'cinematic lighting', 'octane render',
         'hyperrealism', 'volumetric lighting', 'high detail',
         '4k concept art'
-    ]
+    ],
+    'moods': []
 }
 
 updated = False
@@ -517,10 +527,10 @@ fav_path=$(cfg "$favorite_group" '.groups[$g].favorites_path // .groups[$g].path
 [ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$favorite_group"
 fav_path=$(eval printf '%s' "$fav_path")
 
-# Inspired group path for -i
+# Inspired favorites path for -i
 # shellcheck disable=SC2016
-insp_path=$(cfg "$inspired_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
-[ -z "$insp_path" ] && insp_path="$HOME/pictures/favorites/$inspired_group"
+insp_path=$(cfg "$gen_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
+[ -z "$insp_path" ] && insp_path="$HOME/pictures/favorites/$gen_group"
 insp_path=$(eval printf '%s' "$insp_path")
 
 # Apply config defaults if flags were not provided
@@ -570,6 +580,7 @@ PY
 # Add user provided tag and style to config
 [ "$tag_provided" = true ] && append_config_item "$gen_group" "tags" "$tag"
 [ "$style_provided" = true ] && append_config_item "$gen_group" "styles" "$style"
+[ "$mood_provided" = true ] && append_config_item "$gen_group" "moods" "$mood"
 
 # Discover new tag or style via Pollinations
 discover_item() {
@@ -697,6 +708,10 @@ seed=$(random_seed)
 prompt_seed=""
 tag_seed=""
 style_seed=""
+
+if [ "$mood_provided" = true ] && [ "$verbose" = true ]; then
+  echo "😌 Using mood: $mood"
+fi
 
 # Apply tag/style from the last generated image if -l is used
 if [ "$use_last" = true ]; then
@@ -894,65 +909,108 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_grou
   exit 0
 fi
 
+# Reuse a previous wallpaper and exit early
+if [ -n "$reuse_mode" ]; then
+  case "$reuse_mode" in
+    latest|random|favorites) ;;
+    *) echo "Invalid reuse mode: $reuse_mode" >&2; exit 1 ;;
+  esac
+  file=""
+  source_desc="$reuse_mode"
+  if [ "$reuse_mode" = "favorites" ]; then
+    file=$(find "$gen_fav_path" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' \) 2>/dev/null | shuf -n1)
+    [ -n "$file" ] || { echo "❌ No favorites found" >&2; exit 1; }
+  else
+    if [ "$reuse_mode" = "latest" ]; then
+      if [ "$gen_group" = "main" ]; then
+        entry=$(tail -n1 "$main_log" 2>/dev/null || true)
+      else
+        entry=$(grep "^$gen_group|" "$main_log" | tail -n1)
+      fi
+    else
+      if [ "$gen_group" = "main" ]; then
+        entry=$(shuf -n1 "$main_log" 2>/dev/null || true)
+      else
+        entry=$(grep "^$gen_group|" "$main_log" | shuf -n1)
+      fi
+    fi
+    [ -n "$entry" ] || { echo "❌ No wallpaper found" >&2; exit 1; }
+    fields=$(printf '%s' "$entry" | awk -F'|' '{print NF}')
+    if [ "$fields" -ge 7 ]; then
+      group=$(printf '%s' "$entry" | cut -d'|' -f1)
+      fname=$(printf '%s' "$entry" | cut -d'|' -f2)
+    else
+      group="main"
+      fname=$(printf '%s' "$entry" | cut -d'|' -f1)
+    fi
+    path=$(cfg "$group" '.groups[$g].generations_path // empty')
+    [ -z "$path" ] && path="$HOME/pictures/generated-wallpapers/$group"
+    path=$(eval printf '%s' "$path")
+    file="$path/$fname"
+  fi
+  termux-wallpaper -f "$file"
+  echo "🎉 Reused wallpaper: $(basename "$file") (source: $source_desc, group: $gen_group)"
+  exit 0
+fi
+
 # Inspired mode selects tag and style based on past favorites
 if [ "$inspired_mode" = true ]; then
   fav_file="$insp_path/favorites.jsonl"
   if [ -f "$fav_file" ]; then
-    IFS=$'\n' read -r top_tag tag_weight < <(
-      python3 - "$fav_file" <<'PY'
+    IFS=$'\n' read -r top_tag tag_weight top_style style_weight < <(
+      python3 - "$fav_file" "$inspired_type" <<'PY'
 import sys, json, random
-file = sys.argv[1]
-counts = {}
+file, mode = sys.argv[1:3]
+pairs, tcounts, scounts = {}, {}, {}
 with open(file) as f:
     for line in f:
         try:
-            tag = json.loads(line).get("tag")
-            if tag:
-                counts[tag] = counts.get(tag, 0) + 1
+            j = json.loads(line)
         except Exception:
-            pass
-if counts:
+            continue
+        t = j.get('tag')
+        s = j.get('style')
+        if t:
+            tcounts[t] = tcounts.get(t, 0) + 1
+        if s:
+            scounts[s] = scounts.get(s, 0) + 1
+        if t and s:
+            pairs[(t, s)] = pairs.get((t, s), 0) + 1
+
+def choose(counts):
     items = list(counts.keys())
     weights = [counts[i] for i in items]
-    choice = random.choices(items, weights=weights)[0]
+    return random.choices(items, weights=weights)[0]
+
+def weight(item, counts):
+    if not counts:
+        return 1.1
     mx = max(counts.values())
-    freq = counts[choice]
-    weight = 1.1 + (freq / mx) * (2.0 - 1.1)
-    weight = max(1.1, min(2.0, weight))
-    print(choice)
-    print(f"{weight:.1f}")
-PY
-    )
-    IFS=$'\n' read -r top_style style_weight < <(
-      python3 - "$fav_file" <<'PY'
-import sys, json, random
-file = sys.argv[1]
-counts = {}
-with open(file) as f:
-    for line in f:
-        try:
-            style = json.loads(line).get("style")
-            if style:
-                counts[style] = counts.get(style, 0) + 1
-        except Exception:
-            pass
-if counts:
-    items = list(counts.keys())
-    weights = [counts[i] for i in items]
-    choice = random.choices(items, weights=weights)[0]
-    mx = max(counts.values())
-    freq = counts[choice]
-    weight = 1.1 + (freq / mx) * (2.0 - 1.1)
-    weight = max(1.1, min(2.0, weight))
-    print(choice)
-    print(f"{weight:.1f}")
+    freq = counts.get(item, 0)
+    w = 1.1 + (freq / mx) * (2.0 - 1.1)
+    return round(max(1.1, min(2.0, w)), 1)
+
+tag = style = None
+if mode == 'pair' and pairs:
+    tag, style = choose(pairs)
+elif mode == 'tag' and tcounts:
+    tag = choose(tcounts)
+elif mode == 'style' and scounts:
+    style = choose(scounts)
+
+tw = weight(tag, tcounts) if tag else ''
+sw = weight(style, scounts) if style else ''
+print(tag or '')
+print(tw)
+print(style or '')
+print(sw)
 PY
     )
     tag_weight=${tag_weight:-1.5}
     style_weight=${style_weight:-1.3}
     [ -n "$tag" ] || tag="$top_tag"
     [ -n "$style" ] || style="$top_style"
-    echo "🧠 Inspired by favorites:"
+    echo "🧠 Inspired by favorites (mode: $inspired_type)"
     [ -n "$top_tag" ] && printf '🔖 Tag: %s (weight: %s)\n' "$top_tag" "$tag_weight"
     [ -n "$top_style" ] && printf '🎨 Style: %s (weight: %s)\n' "$top_style" "$style_weight"
   fi
@@ -1115,8 +1173,13 @@ fi
 
 fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
-  local encoded url
-  encoded=$(printf '%s' "Describe a $tag wallpaper scene in exactly 15 words. Respond with only those 15 words." | jq -sRr @uri)
+  local encoded url query
+  if [ -n "$mood" ]; then
+    query="Describe a $tag wallpaper scene in a $mood mood tone in exactly 15 words. Respond with only those 15 words."
+  else
+    query="Describe a $tag wallpaper scene in exactly 15 words. Respond with only those 15 words."
+  fi
+  encoded=$(printf '%s' "$query" | jq -sRr @uri)
   prompt_seed=$(random_seed)
   url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
   [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
