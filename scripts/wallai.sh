@@ -60,6 +60,7 @@ ${bold}General Options:${normal}
   -h, --help         Show this help message
   -v                 Enable verbose mode
   -g <group>         Use or create a group config
+  --describe-image <file>  Generate prompt from image caption
 
 ${bold}Prompt Customization:${normal}
   -p <prompt>        Use custom prompt
@@ -83,6 +84,7 @@ Examples:
   wallai.sh -t dreamcore -m surreal -x 3 -f
   wallai.sh -u favorites -g sci-fi
   wallai.sh -i tag -d
+  wallai.sh picture.jpg
 END
 }
 # Check dependencies early so the script fails with a clear message
@@ -127,6 +129,7 @@ browse_gallery=false
 browse_group="main"
 new_token=""
 reuse_mode=""
+describe_image_file=""
 
 # Inspired mode selections
 top_tag=""
@@ -166,6 +169,11 @@ while [ $# -gt 0 ]; do
       [ $# -ge 2 ] || { echo "Missing argument for -sm" >&2; cleanup_and_exit 1; }
       style_model_override="$2"
       generation_opts=true
+      shift 2
+      ;;
+    --describe-image)
+      [ $# -ge 2 ] || { echo "Missing argument for --describe-image" >&2; cleanup_and_exit 1; }
+      describe_image_file="$2"
       shift 2
       ;;
     --use)
@@ -319,6 +327,13 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
   esac
 done
 shift $((OPTIND - 1))
+
+# Image argument handling
+if [ -z "$describe_image_file" ] && [ $# -eq 1 ] && [ -f "$1" ]; then
+  case "$1" in
+    *.jpg|*.jpeg|*.png|*.webp|*.gif) describe_image_file="$1"; shift ;;
+  esac
+fi
 # Parse discovery argument
 if [ -n "$discovery_arg" ]; then
   case "$discovery_arg" in
@@ -384,6 +399,20 @@ groups:
       - high detail
       - 4k concept art
 EOF
+fi
+
+# Validate YAML syntax before proceeding
+if ! python3 - "$config_file" <<'PY' 2>/dev/null; then
+import sys, yaml
+try:
+    with open(sys.argv[1]) as f:
+        yaml.safe_load(f)
+except Exception:
+    sys.exit(1)
+PY
+then
+  echo "❌ Invalid config.yml format. Please check YAML syntax or run yamllint." >&2
+  cleanup_and_exit 1
 fi
 
 # Ensure the selected generation group exists with default settings
@@ -530,6 +559,18 @@ if [ -n "$pollinations_token" ] && { [ "$generation_opts" = true ] || [ -n "$dis
   echo "🔑 Using Pollinations token"
 fi
 
+# If an image is provided for description, fetch a caption prompt
+if [ -n "$describe_image_file" ]; then
+  [ -f "$describe_image_file" ] || { echo "❌ Image file not found: $describe_image_file" >&2; cleanup_and_exit 1; }
+  caption=$(curl -sL "${curl_auth[@]}" -F "file=@$describe_image_file" "https://image.pollinations.ai/prompt" || true)
+  if [ -z "$caption" ]; then
+    echo "❌ Failed to describe image" >&2
+    cleanup_and_exit 1
+  fi
+  prompt="$caption"
+  generation_opts=true
+fi
+
 # Helper to fetch values from config JSON
 cfg() {
   printf '%s' "$config_json" | jq -r --arg g "$1" "$2" 2>/dev/null
@@ -565,6 +606,8 @@ mapfile -t gen_tag_weights < <(cfg "$gen_group" '.groups[$g].tags[]? | if type==
 mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]? | if type=="string" then . else keys[0] end')
 # shellcheck disable=SC2016
 mapfile -t gen_style_weights < <(cfg "$gen_group" '.groups[$g].styles[]? | if type=="string" then 1.3 else .[keys[0]] end')
+# shellcheck disable=SC2016
+mapfile -t gen_moods < <(cfg "$gen_group" '.groups[$g].moods[]?')
 
 # Favorite group path
 # shellcheck disable=SC2016
@@ -820,7 +863,7 @@ favorite_image() {
     echo "❌ exiftool is required for -f" >&2
     return 1
   }
-  local file="$1" comment="$2" tag="$3" style="$4" model="$5" seed="$6" ts="$7" group_path="$8" group_name="$9"
+  local file="$1" comment="$2" tag="$3" style="$4" mood="$5" model="$6" seed="$7" ts="$8" group_path="$9" group_name="${10}"
   local dest_dir="$group_path"
   local log="$dest_dir/favorites.jsonl"
   mkdir -p "$dest_dir"
@@ -829,12 +872,13 @@ favorite_image() {
   cp "$file" "$dest"
   exiftool -overwrite_original -Comment="$comment" "$dest" >/dev/null
   jq -n --arg prompt "$comment" --arg tag "$tag" --arg style "$style" \
-        --arg model "$model" --arg seed "$seed" --arg ts "$ts" \
+        --arg mood "$mood" --arg model "$model" --arg seed "$seed" --arg ts "$ts" \
         --arg filename "$(basename "$dest")" \
-        '{prompt:$prompt, tag:$tag, style:$style, model:$model, seed:$seed, timestamp:$ts, filename:$filename}' >> "$log"
+        '{prompt:$prompt, tag:$tag, style:$style, mood:$mood, model:$model, seed:$seed, timestamp:$ts, filename:$filename}' >> "$log"
   echo "⭐ Added to favorites: $dest"
   append_config_item "$group_name" "tags" "$tag"
   append_config_item "$group_name" "styles" "$style"
+  [ -n "$mood" ] && append_config_item "$group_name" "moods" "$mood"
 }
 
 # Browse existing wallpapers and optionally favorite them
@@ -899,7 +943,7 @@ PY
     tag=$(printf '%s' "$sel" | cut -d'_' -f2 | sed 's/-/ /g')
     style=$(printf '%s' "$sel" | cut -d'_' -f3 | sed 's/\..*//' | sed 's/-/ /g')
     ts=$(printf '%s' "$sel" | cut -d'_' -f1)
-    favorite_image "$save_dir/$sel" "$prompt (seed: $seed)" "$tag" "$style" "unknown" "$seed" "$ts" "$dest_path" "$fav_group"
+    favorite_image "$save_dir/$sel" "$prompt (seed: $seed)" "$tag" "$style" "" "unknown" "$seed" "$ts" "$dest_path" "$fav_group"
   else
     mkdir -p "$dest_path"
     cp "$save_dir/$sel" "$dest_path/" && echo "⭐ Added to favorites: $dest_path/$sel"
@@ -979,7 +1023,7 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_grou
   style_slug=$(printf '%s' "$last_file" | cut -d'_' -f3 | sed 's/\..*//')
   last_tag=$(printf '%s' "$tag_slug" | sed 's/-/ /g')
   last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
-  favorite_image "$last_gen_path/$last_file" "$last_prompt (seed: $last_seed)" "$last_tag" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
+  favorite_image "$last_gen_path/$last_file" "$last_prompt (seed: $last_seed)" "$last_tag" "$last_style" "" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
   cleanup_and_exit 0
 fi
 
@@ -1092,6 +1136,19 @@ PY
     echo "🧠 Inspired by favorites (mode: $inspired_type)"
     [ -n "$top_tag" ] && printf '🔖 Tag: %s (weight: %s)\n' "$top_tag" "$tag_weight"
     [ -n "$top_style" ] && printf '🎨 Style: %s (weight: %s)\n' "$top_style" "$style_weight"
+    if [ "$mood_provided" = false ]; then
+      mood=$(jq -r --arg tag "$tag" --arg style "$style" --arg mode "$inspired_type" '
+        select(.mood) |
+        if $mode=="pair" then select(.tag==$tag and .style==$style)
+        elif $mode=="tag" then select(.tag==$tag)
+        elif $mode=="style" then select(.style==$style)
+        else empty end |
+        .mood' "$fav_file" 2>/dev/null | sort | uniq -c | sort -nr | head -n1 | awk '{print $2}')
+      if [ -z "$mood" ] && [ "${#gen_moods[@]}" -gt 0 ]; then
+        mood=$(printf '%s\n' "${gen_moods[@]}" | shuf -n1)
+      fi
+      [ -n "$mood" ] && echo "😌 Mood inferred: $mood"
+    fi
   fi
 fi
 
@@ -1333,7 +1390,8 @@ tag_weight=$(clamp_weight "$tag_weight")
 style_weight=$(clamp_weight "$style_weight")
 
 # Build the final prompt with tag and style weights and negative text
-prompt="(${tag}:${tag_weight}) $prompt (${style}:${style_weight}) [negative prompt: $negative_prompt]"
+base_prompt="$prompt"
+prompt="(${tag}:${tag_weight}) $base_prompt (${style}:${style_weight}) [negative prompt: $negative_prompt]"
 
 # Add weather-aware context if requested
 if [ "$weather_flag" = true ]; then
@@ -1371,6 +1429,23 @@ if [ "$weather_flag" = true ]; then
   env_text=$(printf ', %s' "${env_parts[@]}")
   env_text=${env_text#, }
   prompt="$prompt, $env_text"
+fi
+
+# Auto-retry if prompt is empty
+if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ]; then
+  if fetch_prompt; then
+    base_prompt="$prompt"
+    prompt="(${tag}:${tag_weight}) $base_prompt (${style}:${style_weight}) [negative prompt: $negative_prompt]"
+    if [ "$weather_flag" = true ]; then
+      env_text=$(printf ', %s' "${env_parts[@]}")
+      env_text=${env_text#, }
+      prompt="$prompt, $env_text"
+    fi
+  fi
+fi
+if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ]; then
+  echo "❌ Prompt could not be generated. Check your config or arguments." >&2
+  cleanup_and_exit 1
 fi
 
 # Ensure we always have a value for the generated content type
@@ -1477,7 +1552,7 @@ termux-wallpaper -f "$last_output"
 echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
 
 [ "$favorite_wall" = true ] && {
-  favorite_image "$last_output" "$prompt" "$tag" "$style" "$model" "$last_seed" "$last_timestamp" "$fav_path" "$favorite_group"
+  favorite_image "$last_output" "$prompt" "$tag" "$style" "$mood" "$model" "$last_seed" "$last_timestamp" "$fav_path" "$favorite_group"
   for t in "${discovered_tags[@]}"; do
     append_config_item "$gen_group" "tags" "$t"
   done
