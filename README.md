@@ -72,38 +72,39 @@ flower-tier account) and `turbo` due to low quality. The default image model is
 
 ### Usage
 ```bash
-wallai [-d [mode]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] \
-       [-n "text"] [-p "prompt text"] [-r] [-t theme] [-v] [-w] [-s style] [-m mood] [-u mode]
+wallai [options]
 ```
+
+General Options:
+- `-h`, `--help`         Show this help message
+- `-v`                   Enable verbose mode
+- `-g <group>`           Use or create a group config
+
+Prompt Customization:
+- `-p <prompt>`          Use custom prompt
+- `-t <tag>`             Choose tag manually
+- `-s <style>`           Choose style manually
+- `-m <mood>`            Set mood (optional, affects prompt tone)
+
+Discovery & Inspiration:
+- `-d`                   Discover new tags/styles
+- `-i [tag|style|pair]`  Use inspired mode from favorites
+
+Image Generation:
+- `-x [n]`               Generate `n` images (default 1)
+- `-f`                   Favorite the image after generation
+
+Wallpapering & History:
+- `-u <mode>`            Use previous image (`latest`, `favorites`, `random`)
+- `--use group=name`     Limit reuse to a specific group
+
+Examples:
+- `wallai.sh -t dreamcore -m surreal -x 3 -f`
+- `wallai.sh -u favorites -g sci-fi`
+- `wallai.sh -i tag -d`
 
 Environment variables:
 - `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
-
-- Flags:
-- `-d [mode]` Discover a new theme and/or style using Pollinations. Modes are `theme`, `style` or both if omitted.
-- `-f [group]` Save the wallpaper to a favorites group (defaults to `main`; when
-  combined with `-g`, it uses that group if no favorites group is given).
-- `-g [group]` Generate using themes and styles from a group.
-- `-h` Show help and exit.
-- `-i [mode]` Choose components inspired by favorites. Modes are `pair`, `tag` or `style`.
-- `-u mode` Reuse a previous wallpaper: `latest`, `random` or `favorites`.
-- `-m mood` Insert a mood tone into the generated prompt.
-- `-k token` Save your Pollinations token to the group used with `-g`. This does not change any global token setting.
-- `-l` Use the theme and style from the last generated image if either is omitted.
-- `-im` Pollinations model for image generation. Models come from the API and usually
-  include `flux`, `turbo` and `gptimage`. `flux` is used if none is provided.
-  The `gptimage` model requires a flower-tier Pollinations account; without
-  access the API returns an error. The `turbo` model tends to produce lower quality images.
-- `-pm` Pollinations model for prompt generation. Defaults to `default`.
-- `-tm` Pollinations model for theme discovery.
-- `-sm` Pollinations model for style discovery.
-- `-n` Custom negative prompt. Defaults to `blurry, low quality, deformed, disfigured, out of frame, low contrast, bad anatomy`.
-- `-p` Specify your own prompt text.
-- `-r` Pick a random model from the available list, excluding `gptimage` and `turbo`.
-- `-t` Choose a theme.
-- `-v` Enable verbose output for API requests and responses.
-- `-w` Append current weather, time, season and holiday to the prompt.
-- `-s` Select a visual style. If omitted, one is picked at random.
 
 Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
 automatically with a `main` group on first run. Each group can specify
