@@ -660,7 +660,15 @@ if os.path.exists(cfg):
 grp = data.setdefault('groups', {}).setdefault(group, {})
 lst = grp.setdefault(list_name, [])
 item_lower = item.lower()
-if item_lower not in [i.lower() for i in lst]:
+
+def norm(x):
+    if isinstance(x, str):
+        return x.lower()
+    if isinstance(x, dict) and x:
+        return next(iter(x)).lower()
+    return str(x).lower()
+
+if item_lower not in [norm(i) for i in lst]:
     lst.append(item)
     with open(cfg, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False)

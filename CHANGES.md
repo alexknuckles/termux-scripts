@@ -121,3 +121,4 @@
   and can caption shared images via `--describe-image` or a single image argument.
 
 - Fixed unbound variable check for discovered tag/style arrays in wallai.
+- Fixed crash when adding favorites when the config contained weighted tags or styles.
