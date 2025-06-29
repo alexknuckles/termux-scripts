@@ -328,6 +328,23 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
 done
 shift $((OPTIND - 1))
 
+# Extract weights from tag or style arguments if provided as name:weight
+if [ "$tag_provided" = true ] && [[ "$tag" == *:* ]]; then
+  weight_part="${tag##*:}"
+  if printf '%s' "$weight_part" | grep -Eq '^[0-9]+(\.[0-9]+)?$'; then
+    tag="${tag%:*}"
+    tag_weight="$weight_part"
+  fi
+fi
+
+if [ "$style_provided" = true ] && [[ "$style" == *:* ]]; then
+  weight_part="${style##*:}"
+  if printf '%s' "$weight_part" | grep -Eq '^[0-9]+(\.[0-9]+)?$'; then
+    style="${style%:*}"
+    style_weight="$weight_part"
+  fi
+fi
+
 # Image argument handling
 if [ -z "$describe_image_file" ] && [ $# -eq 1 ] && [ -f "$1" ]; then
   case "$1" in
