@@ -116,3 +116,5 @@
 - wallai adds mood prompts (-m), improved inspiration modes with weighted pairs, and a -u flag to reuse wallpapers.
 - wallai now supports weighted tags/styles in config and batch generation with `-x [count]`.
 - Unified cleanup with interrupt trap and grouped help output with examples.
+- wallai infers mood in inspired mode, validates YAML on load, retries empty prompts,
+  and can caption shared images via `--describe-image` or a single image argument.
