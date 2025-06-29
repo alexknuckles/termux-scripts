@@ -1342,7 +1342,7 @@ if [ -z "$prompt" ]; then
       tag=$(printf '%s\n' "${tags[@]}" | shuf -n1)
     fi
   fi
-  if [ -z "$discovered_tag" ]; then
+  if [ "${#discovered_tags[@]}" -eq 0 ]; then
     echo "🔖 Selected tag: $tag"
   fi
 
@@ -1374,7 +1374,7 @@ if [ -z "$style" ]; then
     style=$(printf '%s\n' "${styles[@]}" | shuf -n1)
   fi
 fi
-if [ -z "$discovered_style" ]; then
+if [ "${#discovered_styles[@]}" -eq 0 ]; then
   echo "🖌 Selected style: $style"
 fi
 

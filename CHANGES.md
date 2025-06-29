@@ -119,3 +119,5 @@
 - Unified cleanup with interrupt trap and grouped help output with examples.
 - wallai infers mood in inspired mode, validates YAML on load, retries empty prompts,
   and can caption shared images via `--describe-image` or a single image argument.
+
+- Fixed unbound variable check for discovered tag/style arrays in wallai.
