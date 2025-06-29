@@ -1,6 +1,18 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
+cleanup_and_exit() {
+  local code="${1:-0}"
+  rm -f "$TMPFILE" "$TMPJSON" 2>/dev/null || true
+  exit "$code"
+}
+
+trap 'cleanup_and_exit 1' INT TERM
+
+TMPFILE=""
+TMPJSON=""
+reuse_group=""
+
 # wallai.sh - generate a wallpaper using Pollinations
 #
 # Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
@@ -36,44 +48,48 @@ set -euo pipefail
 # TAG: wallpaper
 # TAG: ai
 
+
 show_help() {
-  cat <<'EOF'
-Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h]
-                 [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model]
-                 [-sm model] [-n "text"] [-p "prompt text"] [-r] [-t tag]
-                 [-v] [-w] [-s style] [-m mood] [-u mode]
+  local bold normal
+  bold=$(tput bold 2>/dev/null || printf '')
+  normal=$(tput sgr0 2>/dev/null || printf '')
+  cat <<END
+Usage: wallai.sh [options]
 
-  -b [group]  browse generated wallpapers and optionally favorite one to the group
-  -d [mode]   discover a new tag/style (mode: tag, style or both)
-  -f [group]  mark the generated wallpaper as a favorite in the optional group
-               (defaults to the -g group)
-  -x [count] force image generation after discovery (generate count images)
-  -g [group]  generate using config from the specified group
-  -h          show this help message
-  -i [mode]   pick components inspired by favorites (mode: pair, tag or style)
-  -k token    save Pollinations API token to the group used with -g (default main)
-  -l          use the tag/style from the last image if not provided
-  -im model   Pollinations model for image generation (default "flux")
-  -pm model   Pollinations model for prompt generation (default "default")
-  -tm model   Pollinations model for tag discovery
-  -sm model   Pollinations model for style discovery
-  -n text     custom negative prompt
-  -p text     custom prompt text
-  -r          select a random model from the available list
-  -t tag    choose a tag
-  -v          verbose output for troubleshooting
-  -w          add weather, time and holiday context to the prompt
-  -s style    pick a visual style or use a random one
-  -m mood     specify a mood tone for the prompt
-  -u mode     reuse a previous wallpaper (latest, random or favorites)
-EOF
+${bold}General Options:${normal}
+  -h, --help         Show this help message
+  -v                 Enable verbose mode
+  -g <group>         Use or create a group config
+
+${bold}Prompt Customization:${normal}
+  -p <prompt>        Use custom prompt
+  -t <tag>           Choose tag manually
+  -s <style>         Choose style manually
+  -m <mood>          Set mood (optional, affects prompt tone)
+
+${bold}Discovery & Inspiration:${normal}
+  -d                 Discover new tags/styles
+  -i [tag|style|pair] Use inspired mode from favorites
+
+${bold}Image Generation:${normal}
+  -x [n]             Generate (n) images, default 1
+  -f                 Favorite the image after generation
+
+${bold}Wallpapering & History:${normal}
+  -u <mode>          Use previous image (latest, favorites, random)
+  --use group=name   Limit reuse to a specific group
+
+Examples:
+  wallai.sh -t dreamcore -m surreal -x 3 -f
+  wallai.sh -u favorites -g sci-fi
+  wallai.sh -i tag -d
+END
 }
-
 # Check dependencies early so the script fails with a clear message
 for cmd in curl jq termux-wallpaper; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "❌ Required command '$cmd' is not installed" >&2
-    exit 1
+    cleanup_and_exit 1
   fi
 done
 
@@ -129,28 +145,41 @@ args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -im)
-      [ $# -ge 2 ] || { echo "Missing argument for -im" >&2; exit 1; }
+      [ $# -ge 2 ] || { echo "Missing argument for -im" >&2; cleanup_and_exit 1; }
       model="$2"
       generation_opts=true
       shift 2
       ;;
     -pm)
-      [ $# -ge 2 ] || { echo "Missing argument for -pm" >&2; exit 1; }
+      [ $# -ge 2 ] || { echo "Missing argument for -pm" >&2; cleanup_and_exit 1; }
       prompt_model_override="$2"
       generation_opts=true
       shift 2
       ;;
     -tm)
-      [ $# -ge 2 ] || { echo "Missing argument for -tm" >&2; exit 1; }
+      [ $# -ge 2 ] || { echo "Missing argument for -tm" >&2; cleanup_and_exit 1; }
       tag_model_override="$2"
       generation_opts=true
       shift 2
       ;;
     -sm)
-      [ $# -ge 2 ] || { echo "Missing argument for -sm" >&2; exit 1; }
+      [ $# -ge 2 ] || { echo "Missing argument for -sm" >&2; cleanup_and_exit 1; }
       style_model_override="$2"
       generation_opts=true
       shift 2
+      ;;
+    --use)
+      [ $# -ge 2 ] || { echo "Missing argument for --use" >&2; cleanup_and_exit 1; }
+      case "$2" in
+        group=*)
+          reuse_group="${2#group=}"
+          shift 2
+          ;;
+        *)
+          echo "Invalid argument for --use" >&2
+          cleanup_and_exit 1
+          ;;
+      esac
       ;;
     *)
       args+=("$1")
@@ -251,7 +280,7 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
       ;;
     h)
       show_help
-      exit 0
+      cleanup_and_exit 0
       ;;
     :)
       case "$OPTARG" in
@@ -279,13 +308,13 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
         ;;
       *)
           echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
-          exit 1
+          cleanup_and_exit 1
           ;;
       esac
       ;;
     *)
       echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
-      exit 1
+      cleanup_and_exit 1
       ;;
   esac
 done
@@ -734,7 +763,7 @@ if [ "$use_last" = true ]; then
   last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
     echo "❌ No wallpaper has been generated yet" >&2
-    exit 1
+    cleanup_and_exit 1
   fi
   fields=$(printf '%s' "$last_entry" | awk -F'|' '{print NF}')
   if [ "$fields" -ge 7 ]; then
@@ -880,7 +909,7 @@ PY
 # Open gallery if requested
 if [ "$browse_gallery" = true ]; then
   browse_gallery "$browse_group"
-  exit 0
+  cleanup_and_exit 0
 fi
 
 # Spinner that cycles through emojis while a command runs
@@ -928,7 +957,7 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_grou
   last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
     echo "❌ No wallpaper has been generated yet" >&2
-    exit 1
+    cleanup_and_exit 1
   fi
   fields=$(printf '%s' "$last_entry" | awk -F'|' '{print NF}')
   if [ "$fields" -ge 7 ]; then
@@ -951,35 +980,40 @@ if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_grou
   last_tag=$(printf '%s' "$tag_slug" | sed 's/-/ /g')
   last_style=$(printf '%s' "$style_slug" | sed 's/-/ /g')
   favorite_image "$last_gen_path/$last_file" "$last_prompt (seed: $last_seed)" "$last_tag" "$last_style" "unknown" "$last_seed" "$ts" "$fav_path" "$favorite_group"
-  exit 0
+  cleanup_and_exit 0
 fi
 
 # Reuse a previous wallpaper and exit early
 if [ -n "$reuse_mode" ]; then
   case "$reuse_mode" in
     latest|random|favorites) ;;
-    *) echo "Invalid reuse mode: $reuse_mode" >&2; exit 1 ;;
+    *) echo "Invalid reuse mode: $reuse_mode" >&2; cleanup_and_exit 1 ;;
   esac
   file=""
   source_desc="$reuse_mode"
+  target_group="$gen_group"
+  [ -n "$reuse_group" ] && target_group="$reuse_group"
   if [ "$reuse_mode" = "favorites" ]; then
-    file=$(find "$gen_fav_path" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' \) 2>/dev/null | shuf -n1)
-    [ -n "$file" ] || { echo "❌ No favorites found" >&2; exit 1; }
+    fav_path=$(cfg "$target_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
+    [ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$target_group"
+    fav_path=$(eval printf '%s' "$fav_path")
+    file=$(find "$fav_path" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' \) 2>/dev/null | shuf -n1)
+    [ -n "$file" ] || { echo "❌ No favorites found" >&2; cleanup_and_exit 1; }
   else
     if [ "$reuse_mode" = "latest" ]; then
-      if [ "$gen_group" = "main" ]; then
+      if [ "$target_group" = "main" ]; then
         entry=$(tail -n1 "$main_log" 2>/dev/null || true)
       else
-        entry=$(grep "^$gen_group|" "$main_log" | tail -n1)
+        entry=$(grep "^$target_group|" "$main_log" | tail -n1)
       fi
     else
-      if [ "$gen_group" = "main" ]; then
+      if [ "$target_group" = "main" ]; then
         entry=$(shuf -n1 "$main_log" 2>/dev/null || true)
       else
-        entry=$(grep "^$gen_group|" "$main_log" | shuf -n1)
+        entry=$(grep "^$target_group|" "$main_log" | shuf -n1)
       fi
     fi
-    [ -n "$entry" ] || { echo "❌ No wallpaper found" >&2; exit 1; }
+    [ -n "$entry" ] || { echo "❌ No wallpaper found" >&2; cleanup_and_exit 1; }
     fields=$(printf '%s' "$entry" | awk -F'|' '{print NF}')
     if [ "$fields" -ge 7 ]; then
       group=$(printf '%s' "$entry" | cut -d'|' -f1)
@@ -994,8 +1028,8 @@ if [ -n "$reuse_mode" ]; then
     file="$path/$fname"
   fi
   termux-wallpaper -f "$file"
-  echo "🎉 Reused wallpaper: $(basename "$file") (source: $source_desc, group: $gen_group)"
-  exit 0
+  echo "🎉 Reused wallpaper: $(basename "$file") (source: $source_desc, group: $target_group)"
+  cleanup_and_exit 0
 fi
 
 # Inspired mode selects tag and style based on past favorites
@@ -1110,7 +1144,7 @@ if [ -n "$discovery_mode" ]; then
   if [ "$force_generate" != true ]; then
     echo "✅ Discovery complete. No image generated (use -x to generate)"
     rm -rf "$tmpd"
-    exit 0
+    cleanup_and_exit 0
   fi
   rm -rf "$tmpd"
 fi
@@ -1137,7 +1171,7 @@ if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
   if [ -z "$style" ] && [ "${#gen_styles[@]}" -gt 0 ]; then
     style=$(printf '%s\n' "${gen_styles[@]}" | shuf -n1)
   fi
-  { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; exit 1; }
+  { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; cleanup_and_exit 1; }
 fi
 # Validate selected model using the API list
 models_json=$(curl -sL "${curl_auth[@]}" "https://image.pollinations.ai/models" || true)
@@ -1153,7 +1187,7 @@ fi
 if ! printf '%s\n' "${models[@]}" | grep -qxF "$model"; then
   echo "Invalid model: $model" >&2
   echo "Valid models: ${models[*]}" >&2
-  exit 1
+  cleanup_and_exit 1
 fi
 
 # wallai.sh - generate a wallpaper using Pollinations
@@ -1192,6 +1226,7 @@ save_dir="$gen_gen_path"
 mkdir -p "$save_dir"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 tmp_output="$save_dir/${timestamp}.img"
+TMPFILE="$tmp_output"
 
 
 # Whether to allow NSFW prompts and generations
@@ -1379,8 +1414,10 @@ for ((i=1;i<=batch_count;i++)); do
   [ "$allow_nsfw" = false ] && params="safe=true&${params}"
   timestamp="$(date +%Y%m%d-%H%M%S)"
   tmp_output="$save_dir/${timestamp}.img"
+  TMPFILE="$tmp_output"
 
   ctype_file=$(mktemp)
+  TMPJSON="$ctype_file"
   generate_pollinations "$tmp_output" "$ctype_file" &
   gen_pid=$!
   spinner "$gen_pid" "Generating image" &
@@ -1391,7 +1428,7 @@ for ((i=1;i<=batch_count;i++)); do
   printf '\n'
   if [ "$status" -ne 0 ]; then
     echo "❌ Failed to generate image via Pollinations" >&2
-    exit 1
+    cleanup_and_exit 1
   fi
   generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
   file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
@@ -1399,7 +1436,7 @@ for ((i=1;i<=batch_count;i++)); do
   if ! printf '%s' "$generated_content_type" | grep -qi '^image/' || \
      ! printf '%s' "$file_type" | grep -qi '^image/'; then
     echo "❌ Invalid image file!" >&2
-    exit 1
+    cleanup_and_exit 1
   fi
   echo "✅ Image generated successfully"
   img_source="Pollinations"
@@ -1423,6 +1460,8 @@ for ((i=1;i<=batch_count;i++)); do
   filename="${timestamp}_${tag_slug}_${style_slug}.${ext}"
   output="$save_dir/$filename"
   mv "$tmp_output" "$output"
+  TMPFILE=""
+  TMPJSON=""
   echo "💾 Saved to: $output"
 
   entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$tag_seed|$style_seed"
@@ -1447,4 +1486,4 @@ echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
   done
 }
 
-exit 0
+cleanup_and_exit 0

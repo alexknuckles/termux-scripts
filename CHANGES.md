@@ -115,3 +115,4 @@
   generating image message prints on a single line.
 - wallai adds mood prompts (-m), improved inspiration modes with weighted pairs, and a -u flag to reuse wallpapers.
 - wallai now supports weighted tags/styles in config and batch generation with `-x [count]`.
+- Unified cleanup with interrupt trap and grouped help output with examples.
