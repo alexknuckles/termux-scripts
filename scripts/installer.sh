@@ -17,28 +17,18 @@ VERSION="$DEFAULT_VERSION"
 INSTALL_DIR="$HOME/bin/termux-scripts"
 VERSION_FILE="$INSTALL_DIR/.version"
 
-safe_copy() {
+copy_newer() {
   local src="$1" dest="$2"
-  if [ "$src" -ef "$dest" ]; then
-    # Destination is a symlink or hard link to the source; replace it with
-    # an independent copy so future edits don't modify the repo version.
-    echo "Replacing symlinked $dest with a fresh copy of $src" >&2
+  if [ -e "$dest" ] && [ "$src" -ef "$dest" ]; then
+    echo "Replacing link $dest with new copy of $src" >&2
     rm -f "$dest"
   fi
-  if [ -f "$dest" ]; then
-    mapfile -t extra < <(grep -Fvx -f "$src" "$dest" || true)
-    if [ "${#extra[@]}" -gt 0 ]; then
-      echo "Lines in $dest not present in $src:" >&2
-      printf '  %s\n' "${extra[@]}" >&2
-      read -r -p "Replace file or append these lines? [r/a] " ans
-      if [[ $ans =~ ^[Aa]$ ]]; then
-        cp -f "$src" "$dest"
-        printf '%s\n' "${extra[@]}" >> "$dest"
-        return
-      fi
-    fi
+  if [ ! -e "$dest" ] || [ "$src" -nt "$dest" ]; then
+    cp -f "$src" "$dest"
+    echo "Copied $src -> $dest" >&2
+  else
+    echo "$dest is up to date" >&2
   fi
-  cp -f "$src" "$dest"
 }
 
 remote=0
@@ -60,8 +50,6 @@ done
 shift $((OPTIND - 1))
 
 if [ "$uninstall" -eq 1 ]; then
-  rm -f "$PREFIX/bin/wallai" "$PREFIX/bin/githelper" \
-        "$HOME/bin/wallai" "$HOME/bin/githelper"
   rm -rf "$INSTALL_DIR"
   rm -f "$VERSION_FILE"
   rm -f "$HOME/.aliases.d/$(basename "$ALIASES_FILE")"
@@ -117,16 +105,19 @@ fi
 
 TARGET_BIN="$INSTALL_DIR"
 mkdir -p "$TARGET_BIN"
-safe_copy "$SCRIPTS_DIR/wallai.sh" "$TARGET_BIN/wallai"
-safe_copy "$SCRIPTS_DIR/githelper.sh" "$TARGET_BIN/githelper"
-
-chmod 755 "$TARGET_BIN/wallai" "$TARGET_BIN/githelper"
+for script in "$SCRIPTS_DIR"/*.sh; do
+  [ -f "$script" ] || continue
+  name="$(basename "$script" .sh)"
+  dest="$TARGET_BIN/$name"
+  copy_newer "$script" "$dest"
+  chmod 755 "$dest"
+done
 
 if [ -f "$ALIASES_FILE" ]; then
   dest_dir="$HOME/.aliases.d"
   mkdir -p "$dest_dir"
   alias_target="$dest_dir/$(basename "$ALIASES_FILE")"
-  safe_copy "$ALIASES_FILE" "$alias_target"
+  copy_newer "$ALIASES_FILE" "$alias_target"
 
   shell_rc=""
   for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
@@ -169,11 +160,10 @@ if [ -d "$SHORTCUTS_DIR" ]; then
   for sc in "$SHORTCUTS_DIR"/*.sh; do
     [ -f "$sc" ] || continue
     target="$dest/$(basename "$sc")"
-    safe_copy "$sc" "$target"
+    copy_newer "$sc" "$target"
     chmod 755 "$target"
   done
 fi
 
-echo "Installed wallai to $TARGET_BIN/wallai"
-echo "Installed githelper to $TARGET_BIN/githelper"
+echo "Scripts installed to $TARGET_BIN"
 echo "$VERSION" > "$VERSION_FILE"

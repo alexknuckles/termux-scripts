@@ -122,3 +122,4 @@
 
 - Fixed unbound variable check for discovered tag/style arrays in wallai.
 - Fixed crash when adding favorites when the config contained weighted tags or styles.
+- Installer copies all scripts, aliases and shortcuts and overwrites older files with a message.
