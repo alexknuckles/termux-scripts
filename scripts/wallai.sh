@@ -16,7 +16,7 @@ TMPFILE=""
 TMPJSON=""
 reuse_group=""
 
-# wallai.sh - generate a wallpaper using Pollinations
+# wallai.sh - generate a wallpaper using OpenAI-compatible APIs
 #
 # Usage: wallai.sh [-b [group]] [-d [mode]] [-f [group]] [-g [group]] [-h] \
 #                  [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] \
@@ -33,10 +33,10 @@ reuse_group=""
 #   -u  reuse a previous wallpaper: latest, random or favorites
 #   -m  specify a mood tone for the prompt
 #   -l  use the tag/style from the last image if not provided
-#   -im model  Pollinations model for image generation (default "flux")
-#   -pm model  Pollinations model for prompt generation (default "default")
-#   -tm model  Pollinations model for tag discovery
-#   -sm model  Pollinations model for style discovery
+#   -im model  Image model to use
+#   -pm model  Text model for prompt generation
+#   -tm model  Text model for tag discovery
+#   -sm model  Text model for style discovery
 #   -n  custom negative prompt
 #   -p  custom prompt text
 #   -r  select a random model from the available list
@@ -395,24 +395,45 @@ config_dir="$(dirname "$config_file")"
 if [ ! -f "$config_file" ]; then
   mkdir -p "$config_dir"
   cat >"$config_file" <<'EOF'
+api_providers:
+  pollinations:
+    text_base: "https://text.pollinations.ai/openai/v1"
+    image_base: "https://image.pollinations.ai"
+    api_key: ""
+    models:
+      text: ["gpt-4", "qwen:7b", "deepseek:coder"]
+      image: ["flux"]
+  openai:
+    base: "https://api.openai.com/v1"
+    api_key: ""
+    models:
+      text: ["gpt-4", "gpt-3.5-turbo"]
+      image: ["dall-e-3"]
+  openrouter:
+    base: "https://openrouter.ai/api/v1"
+    api_key: ""
+    models:
+      text: ["anthropic/claude-3-haiku", "mistralai/mistral-7b-instruct"]
+      image: []
+defaults:
+  provider: "pollinations"
+  models:
+    text: "gpt-4"
+    image: "flux"
 groups:
   main:
-    pollinations_token: ""
+    provider_token: ""
     image_model: flux
     prompt_model:
-      base: mistral
-      tag_model: mistral
-      style_model: mistral
+      base: gpt-4
+      tag_model: gpt-4
+      style_model: gpt-4
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
     allow_prompt_fetch: true
     free_models:
       - flux
-      - turbo
-      - playground
-      - dreamshaper
-      - deliberate
     tags:
       - dreamcore
       - mystical forest
@@ -461,6 +482,18 @@ PY
   echo "$config_mtime" > "$config_cache"
 fi
 
+# Load provider defaults for new groups
+config_json=$(CFG="$config_file" python3 - <<'PY'
+import os,sys,json
+import yaml
+with open(os.environ['CFG']) as f:
+    data = yaml.safe_load(f) or {}
+json.dump(data, sys.stdout)
+PY
+)
+default_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.text')
+default_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.image')
+
 # Ensure the selected generation group exists with default settings
 ensure_group() {
   local group="$1"
@@ -480,7 +513,7 @@ def def_env(key, default=None):
     return val if val else default
 
 defaults = {
-    'pollinations_token': '',
+    'provider_token': '',
     'image_model': def_env('DEF_IMAGE_MODEL', 'flux'),
     'prompt_model': {
         'base': def_env('DEF_PROMPT_MODEL', 'mistral'),
@@ -491,7 +524,7 @@ defaults = {
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
     'allow_prompt_fetch': True,
     'nsfw': False if group == 'main' else True,
-    'free_models': ['flux', 'turbo', 'playground', 'dreamshaper', 'deliberate'],
+    'free_models': ['flux'],
     'tags': [def_env('DEF_TAG')] if new and def_env('DEF_TAG') else [
         'dreamcore', 'mystical forest', 'cosmic horror',
         'ethereal landscape', 'retrofuturism', 'alien architecture',
@@ -523,10 +556,10 @@ print('1' if new else '0')
 PY
 }
 
-DEF_IMAGE_MODEL="${model:-}"
-DEF_PROMPT_MODEL="${prompt_model_override:-}"
-DEF_TAG_MODEL="${tag_model_override:-}"
-DEF_STYLE_MODEL="${style_model_override:-}"
+DEF_IMAGE_MODEL="${model:-$default_image_model}"
+DEF_PROMPT_MODEL="${prompt_model_override:-$default_text_model}"
+DEF_TAG_MODEL="${tag_model_override:-$default_text_model}"
+DEF_STYLE_MODEL="${style_model_override:-$default_text_model}"
 [ "$tag_provided" = true ] && DEF_TAG="$tag" || DEF_TAG=""
 [ "$style_provided" = true ] && DEF_STYLE="$style" || DEF_STYLE=""
 DEF_IMAGE_MODEL="$DEF_IMAGE_MODEL" \
@@ -582,13 +615,41 @@ else
   config_json=$(cat "$config_json_cache")
 fi
 
-# Pollinations token from config for the current generation group
-pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // ""')
+# Global API provider defaults
+provider=$(printf '%s' "$config_json" | jq -r '.defaults.provider')
+text_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].text_base // .api_providers[$p].base // empty')
+image_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].image_base // .api_providers[$p].base // empty')
+api_key=$(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].api_key // empty')
+openai_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.text')
+openai_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.image')
+
+mapfile -t provider_text_models < <(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].models.text[]?')
+mapfile -t provider_image_models < <(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].models.image[]?')
+
+valid_text=false
+valid_image=false
+if printf '%s' "$config_json" | jq -e --arg p "$provider" --arg m "$openai_text_model" '.api_providers[$p].models.text | index($m)' >/dev/null; then
+  valid_text=true
+fi
+if printf '%s' "$config_json" | jq -e --arg p "$provider" --arg m "$openai_image_model" '.api_providers[$p].models.image | index($m)' >/dev/null; then
+  valid_image=true
+fi
+
+if [ -z "$text_api_base" ] || [ -z "$image_api_base" ] || [ "$valid_text" = false ] || [ "$valid_image" = false ]; then
+  echo "❌ Invalid provider or default models in config" >&2
+  cleanup_and_exit 1
+fi
+
+auth_header=()
+[ -n "$api_key" ] && auth_header=(-H "Authorization: Bearer $api_key")
+
+# Optional provider token for the current group
+provider_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].provider_token // ""')
 
 # Update token in config if -k was provided
 if [ -n "$new_token" ]; then
-  pollinations_token="$new_token"
-  python3 - "$config_file" "$gen_group" "$pollinations_token" <<'PY'
+  provider_token="$new_token"
+  python3 - "$config_file" "$gen_group" "$provider_token" <<'PY'
 import sys, yaml, os
 cfg, group, token = sys.argv[1:]
 data = {}
@@ -596,27 +657,31 @@ if os.path.exists(cfg):
     with open(cfg) as f:
         data = yaml.safe_load(f) or {}
 grp = data.setdefault('groups', {}).setdefault(group, {})
-grp['pollinations_token'] = token
+grp['provider_token'] = token
 with open(cfg, 'w') as f:
     yaml.safe_dump(data, f, sort_keys=False)
 PY
-  config_json=$(printf '%s' "$config_json" | jq --arg g "$gen_group" --arg t "$pollinations_token" '
+  config_json=$(printf '%s' "$config_json" | jq --arg g "$gen_group" --arg t "$provider_token" '
     (.groups[$g] //= {}) |
-    .groups[$g].pollinations_token=$t
+    .groups[$g].provider_token=$t
   ')
 fi
 
-# Use Pollinations token only if available for the current generation group
-curl_auth=()
-if [ -n "$pollinations_token" ]; then
-  curl_auth=(-H "Authorization: Bearer $pollinations_token")
-  echo "🔑 Using Pollinations token for group: $gen_group"
+# Use provider token only if available for the current group
+curl_auth=("${auth_header[@]}")
+if [ -n "$provider_token" ]; then
+  curl_auth+=(-H "Authorization: Bearer $provider_token")
+  echo "🔑 Using provider token for group: $gen_group"
 fi
 
 # If an image is provided for description, fetch a caption prompt
 if [ -n "$describe_image_file" ]; then
   [ -f "$describe_image_file" ] || { echo "❌ Image file not found: $describe_image_file" >&2; cleanup_and_exit 1; }
-  caption=$(curl -sL "${curl_auth[@]}" -F "file=@$describe_image_file" "https://image.pollinations.ai/prompt" || true)
+  mime_type=$(file -b --mime-type "$describe_image_file" 2>/dev/null || echo "image/png")
+  img_b64=$(base64 -w0 "$describe_image_file" 2>/dev/null)
+  data_url="data:${mime_type};base64,${img_b64}"
+  payload=$(jq -n --arg model "$openai_text_model" --arg url "$data_url" '{model:$model,messages:[{role:"user",content:[{type:"text",content:"Describe this image in a short wallpaper prompt"},{type:"image_url",image_url:{url:$url}}]}]}')
+  caption=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
   if [ -z "$caption" ]; then
     echo "❌ Failed to describe image" >&2
     cleanup_and_exit 1
@@ -648,7 +713,7 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
     style_model: ($grp.prompt_model.style_model // $grp.style_model // ""),
     image_model: ($grp.image_model // "flux"),
     allow_prompt_fetch: ($grp.allow_prompt_fetch // true),
-    free_models: [$grp.free_models[]? // "flux", "turbo", "playground", "dreamshaper", "deliberate"],
+    free_models: [$grp.free_models[]? // "flux"],
     tags: [$grp.tags[]? | if type=="string" then . else keys[0] end],
     tag_weights: [$grp.tags[]? | if type=="string" then 1.5 else .[keys[0]] end],
     styles: [$grp.styles[]? | if type=="string" then . else keys[0] end],
@@ -691,7 +756,7 @@ fi
 insp_path="$gen_fav_path"
 
 # Apply config defaults if flags were not provided
-[ -z "$model" ] && model="$gen_image_model"
+[ -z "$model" ] && model="${gen_image_model:-$openai_image_model}"
 [ -n "$prompt_model_override" ] && gen_prompt_model="$prompt_model_override"
 tag_model="${tag_model_override:-${gen_tag_model:-$gen_prompt_model}}"
 style_model="${style_model_override:-${gen_style_model:-$gen_prompt_model}}"
@@ -747,7 +812,7 @@ PY
 [ "$style_provided" = true ] && append_config_item "$gen_group" "styles" "$style"
 [ "$mood_provided" = true ] && append_config_item "$gen_group" "moods" "$mood"
 
-# Discover new tag or style via Pollinations
+# Discover new tag or style via API
 discover_item() {
   local kind="$1" count="${2:-1}" query result dseed m url item lower_item exists list
   if [ "$gen_allow_prompt_fetch" != true ]; then
@@ -790,20 +855,9 @@ discover_item() {
         ;;
     esac
   fi
-  encoded=$(printf '%s' "$query" | jq -sRr @uri)
-  dseed=$(random_seed)
-  m="$gen_prompt_model"
-  case "$kind" in
-    tag) m="$tag_model" ;;
-    style) m="$style_model" ;;
-  esac
-  url="https://text.pollinations.ai/prompt/${encoded}?seed=${dseed}&model=${m}"
-  case "$kind" in
-    tag) tag_seed="$dseed" ;;
-    style) style_seed="$dseed" ;;
-  esac
-  [ "$verbose" = true ] && echo "🔍 Pollinations URL: $url" >&2
-  result=$(curl -sL "${curl_auth[@]}" "$url" || true)
+  payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
+  [ "$verbose" = true ] && echo "🔍 Discover via $provider" >&2
+  result=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
   [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   if [ "$count" -gt 1 ]; then
@@ -1335,39 +1389,21 @@ if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
   fi
   { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; cleanup_and_exit 1; }
 fi
-# Cache model list to avoid repeated API calls
-models_cache="$config_dir/.models_cache"
-models_cache_age=3600  # 1 hour
-models_cache_valid=false
-
-if [ -f "$models_cache" ]; then
-  cache_age=$(($(date +%s) - $(stat -c %Y "$models_cache" 2>/dev/null || echo 0)))
-  [ "$cache_age" -lt "$models_cache_age" ] && models_cache_valid=true
-fi
-
-if [ "$models_cache_valid" = true ]; then
-  mapfile -t models < "$models_cache"
-else
-  models_json=$(curl -sL "${curl_auth[@]}" "https://image.pollinations.ai/models" || true)
-  if mapfile -t models < <(printf '%s' "$models_json" | jq -r '.[]' 2>/dev/null); then
-    printf '%s\n' "${models[@]}" > "$models_cache"
-  else
-    models=(flux turbo gptimage)
-    printf '%s\n' "${models[@]}" > "$models_cache"
-  fi
-fi
+# Select image models from provider config
+models=("${provider_image_models[@]}")
 if [ "$random_model" = true ]; then
-  # Use only free models from config, filtered against available models
   candidates=()
   for free_model in "${gen_free_models[@]}"; do
     if printf '%s\n' "${models[@]}" | grep -qxF "$free_model"; then
       candidates+=("$free_model")
     fi
   done
-  # Fallback to flux if no free models are available
-  [ "${#candidates[@]}" -gt 0 ] || candidates=(flux)
+  [ "${#candidates[@]}" -gt 0 ] || candidates=("${models[0]}")
   model=$(printf '%s\n' "${candidates[@]}" | shuf -n1)
-  echo "🎲 Randomly selected free model: $model"
+  echo "🎲 Randomly selected model: $model"
+fi
+if [ -z "$model" ]; then
+  model="$openai_image_model"
 fi
 if ! printf '%s\n' "${models[@]}" | grep -qxF "$model"; then
   echo "Invalid model: $model" >&2
@@ -1375,7 +1411,7 @@ if ! printf '%s\n' "${models[@]}" | grep -qxF "$model"; then
   cleanup_and_exit 1
 fi
 
-# wallai.sh - generate a wallpaper using Pollinations
+# wallai.sh - generate a wallpaper using OpenAI-compatible APIs
 #
 # Usage: wallai.sh [-b [group]] [-p "prompt text"] [-t tag] [-s style] [-im model] [-pm model] [-tm model] [-sm model] [-r] [-f] [-x [count]]
 #                  [-g group] [-d mode] [-i group] [-k token] [-w] [-l] [-n "text"] [-v] [-h]
@@ -1385,17 +1421,17 @@ fi
 #   -p prompt text  Custom prompt text
 #   -t tag        Specify tag
 #   -s style        Pick a visual style or use a random one
-#   -im model       Pollinations model for image generation (default 'flux')
-#   -pm model       Pollinations model for prompt generation (default 'default')
-#   -tm model       Pollinations model for tag discovery
-#   -sm model       Pollinations model for style discovery
+#   -im model       Image model for generation
+#   -pm model       Text model for prompt generation
+#   -tm model       Text model for tag discovery
+#   -sm model       Text model for style discovery
 #   -r              Pick a random model from the available list
 #   -b [group]      Browse generated wallpapers and optionally favorite one
 #   -f              Mark the latest generated wallpaper as a favorite
 #   -g group        Generate using config from the specified group
 #   -d mode         Discover a new tag/style (tag, style or both)
 #   -i group        Choose tag and style inspired by favorites from the specified group (defaults to "main")
-#   -k token        Save Pollinations API token to the config
+#   -k token        Save provider token to the config
 #   -w              Add weather, time and seasonal context
 #   -l              Use tag and/or style from the last image
 #   -n text         Override the default negative prompt
@@ -1430,26 +1466,23 @@ if [ "$gen_nsfw" = true ]; then
   allow_nsfw=true
 fi
 
-params="nologo=true&enhance=true&private=true&seed=${seed}&model=${model}"
-if [ "$allow_nsfw" = false ]; then
-  params="safe=true&${params}"
-fi
+
 
 
 fetch_prompt() {
   [ "$gen_allow_prompt_fetch" != true ] && return 1
-  local encoded url query
+  local query payload response
   if [ -n "$mood" ]; then
     query="Describe a $tag wallpaper scene in a $mood mood tone in exactly 15 words. Respond with only those 15 words."
   else
     query="Describe a $tag wallpaper scene in exactly 15 words. Respond with only those 15 words."
   fi
-  encoded=$(printf '%s' "$query" | jq -sRr @uri)
   prompt_seed=$(random_seed)
-  url="https://text.pollinations.ai/prompt/${encoded}?seed=${prompt_seed}&model=${gen_prompt_model}"
-  [ "$verbose" = true ] && echo "🔍 Prompt URL: $url"
-  prompt=$(curl -sL "${curl_auth[@]}" "$url" || true)
-  [ "$verbose" = true ] && echo "🔍 Response: $prompt"
+  payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
+  [ "$verbose" = true ] && echo "🔍 Requesting prompt via $provider" >&2
+  response=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" || true)
+  prompt=$(printf '%s' "$response" | jq -r '.choices[0].message.content' 2>/dev/null)
+  [ "$verbose" = true ] && echo "🔍 Response: $prompt" >&2
   prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   prompt=$(printf '%s' "$prompt" | sed -E 's/^[Cc]reate a wallpaper of (a )?//')
   prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
@@ -1457,7 +1490,7 @@ fetch_prompt() {
 }
 
 if [ -z "$prompt" ]; then
-  echo "🎯 Fetching random prompt from Pollinations (model: $gen_prompt_model)..."
+  echo "🎯 Fetching random prompt from $provider (model: $openai_text_model)..."
 
   # 🎲 Step 1: Pick or use provided tag
   if [ -z "$tag" ]; then
@@ -1582,27 +1615,33 @@ generated_content_type=""
 echo "🎨 Final prompt: $prompt"
 echo "🛠 Using model: $model"
 
-# ✨ Step 3: Generate image via Pollinations
+# ✨ Step 3: Generate image via $provider
 
-generate_pollinations() {
-  local out_file="$1" type_file="$2"
-  local encoded headers err_msg
-  encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  headers=$(mktemp)
-  local url="https://image.pollinations.ai/prompt/${encoded}?${params}"
-  [ "$verbose" = true ] && echo "🔍 Image URL: $url"
-  if ! curl -sL "${curl_auth[@]}" -D "$headers" "$url" -o "$out_file"; then
+generate_image() {
+  local out_file="$1" type_file="$2" url
+  if [ "$provider" = "pollinations" ]; then
+    local encoded headers
+    encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
+    headers=$(mktemp)
+    local url_full="${image_api_base}/prompt/${encoded}?nologo=true&enhance=true&model=${model}&seed=${seed}"
+    [ "$allow_nsfw" = false ] && url_full="${url_full}&safe=true"
+    [ "$verbose" = true ] && echo "🔍 Image URL: $url_full" >&2
+    if ! curl -sL "${curl_auth[@]}" -D "$headers" "$url_full" -o "$out_file"; then
+      rm -f "$headers"
+      return 1
+    fi
+    file_type=$(grep -i '^content-type:' "$headers" | tr -d '\r' | awk '{print $2}')
+    printf '%s' "$file_type" >"$type_file"
     rm -f "$headers"
-    return 1
-  fi
-  generated_content_type=$(grep -i '^content-type:' "$headers" | tr -d '\r' | awk '{print $2}')
-  [ "$verbose" = true ] && echo "🔍 Content-Type: $generated_content_type"
-  printf '%s' "$generated_content_type" >"$type_file"
-  rm -f "$headers"
-  if printf '%s' "$generated_content_type" | grep -qi 'application/json'; then
-    err_msg=$(jq -r '.message // .error // "Unknown error"' <"$out_file" 2>/dev/null)
-    echo "❌ Pollinations error: $err_msg" >&2
-    return 1
+  else
+    local payload
+    payload=$(jq -n --arg model "$model" --arg prompt "$prompt" '{model:$model,prompt:$prompt}')
+    [ "$verbose" = true ] && echo "🔍 Requesting image via $provider" >&2
+    url=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$image_api_base/images/generations" | jq -r '.data[0].url' 2>/dev/null)
+    [ -n "$url" ] || return 1
+    curl -sL "$url" -o "$out_file"
+    file_type=$(file -b --mime-type "$out_file" 2>/dev/null || true)
+    printf '%s' "$file_type" >"$type_file"
   fi
 }
 
@@ -1613,15 +1652,13 @@ for ((i=1;i<=batch_count;i++)); do
   [ "$verbose" = true ] && [ "$batch_count" -gt 1 ] && \
     echo "🖼 Generating image $i of $batch_count..."
   seed=$(random_seed)
-  params="nologo=true&enhance=true&private=true&seed=${seed}&model=${model}"
-  [ "$allow_nsfw" = false ] && params="safe=true&${params}"
   timestamp="$(date +%Y%m%d-%H%M%S)"
   tmp_output="$save_dir/${timestamp}.img"
   TMPFILE="$tmp_output"
 
   ctype_file=$(mktemp)
   TMPJSON="$ctype_file"
-  generate_pollinations "$tmp_output" "$ctype_file" &
+  generate_image "$tmp_output" "$ctype_file" &
   gen_pid=$!
   spinner "$gen_pid" "Generating image" &
   spin_pid=$!
@@ -1630,7 +1667,7 @@ for ((i=1;i<=batch_count;i++)); do
   wait "$spin_pid" 2>/dev/null || true
   printf '\n'
   if [ "$status" -ne 0 ]; then
-    echo "❌ Failed to generate image via Pollinations" >&2
+    echo "❌ Failed to generate image via $provider" >&2
     cleanup_and_exit 1
   fi
   generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
@@ -1642,7 +1679,7 @@ for ((i=1;i<=batch_count;i++)); do
     cleanup_and_exit 1
   fi
   echo "✅ Image generated successfully"
-  img_source="Pollinations"
+  img_source="$provider"
 
   generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
   rm -f "$ctype_file"

@@ -237,14 +237,16 @@ new_repo() {
   else
     prompt="Create a professional README.md for a software project that includes: $file_list. Include a project description, features, and usage."
   fi
-  encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  local response
-  response=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" || true)
-  if printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
-    readme=$(printf '%s' "$response" | jq -r '.completion')
+  api_base="${OPENAI_API_BASE:-https://api.openai.com/v1}"
+  api_key="${OPENAI_API_KEY:-}"
+  payload=$(jq -n --arg model "${OPENAI_MODEL:-gpt-4}" --arg prompt "$prompt" '{model:$model,messages:[{role:"user",content:$prompt}]}')
+  if [ -n "$api_key" ]; then
+    response=$(curl -sL -H "Authorization: Bearer $api_key" -H "Content-Type: application/json" -d "$payload" "$api_base/chat/completions" || true)
   else
-    readme="$response"
+    response=$(curl -sL -H "Content-Type: application/json" -d "$payload" "$api_base/chat/completions" || true)
   fi
+  readme=$(printf '%s' "$response" | jq -r '.choices[0].message.content' 2>/dev/null)
+  [ -n "$readme" ] || readme="# $project_name"
   [ -n "$readme" ] || readme="# $project_name"
   printf '%s\n' "$readme" > README.md
 
@@ -255,13 +257,14 @@ new_repo() {
   else
     prompt="Create an agents.md inspired by the Termux Scripts agents.md for a project with these files: $file_list. Include sections for Linter, DocGen, AliasMaker, Scheduler, Optimizer, SecurityCheck, APIFallback, InputSanitizer, Installer, Tagger, Tester (optional), ChangeTracker, CI Runner, and AuditBot. Summarize each agent's goal and usage."
   fi
-  encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
-  response=$(curl -sL "https://text.pollinations.ai/prompt/${encoded}" || true)
-  if printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
-    agents=$(printf '%s' "$response" | jq -r '.completion')
+  payload=$(jq -n --arg model "${OPENAI_MODEL:-gpt-4}" --arg prompt "$prompt" '{model:$model,messages:[{role:"user",content:$prompt}]}')
+  if [ -n "$api_key" ]; then
+    response=$(curl -sL -H "Authorization: Bearer $api_key" -H "Content-Type: application/json" -d "$payload" "$api_base/chat/completions" || true)
   else
-    agents="$response"
+    response=$(curl -sL -H "Content-Type: application/json" -d "$payload" "$api_base/chat/completions" || true)
   fi
+  agents=$(printf '%s' "$response" | jq -r '.choices[0].message.content' 2>/dev/null)
+  [ -n "$agents" ] && printf '%s\n' "$agents" > agents.md
   [ -n "$agents" ] && printf '%s\n' "$agents" > agents.md
 
   local author year
