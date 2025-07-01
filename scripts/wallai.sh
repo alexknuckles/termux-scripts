@@ -575,7 +575,7 @@ else
   config_json=$(cat "$config_json_cache")
 fi
 
-# Pollinations token from config
+# Pollinations token from config for the current generation group
 pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // ""')
 
 # Update token in config if -k was provided
@@ -599,11 +599,11 @@ PY
   ')
 fi
 
-# Use Pollinations token if available in config
+# Use Pollinations token only if available for the current generation group
 curl_auth=()
 if [ -n "$pollinations_token" ]; then
   curl_auth=(-H "Authorization: Bearer $pollinations_token")
-  echo "🔑 Using Pollinations token"
+  echo "🔑 Using Pollinations token for group: $gen_group"
 fi
 
 # If an image is provided for description, fetch a caption prompt
