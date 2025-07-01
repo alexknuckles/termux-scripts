@@ -407,6 +407,12 @@ groups:
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
     allow_prompt_fetch: true
+    free_models:
+      - flux
+      - turbo
+      - playground
+      - dreamshaper
+      - deliberate
     tags:
       - dreamcore
       - mystical forest
@@ -485,6 +491,7 @@ defaults = {
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
     'allow_prompt_fetch': True,
     'nsfw': False if group == 'main' else True,
+    'free_models': ['flux', 'turbo', 'playground', 'dreamshaper', 'deliberate'],
     'tags': [def_env('DEF_TAG')] if new and def_env('DEF_TAG') else [
         'dreamcore', 'mystical forest', 'cosmic horror',
         'ethereal landscape', 'retrofuturism', 'alien architecture',
@@ -641,6 +648,7 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
     style_model: ($grp.prompt_model.style_model // $grp.style_model // ""),
     image_model: ($grp.image_model // "flux"),
     allow_prompt_fetch: ($grp.allow_prompt_fetch // true),
+    free_models: [$grp.free_models[]? // "flux", "turbo", "playground", "dreamshaper", "deliberate"],
     tags: [$grp.tags[]? | if type=="string" then . else keys[0] end],
     tag_weights: [$grp.tags[]? | if type=="string" then 1.5 else .[keys[0]] end],
     styles: [$grp.styles[]? | if type=="string" then . else keys[0] end],
@@ -669,6 +677,7 @@ mapfile -t gen_tag_weights < <(printf '%s' "$group_config" | jq -r '.tag_weights
 mapfile -t gen_styles < <(printf '%s' "$group_config" | jq -r '.styles[]?')
 mapfile -t gen_style_weights < <(printf '%s' "$group_config" | jq -r '.style_weights[]?')
 mapfile -t gen_moods < <(printf '%s' "$group_config" | jq -r '.moods[]?')
+mapfile -t gen_free_models < <(printf '%s' "$group_config" | jq -r '.free_models[]?')
 
 # Batch fetch favorite and inspired paths
 if [ "$favorite_group" != "$gen_group" ]; then
@@ -1348,10 +1357,17 @@ else
   fi
 fi
 if [ "$random_model" = true ]; then
-  # Exclude models that require paid tiers or produce low quality
-  mapfile -t candidates < <(printf '%s\n' "${models[@]}" | grep -vE '^(gptimage|turbo)$')
+  # Use only free models from config, filtered against available models
+  candidates=()
+  for free_model in "${gen_free_models[@]}"; do
+    if printf '%s\n' "${models[@]}" | grep -qxF "$free_model"; then
+      candidates+=("$free_model")
+    fi
+  done
+  # Fallback to flux if no free models are available
   [ "${#candidates[@]}" -gt 0 ] || candidates=(flux)
   model=$(printf '%s\n' "${candidates[@]}" | shuf -n1)
+  echo "🎲 Randomly selected free model: $model"
 fi
 if ! printf '%s\n' "${models[@]}" | grep -qxF "$model"; then
   echo "Invalid model: $model" >&2
