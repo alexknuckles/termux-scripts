@@ -388,8 +388,9 @@ fi
 
 # Load configuration and bootstrap defaults if needed
 config_file="$HOME/.wallai/config.yml"
+config_dir="$(dirname "$config_file")"
 if [ ! -f "$config_file" ]; then
-  mkdir -p "$(dirname "$config_file")"
+  mkdir -p "$config_dir"
   cat >"$config_file" <<'EOF'
 groups:
   main:
@@ -422,8 +423,17 @@ groups:
 EOF
 fi
 
-# Validate YAML syntax before proceeding
-if ! python3 - "$config_file" <<'PY' 2>/dev/null; then
+# Cache config validation to avoid repeated Python calls
+config_cache="$config_dir/.config_cache"
+config_mtime=$(stat -c %Y "$config_file" 2>/dev/null || echo 0)
+cache_valid=false
+if [ -f "$config_cache" ]; then
+  cached_mtime=$(cat "$config_cache" 2>/dev/null || echo 0)
+  [ "$config_mtime" = "$cached_mtime" ] && cache_valid=true
+fi
+
+if [ "$cache_valid" = false ]; then
+  if ! python3 - "$config_file" <<'PY' 2>/dev/null; then
 import sys, yaml
 try:
     with open(sys.argv[1]) as f:
@@ -431,8 +441,10 @@ try:
 except Exception:
     sys.exit(1)
 PY
-  echo "❌ Invalid config.yml format. Please check YAML syntax or run yamllint." >&2
-  cleanup_and_exit 1
+    echo "❌ Invalid config.yml format. Please check YAML syntax or run yamllint." >&2
+    cleanup_and_exit 1
+  fi
+  echo "$config_mtime" > "$config_cache"
 fi
 
 # Ensure the selected generation group exists with default settings
@@ -539,7 +551,10 @@ if [ "$group_created" = "1" ]; then
     set_config_value "$gen_group" "prompt_model.base" "$prompt_model_override"
 fi
 
-config_json=$(CFG="$config_file" python3 - <<'PY'
+# Cache parsed config JSON to avoid repeated YAML parsing
+config_json_cache="$config_dir/.config_json_cache"
+if [ "$cache_valid" = false ] || [ ! -f "$config_json_cache" ]; then
+  config_json=$(CFG="$config_file" python3 - <<'PY'
 import os,sys,json
 import yaml
 with open(os.environ['CFG']) as f:
@@ -547,6 +562,10 @@ with open(os.environ['CFG']) as f:
 json.dump(data, sys.stdout)
 PY
 )
+  printf '%s' "$config_json" > "$config_json_cache"
+else
+  config_json=$(cat "$config_json_cache")
+fi
 
 # Pollinations token from config
 pollinations_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].pollinations_token // ""')
@@ -591,55 +610,68 @@ if [ -n "$describe_image_file" ]; then
   generation_opts=true
 fi
 
-# Helper to fetch values from config JSON
+# Cache frequently used config values to avoid repeated jq calls
+declare -A config_cache_values
+
 cfg() {
-  printf '%s' "$config_json" | jq -r --arg g "$1" "$2" 2>/dev/null
+  local key="$1|$2"
+  if [ -z "${config_cache_values[$key]:-}" ]; then
+    config_cache_values[$key]=$(printf '%s' "$config_json" | jq -r --arg g "$1" "$2" 2>/dev/null)
+  fi
+  printf '%s' "${config_cache_values[$key]}"
 }
 
-# Generation group settings
-# shellcheck disable=SC2016
-gen_gen_path=$(cfg "$gen_group" '.groups[$g].generations_path // empty')
+# Batch fetch all generation group settings in one jq call for efficiency
+group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
+  .groups[$g] as $grp |
+  {
+    gen_path: ($grp.generations_path // ""),
+    fav_path: ($grp.favorites_path // $grp.path // ""),
+    nsfw: ($grp.nsfw // false),
+    prompt_model: ($grp.prompt_model.base // $grp.prompt_model // "default"),
+    tag_model: ($grp.prompt_model.tag_model // $grp.tag_model // ""),
+    style_model: ($grp.prompt_model.style_model // $grp.style_model // ""),
+    image_model: ($grp.image_model // "flux"),
+    allow_prompt_fetch: ($grp.allow_prompt_fetch // true),
+    tags: [$grp.tags[]? | if type=="string" then . else keys[0] end],
+    tag_weights: [$grp.tags[]? | if type=="string" then 1.5 else .[keys[0]] end],
+    styles: [$grp.styles[]? | if type=="string" then . else keys[0] end],
+    style_weights: [$grp.styles[]? | if type=="string" then 1.3 else .[keys[0]] end],
+    moods: [$grp.moods[]?]
+  }
+' 2>/dev/null)
+
+gen_gen_path=$(printf '%s' "$group_config" | jq -r '.gen_path')
 [ -z "$gen_gen_path" ] && gen_gen_path="$HOME/pictures/generated-wallpapers/$gen_group"
 gen_gen_path=$(eval printf '%s' "$gen_gen_path")
-# shellcheck disable=SC2016
-gen_fav_path=$(cfg "$gen_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
+
+gen_fav_path=$(printf '%s' "$group_config" | jq -r '.fav_path')
 [ -z "$gen_fav_path" ] && gen_fav_path="$HOME/pictures/favorites/$gen_group"
 gen_fav_path=$(eval printf '%s' "$gen_fav_path")
-# shellcheck disable=SC2016
-gen_nsfw=$(cfg "$gen_group" '.groups[$g].nsfw // false')
-# shellcheck disable=SC2016
-# shellcheck disable=SC2016
-gen_prompt_model=$(cfg "$gen_group" '.groups[$g].prompt_model.base // .groups[$g].prompt_model // "default"')
-# shellcheck disable=SC2016
-gen_tag_model=$(cfg "$gen_group" '.groups[$g].prompt_model.tag_model // .groups[$g].tag_model // empty')
-# shellcheck disable=SC2016
-gen_style_model=$(cfg "$gen_group" '.groups[$g].prompt_model.style_model // .groups[$g].style_model // empty')
-# shellcheck disable=SC2016
-gen_image_model=$(cfg "$gen_group" '.groups[$g].image_model // "flux"')
-# shellcheck disable=SC2016
-gen_allow_prompt_fetch=$(cfg "$gen_group" '.groups[$g].allow_prompt_fetch // true')
-# shellcheck disable=SC2016
-mapfile -t gen_tags < <(cfg "$gen_group" '.groups[$g].tags[]? | if type=="string" then . else keys[0] end')
-# shellcheck disable=SC2016
-mapfile -t gen_tag_weights < <(cfg "$gen_group" '.groups[$g].tags[]? | if type=="string" then 1.5 else .[keys[0]] end')
-# shellcheck disable=SC2016
-mapfile -t gen_styles < <(cfg "$gen_group" '.groups[$g].styles[]? | if type=="string" then . else keys[0] end')
-# shellcheck disable=SC2016
-mapfile -t gen_style_weights < <(cfg "$gen_group" '.groups[$g].styles[]? | if type=="string" then 1.3 else .[keys[0]] end')
-# shellcheck disable=SC2016
-mapfile -t gen_moods < <(cfg "$gen_group" '.groups[$g].moods[]?')
 
-# Favorite group path
-# shellcheck disable=SC2016
-fav_path=$(cfg "$favorite_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
-[ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$favorite_group"
-fav_path=$(eval printf '%s' "$fav_path")
+gen_nsfw=$(printf '%s' "$group_config" | jq -r '.nsfw')
+gen_prompt_model=$(printf '%s' "$group_config" | jq -r '.prompt_model')
+gen_tag_model=$(printf '%s' "$group_config" | jq -r '.tag_model')
+gen_style_model=$(printf '%s' "$group_config" | jq -r '.style_model')
+gen_image_model=$(printf '%s' "$group_config" | jq -r '.image_model')
+gen_allow_prompt_fetch=$(printf '%s' "$group_config" | jq -r '.allow_prompt_fetch')
 
-# Inspired favorites path for -i
-# shellcheck disable=SC2016
-insp_path=$(cfg "$gen_group" '.groups[$g].favorites_path // .groups[$g].path // empty')
-[ -z "$insp_path" ] && insp_path="$HOME/pictures/favorites/$gen_group"
-insp_path=$(eval printf '%s' "$insp_path")
+mapfile -t gen_tags < <(printf '%s' "$group_config" | jq -r '.tags[]?')
+mapfile -t gen_tag_weights < <(printf '%s' "$group_config" | jq -r '.tag_weights[]?')
+mapfile -t gen_styles < <(printf '%s' "$group_config" | jq -r '.styles[]?')
+mapfile -t gen_style_weights < <(printf '%s' "$group_config" | jq -r '.style_weights[]?')
+mapfile -t gen_moods < <(printf '%s' "$group_config" | jq -r '.moods[]?')
+
+# Batch fetch favorite and inspired paths
+if [ "$favorite_group" != "$gen_group" ]; then
+  fav_path=$(printf '%s' "$config_json" | jq -r --arg g "$favorite_group" '.groups[$g].favorites_path // .groups[$g].path // ""')
+  [ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$favorite_group"
+  fav_path=$(eval printf '%s' "$fav_path")
+else
+  fav_path="$gen_fav_path"
+fi
+
+insp_path="$gen_fav_path"
 
 # Apply config defaults if flags were not provided
 [ -z "$model" ] && model="$gen_image_model"
@@ -812,9 +844,18 @@ log_file="$save_dir/wallai.log"
 main_log="$HOME/.wallai/wallai.log"
 mkdir -p "$(dirname "$main_log")"
 
-# Generate a short random seed
+# Generate a short random seed - cache /dev/urandom reads
 random_seed() {
-  od -vN4 -An -tx4 /dev/urandom | tr -d ' \n'
+  if [ -z "${_random_cache:-}" ]; then
+    _random_cache=$(od -vN16 -An -tx4 /dev/urandom | tr -d ' \n')
+    _random_pos=0
+  fi
+  if [ "$_random_pos" -ge 32 ]; then
+    _random_cache=$(od -vN16 -An -tx4 /dev/urandom | tr -d ' \n')
+    _random_pos=0
+  fi
+  printf '%s' "${_random_cache:$_random_pos:8}"
+  _random_pos=$((_random_pos + 8))
 }
 
 # Browse existing wallpapers and optionally favorite them
@@ -851,9 +892,14 @@ if [ "$use_last" = true ]; then
 fi
 
 # Convert strings like "Cyberpunk Metropolis" to "cyberpunk-metropolis"
+# Cache slugified results to avoid repeated processing
+declare -A slug_cache
 slugify() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | \
-    sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//'
+  if [ -z "${slug_cache[$1]:-}" ]; then
+    slug_cache[$1]=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | \
+      sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//')
+  fi
+  printf '%s' "${slug_cache[$1]}"
 }
 
 # Clamp a weight to the range 1.1-2.0
@@ -1258,10 +1304,26 @@ if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
   fi
   { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; cleanup_and_exit 1; }
 fi
-# Validate selected model using the API list
-models_json=$(curl -sL "${curl_auth[@]}" "https://image.pollinations.ai/models" || true)
-if ! mapfile -t models < <(printf '%s' "$models_json" | jq -r '.[]' 2>/dev/null); then
-  models=(flux turbo gptimage)
+# Cache model list to avoid repeated API calls
+models_cache="$config_dir/.models_cache"
+models_cache_age=3600  # 1 hour
+models_cache_valid=false
+
+if [ -f "$models_cache" ]; then
+  cache_age=$(($(date +%s) - $(stat -c %Y "$models_cache" 2>/dev/null || echo 0)))
+  [ "$cache_age" -lt "$models_cache_age" ] && models_cache_valid=true
+fi
+
+if [ "$models_cache_valid" = true ]; then
+  mapfile -t models < "$models_cache"
+else
+  models_json=$(curl -sL "${curl_auth[@]}" "https://image.pollinations.ai/models" || true)
+  if mapfile -t models < <(printf '%s' "$models_json" | jq -r '.[]' 2>/dev/null); then
+    printf '%s\n' "${models[@]}" > "$models_cache"
+  else
+    models=(flux turbo gptimage)
+    printf '%s\n' "${models[@]}" > "$models_cache"
+  fi
 fi
 if [ "$random_model" = true ]; then
   # Exclude models that require paid tiers or produce low quality
