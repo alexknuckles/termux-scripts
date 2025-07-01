@@ -4,6 +4,7 @@ set -euo pipefail
 # testing_installer.sh - always install the latest bleeding-edge scripts
 # Usage: testing_installer.sh [installer options]
 # Dependencies: git, curl, jq
+# Copies all shortcuts, aliases and scripts, replacing older versions when newer ones are available.
 # TAG: installer
 
 REPO_URL="https://github.com/alexknuckles/termux-scripts"
