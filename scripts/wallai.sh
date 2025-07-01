@@ -400,9 +400,9 @@ groups:
     pollinations_token: ""
     image_model: flux
     prompt_model:
-      base: default
-      tag_model: default
-      style_model: default
+      base: mistral
+      tag_model: mistral
+      style_model: mistral
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
@@ -477,9 +477,9 @@ defaults = {
     'pollinations_token': '',
     'image_model': def_env('DEF_IMAGE_MODEL', 'flux'),
     'prompt_model': {
-        'base': def_env('DEF_PROMPT_MODEL', 'default'),
-        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', 'default'),
-        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', 'default'),
+        'base': def_env('DEF_PROMPT_MODEL', 'mistral'),
+        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', 'mistral'),
+        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', 'mistral'),
     },
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
@@ -636,7 +636,7 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
     gen_path: ($grp.generations_path // ""),
     fav_path: ($grp.favorites_path // $grp.path // ""),
     nsfw: ($grp.nsfw // false),
-    prompt_model: ($grp.prompt_model.base // $grp.prompt_model // "default"),
+    prompt_model: ($grp.prompt_model.base // $grp.prompt_model // "mistral"),
     tag_model: ($grp.prompt_model.tag_model // $grp.tag_model // ""),
     style_model: ($grp.prompt_model.style_model // $grp.style_model // ""),
     image_model: ($grp.image_model // "flux"),
