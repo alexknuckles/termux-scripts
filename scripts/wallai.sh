@@ -865,10 +865,10 @@ random_seed() {
   # Ensure we don't exceed string bounds
   cache_len="${#_random_cache}"
   if [ "$cache_len" -gt 0 ] && [ $((_random_pos + 8)) -le "$cache_len" ]; then
-    # Use parameter expansion with bounds checking
+    # Use cut to extract substring more reliably
     end_pos=$((_random_pos + 8))
     if [ "$end_pos" -le "$cache_len" ]; then
-      printf '%s' "${_random_cache:$_random_pos:8}"
+      printf '%s' "$_random_cache" | cut -c$((_random_pos + 1))-"$end_pos"
       _random_pos="$end_pos"
     else
       # Fallback to direct random generation
