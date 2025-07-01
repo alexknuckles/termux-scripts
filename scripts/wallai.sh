@@ -599,9 +599,9 @@ PY
   ')
 fi
 
-# Use Pollinations token only if it will actually be used
+# Use Pollinations token if available in config
 curl_auth=()
-if [ -n "$pollinations_token" ] && { [ "$generation_opts" = true ] || [ -n "$discovery_mode" ]; }; then
+if [ -n "$pollinations_token" ]; then
   curl_auth=(-H "Authorization: Bearer $pollinations_token")
   echo "🔑 Using Pollinations token"
 fi
