@@ -60,15 +60,16 @@ Run the installer with `-u` to remove the symlinks, shortcuts and alias file and
   <img src="static/wallai-logo.png" alt="wallai logo" width="200" />
 </p>
 
-Generates an AI-based wallpaper using the free Pollinations API. The script requests a 15-word
+Generates an AI-based wallpaper using OpenAI-compatible APIs. The script requests a 15-word
 description for a random theme using a random seed so prompts vary even for the same theme.
-You can choose between several Pollinations **image** models using the `-im`
-flag or let the script pick one at random with `-r`. Models are retrieved from
-the Pollinations API. If that fails the script falls back to `flux`, `turbo`
-and `gptimage`. The random option ignores `gptimage` (requires a
-flower-tier account) and `turbo` due to low quality. The default image model is
-`flux`. The text prompt can be generated with a different model selected using
-`-pm` (defaults to `default`).
+Providers are configured in `~/.wallai/config.yml` with a global `defaults`
+section choosing which provider and models to use. Pollinations is the default
+and works without an API key. It uses the `flux` model for image generation,
+but you can add OpenAI or OpenRouter keys and switch providers as needed.
+You can choose between provider **image** models using the `-im`
+flag or let the script pick one at random with `-r`. Models are listed in the configuration
+file under each provider. The default image model is set by the config and the text prompt can
+be generated with a different model using `-pm`.
 
 ### Usage
 ```bash
@@ -79,7 +80,7 @@ General Options:
 - `-h`, `--help`         Show this help message
 - `-v`                   Enable verbose mode
 - `-g <group>`           Use or create a group config
-- `-k <token>`           Save Pollinations API token to the group
+- `-k <token>`           Save provider token to the group
 - `--describe-image <file>`  Generate prompt from image caption
 
 Prompt Customization:
@@ -122,8 +123,12 @@ automatically with a `main` group on first run. Each group can specify
 paths for generated images and favorites, whether NSFW prompts are allowed,
 the prompt model used for discovery, the image model used for generation and
 lists of themes and styles.
-You can store a Pollinations token for each group using `-k`, saved under that
+You can store a provider token for each group using `-k`, saved under that
 group's entry along with `prompt_model` and `image_model` preferences.
+The config file also contains an `api_providers` section listing Pollinations,
+OpenAI and OpenRouter endpoints. The global `defaults` section sets Pollinations
+with `gpt-4` for text and `flux` for image generation so new groups work
+anonymously.
 If `-pm`, `-tm` or `-sm` are supplied when a new group is created, the selected
 models are stored under `prompt_model` with `-pm` becoming the `base` model.
 All generation activity is logged to `~/.wallai/wallai.log` so commands like
@@ -137,12 +142,11 @@ includes all built‑in themes
 
 The final prompt is built as `(theme:1.5) description (style:1.3) [negative prompt: ...]` so the generated image strongly reflects the chosen theme and style.
 
-After showing the chosen prompt, the script also prints which Pollinations image
-model will be used.
+After showing the chosen prompt, the script also prints which image model will be used.
 
-If no prompt is provided, the script retrieves a themed picture description from the Pollinations text
-API using a random genre such as **dreamcore** or **cyberpunk metropolis**. A style such as
-**unreal engine** or **cinematic lighting** is also selected unless you supply `-y style`.
+If no prompt is provided, the script retrieves a themed picture description from the configured provider
+using a random genre such as **dreamcore** or **cyberpunk metropolis**. A style such as
+**unreal engine** or **cinematic lighting** is also selected unless you supply `-s style`.
 You can set the theme with `-t theme`. The API is asked to respond in exactly 15 words
 and each API request uses a new seed. These seeds are stored so results can be repeated.
 If the request fails, wallai chooses a prompt from a built-in
@@ -186,7 +190,7 @@ Examples:
 - `githelper init` initializes a new repo in the current directory.
 - `githelper revert-last` reverts the most recent commit.
 - `githelper clone-mine` clones all your GitHub repositories to `~/git`. Specify a different user with `-u`.
-- `githelper newrepo [-d dir] [-n] [-m description]` initializes a repository on the `main` branch and generates a README and agents file. If `gh` is installed, it creates a private GitHub repo named after the directory and pushes the initial commit. Scanning files is enabled by default; use `-n` to disable scanning, `-d` to choose a directory and `-m` to provide a description. The script uses the Pollinations API but falls back to plain text if the response isn't valid JSON.
+- `githelper newrepo [-d dir] [-n] [-m description]` initializes a repository on the `main` branch and generates a README and agents file. If `gh` is installed, it creates a private GitHub repo named after the directory and pushes the initial commit. Scanning files is enabled by default; use `-n` to disable scanning, `-d` to choose a directory and `-m` to provide a description. The script uses the OpenAI-compatible API but falls back to plain text if the response isn't valid JSON.
 - `githelper set-next` creates a prerelease with the `testing` tag by default. Use `-r` for a full release which automatically increments from the latest `v*` tag.
 - `githelper set-next-all` runs the same command across every repository in `~/git`.
 - Both `set-next` and `set-next-all` ensure `gh auth setup-git` has configured credentials so pushes won't prompt for a password.

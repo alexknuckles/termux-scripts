@@ -123,3 +123,6 @@
 - Fixed unbound variable check for discovered tag/style arrays in wallai.
 - Fixed crash when adding favorites when the config contained weighted tags or styles.
 - Installer copies all scripts, aliases and shortcuts and overwrites older files with a message.
+- wallai now routes OpenAI-compatible requests via configurable providers and documentation no longer references pollinations.ai.
+- Default provider switched to Pollinations with configurable models and a global `defaults` section.
+- Pollinations image generation now uses the `flux` model with its dedicated endpoint.
