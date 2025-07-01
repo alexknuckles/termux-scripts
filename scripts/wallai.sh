@@ -1,5 +1,8 @@
 #!/data/data/com.termux/files/usr/bin/bash
-set -euo pipefail
+set -eu
+if set -o | grep -q pipefail; then
+  set -o pipefail
+fi
 
 cleanup_and_exit() {
   local code="${1:-0}"
@@ -850,12 +853,18 @@ random_seed() {
     _random_cache=$(od -vN16 -An -tx4 /dev/urandom | tr -d ' \n')
     _random_pos=0
   fi
-  if [ "$_random_pos" -ge 32 ]; then
+  if [ "$_random_pos" -ge 32 ] || [ "$_random_pos" -ge "${#_random_cache}" ]; then
     _random_cache=$(od -vN16 -An -tx4 /dev/urandom | tr -d ' \n')
     _random_pos=0
   fi
-  printf '%s' "${_random_cache:$_random_pos:8}"
-  _random_pos=$((_random_pos + 8))
+  # Ensure we don't exceed string bounds
+  if [ $((_random_pos + 8)) -le "${#_random_cache}" ]; then
+    printf '%s' "${_random_cache:$_random_pos:8}"
+    _random_pos=$((_random_pos + 8))
+  else
+    # Fallback to direct random generation
+    od -vN4 -An -tx4 /dev/urandom | tr -d ' \n'
+  fi
 }
 
 # Browse existing wallpapers and optionally favorite them
