@@ -79,20 +79,31 @@ General Options:
 - `-h`, `--help`         Show this help message
 - `-v`                   Enable verbose mode
 - `-g <group>`           Use or create a group config
+- `-k <token>`           Save Pollinations API token to the group
+- `--describe-image <file>`  Generate prompt from image caption
 
 Prompt Customization:
 - `-p <prompt>`          Use custom prompt
 - `-t <tag>`             Choose tag manually
 - `-s <style>`           Choose style manually
 - `-m <mood>`            Set mood (optional, affects prompt tone)
+- `-n <text>`            Custom negative prompt
+- `-w`                   Add weather/time/holiday context
+- `-l`                   Use tag/style from last image
 
 Discovery & Inspiration:
 - `-d`                   Discover new tags/styles
 - `-i [tag|style|pair]`  Use inspired mode from favorites
+- `-b [group]`           Browse generated wallpapers
 
 Image Generation:
 - `-x [n]`               Generate `n` images (default 1)
 - `-f`                   Favorite the image after generation
+- `-r`                   Select a random model
+- `-im <model>`          Image generation model
+- `-pm <model>`          Prompt generation model
+- `-tm <model>`          Tag discovery model
+- `-sm <model>`          Style discovery model
 
 Wallpapering & History:
 - `-u <mode>`            Use previous image (`latest`, `favorites`, `random`)
