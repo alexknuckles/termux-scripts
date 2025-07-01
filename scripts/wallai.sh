@@ -436,15 +436,20 @@ if [ -f "$config_cache" ]; then
 fi
 
 if [ "$cache_valid" = false ]; then
-  if ! python3 - "$config_file" <<'PY' 2>/dev/null; then
+  # Validate YAML syntax with better error handling
+  validation_error=$(python3 - "$config_file" 2>&1 <<'PY' || echo "VALIDATION_FAILED"
 import sys, yaml
 try:
     with open(sys.argv[1]) as f:
         yaml.safe_load(f)
-except Exception:
+except Exception as e:
+    print(f"YAML Error: {e}", file=sys.stderr)
     sys.exit(1)
 PY
+)
+  if [ "$validation_error" = "VALIDATION_FAILED" ] || echo "$validation_error" | grep -q "YAML Error:"; then
     echo "❌ Invalid config.yml format. Please check YAML syntax or run yamllint." >&2
+    [ "$verbose" = true ] && echo "$validation_error" >&2
     cleanup_and_exit 1
   fi
   echo "$config_mtime" > "$config_cache"
@@ -858,9 +863,17 @@ random_seed() {
     _random_pos=0
   fi
   # Ensure we don't exceed string bounds
-  if [ $((_random_pos + 8)) -le "${#_random_cache}" ]; then
-    printf '%s' "${_random_cache:$_random_pos:8}"
-    _random_pos=$((_random_pos + 8))
+  cache_len="${#_random_cache}"
+  if [ "$cache_len" -gt 0 ] && [ $((_random_pos + 8)) -le "$cache_len" ]; then
+    # Use parameter expansion with bounds checking
+    end_pos=$((_random_pos + 8))
+    if [ "$end_pos" -le "$cache_len" ]; then
+      printf '%s' "${_random_cache:$_random_pos:8}"
+      _random_pos="$end_pos"
+    else
+      # Fallback to direct random generation
+      od -vN4 -An -tx4 /dev/urandom | tr -d ' \n'
+    fi
   else
     # Fallback to direct random generation
     od -vN4 -An -tx4 /dev/urandom | tr -d ' \n'
