@@ -503,8 +503,10 @@ with open(os.environ['CFG']) as f:
 json.dump(data, sys.stdout)
 PY
 )
-default_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.text')
-default_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.image')
+default_text_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.base // .groups.main.prompt_model // .defaults.prompt_model.name // .defaults.prompt_model // "mistral"')
+default_tag_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.tag_model // .defaults.tag_model.name // .defaults.tag_model // .groups.main.prompt_model.base // "mistral"')
+default_style_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.style_model // .defaults.style_model.name // .defaults.style_model // .groups.main.prompt_model.base // "mistral"')
+default_image_model=$(printf '%s' "$config_json" | jq -r '.groups.main.image_model // .defaults.image_model.name // .defaults.image_model // "flux"')
 
 # Ensure the selected generation group exists with default settings
 ensure_group() {
@@ -524,28 +526,30 @@ def def_env(key, default=None):
     val = os.environ.get(key)
     return val if val else default
 
+main_defaults = groups.get('main', {})
+
 defaults = {
     'provider_token': '',
-    'image_model': def_env('DEF_IMAGE_MODEL', 'flux'),
+    'image_model': def_env('DEF_IMAGE_MODEL', main_defaults.get('image_model', 'flux')),
     'prompt_model': {
-        'base': def_env('DEF_PROMPT_MODEL', 'mistral'),
-        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', 'mistral'),
-        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', 'mistral'),
+        'base': def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('base', 'mistral')),
+        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('tag_model', main_defaults.get('prompt_model', {}).get('base', 'mistral'))),
+        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('style_model', main_defaults.get('prompt_model', {}).get('base', 'mistral'))),
     },
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
-    'nsfw': False if group == 'main' else True,
-    'tags': [def_env('DEF_TAG')] if new and def_env('DEF_TAG') else [
+    'nsfw': main_defaults.get('nsfw', False),
+    'tags': [def_env('DEF_TAG')] if new and def_env('DEF_TAG') else main_defaults.get('tags', [
         'dreamcore', 'mystical forest', 'cosmic horror',
         'ethereal landscape', 'retrofuturism', 'alien architecture',
         'cyberpunk metropolis'
-    ],
-    'styles': [def_env('DEF_STYLE')] if new and def_env('DEF_STYLE') else [
+    ]),
+    'styles': [def_env('DEF_STYLE')] if new and def_env('DEF_STYLE') else main_defaults.get('styles', [
         'unreal engine', 'cinematic lighting', 'octane render',
         'hyperrealism', 'volumetric lighting', 'high detail',
         '4k concept art'
-    ],
-    'moods': []
+    ]),
+    'moods': main_defaults.get('moods', [])
 }
 
 updated = False
@@ -568,8 +572,8 @@ PY
 
 DEF_IMAGE_MODEL="${model:-$default_image_model}"
 DEF_PROMPT_MODEL="${prompt_model_override:-$default_text_model}"
-DEF_TAG_MODEL="${tag_model_override:-$default_text_model}"
-DEF_STYLE_MODEL="${style_model_override:-$default_text_model}"
+DEF_TAG_MODEL="${tag_model_override:-$default_tag_model}"
+DEF_STYLE_MODEL="${style_model_override:-$default_style_model}"
 [ "$tag_provided" = true ] && DEF_TAG="$tag" || DEF_TAG=""
 [ "$style_provided" = true ] && DEF_STYLE="$style" || DEF_STYLE=""
 DEF_IMAGE_MODEL="$DEF_IMAGE_MODEL" \

@@ -1,3 +1,4 @@
+- New groups now inherit unset settings from the main profile.
 - Fixed YAML validation check causing unexpected token error in wallai.sh.
 - Fixed missing set_config_value definition causing command not found in wallai.
 - Fixed API token updates in wallai when using -k to avoid jq errors with YAML.
