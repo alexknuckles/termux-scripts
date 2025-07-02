@@ -133,3 +133,4 @@
 - Pollinations image models restricted to flux, kontext, turbo and gptimage with flux as the default.
 - wallai adds timeouts to discovery and caption requests to avoid hanging when the API is unresponsive.
 - Default prompt, tag and style models now use Pollinations `openai` so these requests succeed without a key.
+- wallai supports new provider config structure and provider:model CLI flags.
