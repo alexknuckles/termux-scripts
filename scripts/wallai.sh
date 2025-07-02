@@ -1,8 +1,5 @@
-#!/bin/bash
-set -eu
-if set -o | grep -q pipefail; then
-  set -o pipefail
-fi
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
 
 cleanup_and_exit() {
   local code="${1:-0}"
@@ -126,11 +123,10 @@ style_provided=false
 mood_provided=false
 # Image generation model
 model=""
-# Prompt generation model override
-prompt_model_override=""
-# Tag and style discovery model overrides
-tag_model_override=""
-style_model_override=""
+image_flag=""
+prompt_flag=""
+tag_flag=""
+style_flag=""
 random_model=false
 favorite_wall=false
 favorite_group="main"
@@ -168,25 +164,25 @@ while [ $# -gt 0 ]; do
   case "$1" in
     -im)
       [ $# -ge 2 ] || { echo "Missing argument for -im" >&2; cleanup_and_exit 1; }
-      model="$2"
+      image_flag="$2"
       generation_opts=true
       shift 2
       ;;
     -pm)
       [ $# -ge 2 ] || { echo "Missing argument for -pm" >&2; cleanup_and_exit 1; }
-      prompt_model_override="$2"
+      prompt_flag="$2"
       generation_opts=true
       shift 2
       ;;
     -tm)
       [ $# -ge 2 ] || { echo "Missing argument for -tm" >&2; cleanup_and_exit 1; }
-      tag_model_override="$2"
+      tag_flag="$2"
       generation_opts=true
       shift 2
       ;;
     -sm)
       [ $# -ge 2 ] || { echo "Missing argument for -sm" >&2; cleanup_and_exit 1; }
-      style_model_override="$2"
+      style_flag="$2"
       generation_opts=true
       shift 2
       ;;
@@ -411,51 +407,93 @@ config_dir="$(dirname "$config_file")"
 if [ ! -f "$config_file" ]; then
   mkdir -p "$config_dir" "$HOME/pictures/generated-wallpapers" "$HOME/pictures/favorites"
   cat >"$config_file" <<'EOF'
-api_providers:
+provider:
   pollinations:
-    base:
+    endpoint:
       text: "https://text.pollinations.ai/openai"
       image: "https://image.pollinations.ai"
     api_key: ""
     models:
-      text: ["llamascout", "mistral", "openai", "openai-fast", "openai-large", "phi", "qwen-coder", "elixposearch", "midijourney", "searchgpt", "openai-reasoning"]
-      image: ["flux", "kontext", "turbo", "gptimage"]
+      text:
+        - llamascout
+        - mistral
+        - openai
+        - openai-fast
+        - openai-large
+        - phi
+        - qwen-coder
+        - elixposearch
+        - midijourney
+        - searchgpt
+        - openai-reasoning
+      image:
+        - flux
+        - fastflux: flux
+        - kontext
+        - turbo
+        - gptimage
   openai:
-    base:
-      text: "https://api.openai.com/v1"
-      image: "https://api.openai.com/v1"
+    endpoint: "https://api.openai.com/v1"
     api_key: "your_openai_key"
     models:
-      text: ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
-      image: ["dall-e-3", "dall-e-2"]
+      text:
+        - gpt-4o
+        - gpt-4o-mini
+        - gpt-3.5-turbo
+      image:
+        - dall-e-3
+        - dall-e-2
   openrouter:
-    base:
-      text: "https://openrouter.ai/api/v1"
-      image: "https://openrouter.ai/api/v1"
+    endpoint: "https://openrouter.ai/api/v1"
     api_key: ""
     models:
-      text: ["mistralai/mistral-7b-instruct:free", "huggingface/meta-llama/llama-3.2-3b-instruct:free", "microsoft/phi-3-mini-128k-instruct:free", "qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free", "meta-llama/llama-3.1-8b-instruct:free", "openchat/openchat-7b:free", "gryphe/mythomist-7b:free", "undi95/toppy-m-7b:free", "koboldai/psyfighter-13b-2:free"]
+      text:
+        - mistralai/mistral-7b-instruct:free
+        - huggingface/meta-llama/llama-3.2-3b-instruct:free
+        - microsoft/phi-3-mini-128k-instruct:free
+        - qwen/qwen-2-7b-instruct:free
+        - google/gemma-2-9b-it:free
+        - meta-llama/llama-3.1-8b-instruct:free
+        - openchat/openchat-7b:free
+        - gryphe/mythomist-7b:free
+        - undi95/toppy-m-7b:free
+        - koboldai/psyfighter-13b-2:free
       image: []
 defaults:
   image_model:
     provider: pollinations
-    name: flux
+    model:
+      image: flux
   prompt_model:
     provider: pollinations
-    name: openai
+    model:
+      text: openai
   tag_model:
     provider: pollinations
-    name: openai
+    model:
+      text: openai
   style_model:
     provider: pollinations
-    name: openai
+    model:
+      text: openai
 groups:
   main:
-    image_model: flux
+    image_model:
+      provider: pollinations
+      model:
+        image: flux
     prompt_model:
-      base: openai
-      tag_model: openai
-      style_model: openai
+      provider: pollinations
+      model:
+        text: openai
+    tag_model:
+      provider: pollinations
+      model:
+        text: openai
+    style_model:
+      provider: pollinations
+      model:
+        text: openai
     favorites_path: ~/pictures/favorites/main
     generations_path: $HOME/pictures/generated-wallpapers/main
     favorites_path: $HOME/pictures/favorites/main
@@ -505,10 +543,6 @@ with open(os.environ['CFG']) as f:
 json.dump(data, sys.stdout)
 PY
 )
-default_text_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.base // .groups.main.prompt_model // .defaults.prompt_model.name // .defaults.prompt_model // "openai"')
-default_tag_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.tag_model // .defaults.tag_model.name // .defaults.tag_model // .groups.main.prompt_model.base // "openai"')
-default_style_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.style_model // .defaults.style_model.name // .defaults.style_model // .groups.main.prompt_model.base // "openai"')
-default_image_model=$(printf '%s' "$config_json" | jq -r '.groups.main.image_model // .defaults.image_model.name // .defaults.image_model // "flux"')
 
 # Ensure the selected generation group exists with default settings
 ensure_group() {
@@ -522,68 +556,25 @@ if os.path.exists(cfg):
         data = yaml.safe_load(f) or {}
 groups = data.setdefault('groups', {})
 new = group not in groups
-grp = groups.setdefault(group, {})
-
-def def_env(key, default=None):
-    val = os.environ.get(key)
-    return val if val else default
-
-main_defaults = groups.get('main', {})
-
-defaults = {
-    'provider_token': '',
-    'image_model': def_env('DEF_IMAGE_MODEL', main_defaults.get('image_model', 'flux')),
-    'prompt_model': {
-        'base': def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('base', 'openai')),
-        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('tag_model', main_defaults.get('prompt_model', {}).get('base', 'openai'))),
-        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('style_model', main_defaults.get('prompt_model', {}).get('base', 'openai'))),
-    },
-    'favorites_path': f'~/pictures/favorites/{group}',
-    'generations_path': f'~/pictures/generated-wallpapers/{group}',
-    'nsfw': main_defaults.get('nsfw', False),
-    'tags': [def_env('DEF_TAG')] if new and def_env('DEF_TAG') else main_defaults.get('tags', [
-        'dreamcore', 'mystical forest', 'cosmic horror',
-        'ethereal landscape', 'retrofuturism', 'alien architecture',
-        'cyberpunk metropolis'
-    ]),
-    'styles': [def_env('DEF_STYLE')] if new and def_env('DEF_STYLE') else main_defaults.get('styles', [
-        'unreal engine', 'cinematic lighting', 'octane render',
-        'hyperrealism', 'volumetric lighting', 'high detail',
-        '4k concept art'
-    ]),
-    'moods': main_defaults.get('moods', [])
-}
-
-updated = False
 if new:
-    for k, v in defaults.items():
-        grp[k] = v
-        updated = True
-else:
-    for k, v in defaults.items():
-        if k not in grp:
-            grp[k] = v
-            updated = True
-
-if updated:
+    groups[group] = {
+        'image_model': {'provider': 'pollinations', 'model': {'image': 'flux'}},
+        'prompt_model': {'provider': 'pollinations', 'model': {'text': 'openai'}},
+        'tag_model': {'provider': 'pollinations', 'model': {'text': 'openai'}},
+        'style_model': {'provider': 'pollinations', 'model': {'text': 'openai'}},
+        'favorites_path': f'~/pictures/favorites/{group}',
+        'generations_path': f'~/pictures/generated-wallpapers/{group}',
+        'nsfw': False,
+        'tags': ['dreamcore','mystical forest','cosmic horror','ethereal landscape','retrofuturism','alien architecture','cyberpunk metropolis'],
+        'styles': ['unreal engine','cinematic lighting','octane render','hyperrealism','volumetric lighting','high detail','4k concept art'],
+        'moods': ['happy','sad','mysterious','energetic','peaceful']
+    }
     with open(cfg, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False)
 print('1' if new else '0')
 PY
 }
 
-DEF_IMAGE_MODEL="${model:-$default_image_model}"
-DEF_PROMPT_MODEL="${prompt_model_override:-$default_text_model}"
-DEF_TAG_MODEL="${tag_model_override:-$default_tag_model}"
-DEF_STYLE_MODEL="${style_model_override:-$default_style_model}"
-[ "$tag_provided" = true ] && DEF_TAG="$tag" || DEF_TAG=""
-[ "$style_provided" = true ] && DEF_STYLE="$style" || DEF_STYLE=""
-DEF_IMAGE_MODEL="$DEF_IMAGE_MODEL" \
-DEF_PROMPT_MODEL="$DEF_PROMPT_MODEL" \
-DEF_TAG_MODEL="$DEF_TAG_MODEL" \
-DEF_STYLE_MODEL="$DEF_STYLE_MODEL" \
-DEF_TAG="$DEF_TAG" \
-DEF_STYLE="$DEF_STYLE" \
 group_created=$(ensure_group "$gen_group")
 
 set_config_value() {
@@ -606,14 +597,7 @@ with open(cfg, 'w') as f:
 PY
 }
 
-if [ "$group_created" = "1" ]; then
-  [ -n "$tag_model_override" ] && \
-    set_config_value "$gen_group" "prompt_model.tag_model" "$tag_model_override"
-  [ -n "$style_model_override" ] && \
-    set_config_value "$gen_group" "prompt_model.style_model" "$style_model_override"
-  [ -n "$prompt_model_override" ] && \
-    set_config_value "$gen_group" "prompt_model.base" "$prompt_model_override"
-fi
+
 
 # Cache parsed config JSON to avoid repeated YAML parsing
 config_json_cache="$config_dir/.config_json_cache"
@@ -631,31 +615,36 @@ else
   config_json=$(cat "$config_json_cache")
 fi
 
-# Global API provider defaults
-text_provider=$(printf '%s' "$config_json" | jq -r '.defaults.prompt_model.provider // "pollinations"')
-image_provider=$(printf '%s' "$config_json" | jq -r '.defaults.image_model.provider // "pollinations"')
-text_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].base.text // .api_providers[$p].text_base // .api_providers[$p].base // empty')
-image_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].base.image // .api_providers[$p].image_base // .api_providers[$p].base // empty')
-api_key_text=$(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].api_key // empty')
-api_key_image=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].api_key // empty')
-openai_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.prompt_model.name // .defaults.prompt_model // "qwen2.5-72b-instruct"')
-openai_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.image_model.name // .defaults.image_model // "flux"')
+# Global API provider defaults and model caches
+declare -A provider_text_models
+declare -A provider_image_models
+for p in $(jq -r '.provider | keys[]' <<<"$config_json"); do
+  text_models=$(jq -r --arg p "$p" '.provider[$p].models.text[] | if type=="object" then keys[0] else . end' <<<"$config_json" | paste -sd ' ')
+  provider_text_models["$p"]="$text_models"
+  image_models=$(jq -r --arg p "$p" '.provider[$p].models.image[] | if type=="object" then keys[0] else . end' <<<"$config_json" | paste -sd ' ')
+  provider_image_models["$p"]="$image_models"
+done
+
+def_prompt_provider=$(jq -r '.defaults.prompt_model.provider // "pollinations"' <<<"$config_json")
+def_prompt_model=$(jq -r '.defaults.prompt_model.model.text // "openai"' <<<"$config_json")
+parse_model_flag "$def_prompt_provider:$def_prompt_model" text
+text_provider="$model_provider"
+openai_text_model="$model_name"
+text_api_base="$model_endpoint"
+
+def_image_provider=$(jq -r '.defaults.image_model.provider // "pollinations"' <<<"$config_json")
+def_image_model=$(jq -r '.defaults.image_model.model.image // "flux"' <<<"$config_json")
+parse_model_flag "$def_image_provider:$def_image_model" image
+image_provider="$model_provider"
+openai_image_model="$model_name"
+image_api_base="$model_endpoint"
+
+api_key_text=$(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.provider[$p].api_key // empty')
+api_key_image=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.provider[$p].api_key // empty')
 provider="$text_provider"
 
-mapfile -t provider_text_models < <(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].models.text[]?')
-mapfile -t provider_image_models < <(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].models.image[]?')
-
-valid_text=false
-valid_image=false
-if printf '%s' "$config_json" | jq -e --arg p "$text_provider" --arg m "$openai_text_model" '.api_providers[$p].models.text | index($m)' >/dev/null; then
-  valid_text=true
-fi
-if printf '%s' "$config_json" | jq -e --arg p "$image_provider" --arg m "$openai_image_model" '.api_providers[$p].models.image | index($m)' >/dev/null; then
-  valid_image=true
-fi
-
-if [ -z "$text_api_base" ] || [ -z "$image_api_base" ] || [ "$valid_text" = false ] || [ "$valid_image" = false ]; then
-  echo "❌ Invalid provider or default models in config" >&2
+if [ -z "$text_api_base" ] || [ -z "$image_api_base" ]; then
+  echo "❌ Invalid provider endpoints" >&2
   cleanup_and_exit 1
 fi
 
@@ -731,10 +720,14 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
     gen_path: ($grp.generations_path // ""),
     fav_path: ($grp.favorites_path // $grp.path // ""),
     nsfw: ($grp.nsfw // false),
-    prompt_model: ($grp.prompt_model.base // $grp.prompt_model // "openai"),
-    tag_model: ($grp.prompt_model.tag_model // $grp.tag_model // ""),
-    style_model: ($grp.prompt_model.style_model // $grp.style_model // ""),
-    image_model: ($grp.image_model // "flux"),
+    prompt_provider: ($grp.prompt_model.provider // ""),
+    prompt_model: ($grp.prompt_model.model.text // ""),
+    tag_provider: ($grp.tag_model.provider // ""),
+    tag_model: ($grp.tag_model.model.text // ""),
+    style_provider: ($grp.style_model.provider // ""),
+    style_model: ($grp.style_model.model.text // ""),
+    image_provider: ($grp.image_model.provider // ""),
+    image_model: ($grp.image_model.model.image // ""),
     tags: [$grp.tags[]? | if type=="string" then . else keys[0] end],
     tag_weights: [$grp.tags[]? | if type=="string" then 1.5 else .[keys[0]] end],
     styles: [$grp.styles[]? | if type=="string" then . else keys[0] end],
@@ -752,9 +745,13 @@ gen_fav_path=$(printf '%s' "$group_config" | jq -r '.fav_path')
 gen_fav_path=$(eval printf '%s' "$gen_fav_path")
 
 gen_nsfw=$(printf '%s' "$group_config" | jq -r '.nsfw')
+gen_prompt_provider=$(printf '%s' "$group_config" | jq -r '.prompt_provider')
 gen_prompt_model=$(printf '%s' "$group_config" | jq -r '.prompt_model')
+gen_tag_provider=$(printf '%s' "$group_config" | jq -r '.tag_provider')
 gen_tag_model=$(printf '%s' "$group_config" | jq -r '.tag_model')
+gen_style_provider=$(printf '%s' "$group_config" | jq -r '.style_provider')
 gen_style_model=$(printf '%s' "$group_config" | jq -r '.style_model')
+gen_image_provider=$(printf '%s' "$group_config" | jq -r '.image_provider')
 gen_image_model=$(printf '%s' "$group_config" | jq -r '.image_model')
 mapfile -t gen_tags < <(printf '%s' "$group_config" | jq -r '.tags[]?')
 mapfile -t gen_tag_weights < <(printf '%s' "$group_config" | jq -r '.tag_weights[]?')
@@ -773,11 +770,48 @@ fi
 
 insp_path="$gen_fav_path"
 
-# Apply config defaults if flags were not provided
-[ -z "$model" ] && model="${gen_image_model:-$openai_image_model}"
-[ -n "$prompt_model_override" ] && gen_prompt_model="$prompt_model_override"
-tag_model="${tag_model_override:-${gen_tag_model:-$gen_prompt_model}}"
-style_model="${style_model_override:-${gen_style_model:-$gen_prompt_model}}"
+# Resolve models based on CLI flags, group config and defaults
+if [ -n "$prompt_flag" ]; then
+  parse_model_flag "$prompt_flag" text
+  text_provider="$model_provider"
+  openai_text_model="$model_name"
+  text_api_base="$model_endpoint"
+elif [ -n "$gen_prompt_model" ] || [ -n "$gen_prompt_provider" ]; then
+  parse_model_flag "${gen_prompt_provider:-$text_provider}:${gen_prompt_model:-$openai_text_model}" text
+  text_provider="$model_provider"
+  openai_text_model="$model_name"
+  text_api_base="$model_endpoint"
+fi
+
+if [ -n "$tag_flag" ]; then
+  parse_model_flag "$tag_flag" text
+  tag_model="$model_name"
+else
+  parse_model_flag "${gen_tag_provider:-$text_provider}:${gen_tag_model:-$openai_text_model}" text
+  tag_model="$model_name"
+fi
+
+if [ -n "$style_flag" ]; then
+  parse_model_flag "$style_flag" text
+  style_model="$model_name"
+else
+  parse_model_flag "${gen_style_provider:-$text_provider}:${gen_style_model:-$openai_text_model}" text
+  style_model="$model_name"
+fi
+
+if [ -n "$image_flag" ]; then
+  parse_model_flag "$image_flag" image
+  image_provider="$model_provider"
+  openai_image_model="$model_name"
+  image_api_base="$model_endpoint"
+  model="$openai_image_model"
+else
+  parse_model_flag "${gen_image_provider:-$image_provider}:${gen_image_model:-$openai_image_model}" image
+  image_provider="$model_provider"
+  openai_image_model="$model_name"
+  image_api_base="$model_endpoint"
+  [ -z "$model" ] && model="$openai_image_model"
+fi
 
 # Append a discovered item to the group's config list if missing
 append_config_item() {
@@ -1050,6 +1084,34 @@ find_style_weight() {
     fi
   done
   printf '%s' "$default"
+}
+
+# Parse a model flag in provider:model format
+parse_model_flag() {
+  local input="$1" type="$2"
+  provider="${input%%:*}"
+  alias_or_model="${input#*:}"
+  actual_model=$(printf '%s' "$config_json" | jq -r --arg p "$provider" --arg m "$alias_or_model" --arg t "$type" '
+    .provider[$p].models[$t][] |
+    if type == "object" and has($m) then .[$m]
+    elif . == $m then $m
+    else empty
+    end
+  ')
+  if [ -z "$actual_model" ]; then
+    echo "❌ Invalid $type model or alias: $provider:$alias_or_model" >&2
+    cleanup_and_exit 1
+  fi
+  endpoint=$(printf '%s' "$config_json" | jq -r --arg p "$provider" --arg t "$type" '
+    .provider[$p].endpoint[$t] // .provider[$p].endpoint // empty
+  ')
+  [ -z "$endpoint" ] && {
+    echo "❌ No $type endpoint for provider: $provider" >&2
+    cleanup_and_exit 1
+  }
+  model_provider="$provider"
+  model_name="$actual_model"
+  model_endpoint="$endpoint"
 }
 
 # Function to favorite the most recent wallpaper with metadata using exiftool
@@ -1446,7 +1508,7 @@ if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
   { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; cleanup_and_exit 1; }
 fi
 # Select image models from provider config
-models=("${provider_image_models[@]}")
+models=("${provider_image_models[$image_provider]}")
 if [ "$random_model" = true ]; then
   model=$(printf '%s\n' "${models[@]}" | shuf -n1)
   echo "🎲 Randomly selected model: $model"
