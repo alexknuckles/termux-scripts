@@ -63,6 +63,7 @@ ${bold}General Options:${normal}
   -h, --help         Show this help message
   -v                 Enable verbose mode
   -g <group>         Use or create a group config
+  -k <token>         Save provider token to the group
   --describe-image <file>  Generate prompt from image caption
 
 ${bold}Prompt Customization:${normal}
@@ -70,16 +71,25 @@ ${bold}Prompt Customization:${normal}
   -t <tag>           Choose tag manually
   -s <style>         Choose style manually
   -m <mood>          Set mood (optional, affects prompt tone)
+  -n <text>          Custom negative prompt
+  -w                 Add weather/time/holiday context
+  -l                 Use tag/style from last image
 
 ${bold}Discovery & Inspiration:${normal}
-  -d                 Discover new tags/styles
+  -d [mode]          Discover new tags/styles (tag, style, both)
   -i [tag|style|pair] Use inspired mode from favorites
 
 ${bold}Image Generation:${normal}
-  -x [n]             Generate (n) images, default 1
-  -f                 Favorite the image after generation
+  -x [n]             Generate n images (default 1)
+  -f [group]         Favorite the image after generation
+  -r                 Select a random model
+  -im <model>        Image generation model
+  -pm <model>        Prompt generation model
+  -tm <model>        Tag discovery model
+  -sm <model>        Style discovery model
 
 ${bold}Wallpapering & History:${normal}
+  -b [group]         Browse generated wallpapers
   -u <mode>          Use previous image (latest, favorites, random)
   --use group=name   Limit reuse to a specific group
 
@@ -87,7 +97,7 @@ Examples:
   wallai.sh -t dreamcore -m surreal -x 3 -f
   wallai.sh -u favorites -g sci-fi
   wallai.sh -i tag -d
-  wallai.sh picture.jpg
+  wallai.sh --describe-image picture.jpg
 END
 }
 # Check dependencies early so the script fails with a clear message
@@ -318,13 +328,13 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
         batch_count=1
         ;;
       *)
-          echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
+          echo "Usage: wallai.sh [options] - see -h for help" >&2
           cleanup_and_exit 1
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [-b [group]] [-d [mode]] [-x [count]] [-f [group]] [-g [group]] [-h] [-i [mode]] [-k token] [-l] [-im model] [-pm model] [-tm model] [-sm model] [-n \"text\"] [-p \"prompt text\"] [-r] [-t tag] [-v] [-w] [-s style] [-m mood] [-u mode]" >&2
+      echo "Usage: wallai.sh [options] - see -h for help" >&2
       cleanup_and_exit 1
       ;;
   esac
@@ -443,8 +453,6 @@ groups:
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
-    allow_prompt_fetch: true
-    free_models: ["flux", "flux-realism", "flux-anime", "flux-3d", "any-dark", "turbo"]
     tags: ["dreamcore", "mystical forest", "cosmic horror", "ethereal landscape", "retrofuturism", "alien architecture", "cyberpunk metropolis"]
     styles: ["unreal engine", "cinematic lighting", "octane render", "hyperrealism", "volumetric lighting", "high detail", "4k concept art"]
     moods: ["happy", "sad", "mysterious", "energetic", "peaceful"]
@@ -520,9 +528,7 @@ defaults = {
     },
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
-    'allow_prompt_fetch': True,
     'nsfw': False if group == 'main' else True,
-    'free_models': ['flux'],
     'tags': [def_env('DEF_TAG')] if new and def_env('DEF_TAG') else [
         'dreamcore', 'mystical forest', 'cosmic horror',
         'ethereal landscape', 'retrofuturism', 'alien architecture',
@@ -717,8 +723,6 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
     tag_model: ($grp.prompt_model.tag_model // $grp.tag_model // ""),
     style_model: ($grp.prompt_model.style_model // $grp.style_model // ""),
     image_model: ($grp.image_model // "flux"),
-    allow_prompt_fetch: ($grp.allow_prompt_fetch // true),
-    free_models: [$grp.free_models[]? // "flux"],
     tags: [$grp.tags[]? | if type=="string" then . else keys[0] end],
     tag_weights: [$grp.tags[]? | if type=="string" then 1.5 else .[keys[0]] end],
     styles: [$grp.styles[]? | if type=="string" then . else keys[0] end],
@@ -740,14 +744,11 @@ gen_prompt_model=$(printf '%s' "$group_config" | jq -r '.prompt_model')
 gen_tag_model=$(printf '%s' "$group_config" | jq -r '.tag_model')
 gen_style_model=$(printf '%s' "$group_config" | jq -r '.style_model')
 gen_image_model=$(printf '%s' "$group_config" | jq -r '.image_model')
-gen_allow_prompt_fetch=$(printf '%s' "$group_config" | jq -r '.allow_prompt_fetch')
-
 mapfile -t gen_tags < <(printf '%s' "$group_config" | jq -r '.tags[]?')
 mapfile -t gen_tag_weights < <(printf '%s' "$group_config" | jq -r '.tag_weights[]?')
 mapfile -t gen_styles < <(printf '%s' "$group_config" | jq -r '.styles[]?')
 mapfile -t gen_style_weights < <(printf '%s' "$group_config" | jq -r '.style_weights[]?')
 mapfile -t gen_moods < <(printf '%s' "$group_config" | jq -r '.moods[]?')
-mapfile -t gen_free_models < <(printf '%s' "$group_config" | jq -r '.free_models[]?')
 
 # Batch fetch favorite and inspired paths
 if [ "$favorite_group" != "$gen_group" ]; then
@@ -820,9 +821,6 @@ PY
 # Discover new tag or style via API
 discover_item() {
   local kind="$1" count="${2:-1}" query result dseed m url item lower_item exists list
-  if [ "$gen_allow_prompt_fetch" != true ]; then
-    return
-  fi
   if [ "$count" -gt 1 ]; then
     case "$kind" in
       tag)
@@ -1397,14 +1395,7 @@ fi
 # Select image models from provider config
 models=("${provider_image_models[@]}")
 if [ "$random_model" = true ]; then
-  candidates=()
-  for free_model in "${gen_free_models[@]}"; do
-    if printf '%s\n' "${models[@]}" | grep -qxF "$free_model"; then
-      candidates+=("$free_model")
-    fi
-  done
-  [ "${#candidates[@]}" -gt 0 ] || candidates=("${models[0]}")
-  model=$(printf '%s\n' "${candidates[@]}" | shuf -n1)
+  model=$(printf '%s\n' "${models[@]}" | shuf -n1)
   echo "🎲 Randomly selected model: $model"
 fi
 if [ -z "$model" ]; then
@@ -1475,7 +1466,6 @@ fi
 
 
 fetch_prompt() {
-  [ "$gen_allow_prompt_fetch" != true ] && return 1
   local query payload response
   if [ -n "$mood" ]; then
     query="Describe a $tag wallpaper scene in a $mood mood tone in exactly 15 words. Respond with only those 15 words."
