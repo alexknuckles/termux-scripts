@@ -441,7 +441,7 @@ defaults:
     provider: pollinations
     name: flux
   prompt_model:
-    provider: pollinations
+    provider: pollinations 
     name: openai
   tag_model:
     provider: pollinations
