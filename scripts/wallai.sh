@@ -414,7 +414,7 @@ if [ ! -f "$config_file" ]; then
 api_providers:
   pollinations:
     base:
-      text: ""
+      text: "https://image.pollinations.ai"
       image: "https://image.pollinations.ai"
     api_key: ""
     models:
