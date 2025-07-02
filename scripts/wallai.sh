@@ -414,7 +414,7 @@ if [ ! -f "$config_file" ]; then
 api_providers:
   pollinations:
     base:
-      text: "https://text.pollinations.ai/openai/v1"
+      text: "https://text.pollinations.ai/openai"
       image: "https://image.pollinations.ai"
     api_key: ""
     models:
@@ -866,8 +866,29 @@ discover_item() {
   fi
   payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
   [ "$verbose" = true ] && echo "🔍 Discover via $provider" >&2
-  result=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
+  result=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
   [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
+  
+  # Check if result is null, empty, or just whitespace
+  if [ -z "$result" ] || [ "$result" = "null" ] || [ -z "$(printf '%s' "$result" | tr -d '[:space:]')" ]; then
+    [ "$verbose" = true ] && echo "❌ API returned null/empty response, using fallback" >&2
+    # Use fallback discovery based on existing items
+    case "$kind" in
+      tag)
+        fallback_tags=("liminal space" "vaporwave" "dark academia" "cottagecore" "weirdcore" "backrooms" "synthwave" "steampunk" "biopunk" "solarpunk")
+        ;;
+      style)
+        fallback_styles=("matte painting" "digital art" "oil painting" "watercolor" "pencil sketch" "vector art" "pixel art" "low poly" "isometric" "minimalist")
+        ;;
+    esac
+    if [ "$kind" = "tag" ]; then
+      printf '%s\n' "${fallback_tags[@]}" | shuf -n"${count:-1}"
+    else
+      printf '%s\n' "${fallback_styles[@]}" | shuf -n"${count:-1}"
+    fi
+    return
+  fi
+  
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   if [ "$count" -gt 1 ]; then
     printf '%s' "$result" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | tr '[:upper:]' '[:lower:]' |
@@ -897,7 +918,7 @@ discover_item() {
       exists=false
       if [ "$kind" = "tag" ]; then
         for i in "${gen_tags[@]}"; do
-          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
+          if [ "$(printf '%s' "$i" | tr '[:upper:]" '[:lower:]')" = "$lower_item" ]; then
             exists=true
             break
           fi
