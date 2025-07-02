@@ -132,3 +132,4 @@
 - Pollinations text models now include only the supported list: llamascout, mistral, openai, openai-fast, openai-large, phi, qwen-coder, elixposearch, midijourney, searchgpt and openai-reasoning.
 - Pollinations image models restricted to flux, kontext, turbo and gptimage with flux as the default.
 - wallai adds timeouts to discovery and caption requests to avoid hanging when the API is unresponsive.
+- Default prompt, tag and style models now use Pollinations `openai` so these requests succeed without a key.

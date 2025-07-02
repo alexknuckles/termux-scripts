@@ -441,21 +441,21 @@ defaults:
     provider: pollinations
     name: flux
   prompt_model:
-    provider: openrouter
-    name: mistralai/mistral-7b-instruct:free
+    provider: pollinations
+    name: openai
   tag_model:
-    provider: openrouter
-    name: mistralai/mistral-7b-instruct:free
+    provider: pollinations
+    name: openai
   style_model:
-    provider: openrouter
-    name: mistralai/mistral-7b-instruct:free
+    provider: pollinations
+    name: openai
 groups:
   main:
     image_model: flux
     prompt_model:
-      base: mistralai/mistral-7b-instruct:free
-      tag_model: mistralai/mistral-7b-instruct:free
-      style_model: mistralai/mistral-7b-instruct:free
+      base: openai
+      tag_model: openai
+      style_model: openai
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
@@ -503,9 +503,9 @@ with open(os.environ['CFG']) as f:
 json.dump(data, sys.stdout)
 PY
 )
-default_text_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.base // .groups.main.prompt_model // .defaults.prompt_model.name // .defaults.prompt_model // "mistral"')
-default_tag_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.tag_model // .defaults.tag_model.name // .defaults.tag_model // .groups.main.prompt_model.base // "mistral"')
-default_style_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.style_model // .defaults.style_model.name // .defaults.style_model // .groups.main.prompt_model.base // "mistral"')
+default_text_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.base // .groups.main.prompt_model // .defaults.prompt_model.name // .defaults.prompt_model // "openai"')
+default_tag_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.tag_model // .defaults.tag_model.name // .defaults.tag_model // .groups.main.prompt_model.base // "openai"')
+default_style_model=$(printf '%s' "$config_json" | jq -r '.groups.main.prompt_model.style_model // .defaults.style_model.name // .defaults.style_model // .groups.main.prompt_model.base // "openai"')
 default_image_model=$(printf '%s' "$config_json" | jq -r '.groups.main.image_model // .defaults.image_model.name // .defaults.image_model // "flux"')
 
 # Ensure the selected generation group exists with default settings
@@ -532,9 +532,9 @@ defaults = {
     'provider_token': '',
     'image_model': def_env('DEF_IMAGE_MODEL', main_defaults.get('image_model', 'flux')),
     'prompt_model': {
-        'base': def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('base', 'mistral')),
-        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('tag_model', main_defaults.get('prompt_model', {}).get('base', 'mistral'))),
-        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('style_model', main_defaults.get('prompt_model', {}).get('base', 'mistral'))),
+        'base': def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('base', 'openai')),
+        'tag_model': def_env('DEF_TAG_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('tag_model', main_defaults.get('prompt_model', {}).get('base', 'openai'))),
+        'style_model': def_env('DEF_STYLE_MODEL') or def_env('DEF_PROMPT_MODEL', main_defaults.get('prompt_model', {}).get('style_model', main_defaults.get('prompt_model', {}).get('base', 'openai'))),
     },
     'favorites_path': f'~/pictures/favorites/{group}',
     'generations_path': f'~/pictures/generated-wallpapers/{group}',
@@ -729,7 +729,7 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
     gen_path: ($grp.generations_path // ""),
     fav_path: ($grp.favorites_path // $grp.path // ""),
     nsfw: ($grp.nsfw // false),
-    prompt_model: ($grp.prompt_model.base // $grp.prompt_model // "mistral"),
+    prompt_model: ($grp.prompt_model.base // $grp.prompt_model // "openai"),
     tag_model: ($grp.prompt_model.tag_model // $grp.tag_model // ""),
     style_model: ($grp.prompt_model.style_model // $grp.style_model // ""),
     image_model: ($grp.image_model // "flux"),
