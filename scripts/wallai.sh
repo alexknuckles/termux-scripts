@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/bin/bash
 set -eu
 if set -o | grep -q pipefail; then
   set -o pipefail
