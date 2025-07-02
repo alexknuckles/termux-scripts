@@ -618,6 +618,34 @@ else
   config_json=$(cat "$config_json_cache")
 fi
 
+# Parse a model flag in provider:model format
+parse_model_flag() {
+  local input="$1" type="$2"
+  provider="${input%%:*}"
+  alias_or_model="${input#*:}"
+  actual_model=$(printf '%s' "$config_json" | jq -r --arg p "$provider" --arg m "$alias_or_model" --arg t "$type" '
+    .provider[$p].models[$t][] |
+    if type == "object" and has($m) then .[$m]
+    elif . == $m then $m
+    else empty
+    end
+  ')
+  if [ -z "$actual_model" ]; then
+    echo "❌ Invalid $type model or alias: $provider:$alias_or_model" >&2
+    cleanup_and_exit 1
+  fi
+  endpoint=$(printf '%s' "$config_json" | jq -r --arg p "$provider" --arg t "$type" '
+    .provider[$p].endpoint[$t] // .provider[$p].endpoint // empty
+  ')
+  [ -z "$endpoint" ] && {
+    echo "❌ No $type endpoint for provider: $provider" >&2
+    cleanup_and_exit 1
+  }
+  model_provider="$provider"
+  model_name="$actual_model"
+  model_endpoint="$endpoint"
+}
+
 # Global API provider defaults and model caches
 declare -A provider_text_models
 declare -A provider_image_models
@@ -1089,33 +1117,6 @@ find_style_weight() {
   printf '%s' "$default"
 }
 
-# Parse a model flag in provider:model format
-parse_model_flag() {
-  local input="$1" type="$2"
-  provider="${input%%:*}"
-  alias_or_model="${input#*:}"
-  actual_model=$(printf '%s' "$config_json" | jq -r --arg p "$provider" --arg m "$alias_or_model" --arg t "$type" '
-    .provider[$p].models[$t][] |
-    if type == "object" and has($m) then .[$m]
-    elif . == $m then $m
-    else empty
-    end
-  ')
-  if [ -z "$actual_model" ]; then
-    echo "❌ Invalid $type model or alias: $provider:$alias_or_model" >&2
-    cleanup_and_exit 1
-  fi
-  endpoint=$(printf '%s' "$config_json" | jq -r --arg p "$provider" --arg t "$type" '
-    .provider[$p].endpoint[$t] // .provider[$p].endpoint // empty
-  ')
-  [ -z "$endpoint" ] && {
-    echo "❌ No $type endpoint for provider: $provider" >&2
-    cleanup_and_exit 1
-  }
-  model_provider="$provider"
-  model_name="$actual_model"
-  model_endpoint="$endpoint"
-}
 
 # Function to favorite the most recent wallpaper with metadata using exiftool
 favorite_image() {
