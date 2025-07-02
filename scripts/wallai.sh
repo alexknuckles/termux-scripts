@@ -399,27 +399,26 @@ api_providers:
   pollinations:
     base:
       text: "https://text.pollinations.ai/openai/v1"
-      image: "https://image.pollinations.ai/openai/v1"
-    api_key: "your_pollinations_key"
+      image: "https://image.pollinations.ai"
+    api_key: ""
     models:
-      text: ["gpt-4", "qwen:7b", "deepseek:coder"]
-      image: ["stable-diffusion-v1", "deepfloyd-if", "dalle-3", "flux"]
+      text: ["gpt-4", "qwen2.5-72b-instruct", "deepseek-chat"]
+      image: ["flux", "flux-realism", "flux-anime", "flux-3d", "any-dark", "turbo"]
   openai:
     base:
       text: "https://api.openai.com/v1"
       image: "https://api.openai.com/v1"
     api_key: "your_openai_key"
     models:
-      text: ["gpt-4", "gpt-3.5-turbo"]
-      image: ["dall-e-3"]
+      text: ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
+      image: ["dall-e-3", "dall-e-2"]
   openrouter:
     base:
       text: "https://openrouter.ai/api/v1"
       image: "https://openrouter.ai/api/v1"
-  # Or null/empty if not supported
     api_key: "your_openrouter_key"
     models:
-      text: ["anthropic/claude-3-haiku", "mistralai/mistral-7b-instruct"]
+      text: ["mistralai/mistral-7b-instruct:free", "huggingface/meta-llama/llama-3.2-3b-instruct:free", "microsoft/phi-3-mini-128k-instruct:free", "qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free", "meta-llama/llama-3.1-8b-instruct:free", "openchat/openchat-7b:free", "gryphe/mythomist-7b:free", "undi95/toppy-m-7b:free", "koboldai/psyfighter-13b-2:free"]
       image: []
 defaults:
   image_model:
@@ -427,33 +426,28 @@ defaults:
     name: flux
   prompt_model:
     provider: pollinations
-    name: gpt-4
+    name: qwen2.5-72b-instruct
   tag_model:
     provider: pollinations
-    name: gpt-4
+    name: qwen2.5-72b-instruct
   style_model:
     provider: pollinations
-    name: gpt-4
-Groups:
-  Main:
-    image_model:
-      provider: pollinations
-      name: flux
+    name: qwen2.5-72b-instruct
+groups:
+  main:
+    image_model: flux
     prompt_model:
-      provider: pollinations
-      name: gpt-4
-    tag_model:
-      provider: pollinations
-      name: gpt-4
-    style_model:
-      provider: pollinations
-      name: gpt-4
+      base: qwen2.5-72b-instruct
+      tag_model: qwen2.5-72b-instruct
+      style_model: qwen2.5-72b-instruct
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
-    nsfw: true
+    nsfw: false
+    allow_prompt_fetch: true
+    free_models: ["flux", "flux-realism", "flux-anime", "flux-3d", "any-dark", "turbo"]
     tags: ["dreamcore", "mystical forest", "cosmic horror", "ethereal landscape", "retrofuturism", "alien architecture", "cyberpunk metropolis"]
     styles: ["unreal engine", "cinematic lighting", "octane render", "hyperrealism", "volumetric lighting", "high detail", "4k concept art"]
-    moods: ["happy", "sad"]
+    moods: ["happy", "sad", "mysterious", "energetic", "peaceful"]
 EOF
 fi
 
@@ -626,8 +620,8 @@ text_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.ap
 image_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].base.image // .api_providers[$p].image_base // .api_providers[$p].base // empty')
 api_key_text=$(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].api_key // empty')
 api_key_image=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].api_key // empty')
-openai_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.prompt_model.name // .defaults.models.text')
-openai_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.image_model.name // .defaults.models.image')
+openai_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.prompt_model.name // .defaults.prompt_model // "qwen2.5-72b-instruct"')
+openai_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.image_model.name // .defaults.image_model // "flux"')
 provider="$text_provider"
 
 mapfile -t provider_text_models < <(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].models.text[]?')
@@ -648,9 +642,9 @@ if [ -z "$text_api_base" ] || [ -z "$image_api_base" ] || [ "$valid_text" = fals
 fi
 
 auth_header_text=()
-[ -n "$api_key_text" ] && auth_header_text=(-H "Authorization: Bearer $api_key_text")
+[ -n "$api_key_text" ] && [ "$api_key_text" != "your_openai_key" ] && [ "$api_key_text" != "your_openrouter_key" ] && auth_header_text=(-H "Authorization: Bearer $api_key_text")
 auth_header_image=()
-[ -n "$api_key_image" ] && auth_header_image=(-H "Authorization: Bearer $api_key_image")
+[ -n "$api_key_image" ] && [ "$api_key_image" != "your_openai_key" ] && [ "$api_key_image" != "your_openrouter_key" ] && auth_header_image=(-H "Authorization: Bearer $api_key_image")
 
 # Optional provider token for the current group
 provider_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].provider_token // ""')
