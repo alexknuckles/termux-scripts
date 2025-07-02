@@ -78,7 +78,7 @@ wallai [options]
 
 General Options:
 - `-h`, `--help`         Show this help message
-- `-v`                   Enable verbose mode
+- `-v`                   Enable verbose mode (prints the config path on startup)
 - `-g <group>`           Use or create a group config
 - `-k <token>`           Save provider token to the group
 - `--describe-image <file>`  Generate prompt from image caption
