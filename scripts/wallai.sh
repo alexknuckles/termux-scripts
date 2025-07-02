@@ -117,6 +117,8 @@ tag=""
 style=""
 negative_prompt=""
 mood=""
+# Track if a custom prompt was provided
+custom_prompt=false
 # Flags to record user-provided tag or style
 tag_provided=false
 style_provided=false
@@ -216,6 +218,7 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
   case "$opt" in
     p)
       prompt="$OPTARG"
+      custom_prompt=true
       generation_opts=true
       ;;
     t)
@@ -1268,6 +1271,33 @@ spinner_multi() {
   printf "\r\033[K\n"
 }
 
+# Spinner that shows combined progress for multiple PIDs
+spinner_progress() {
+  local total="$1"
+  shift
+  local pids=("$@")
+  local emojis=("🌠" "⏳" "✨")
+  local i=0 completed running
+  tput civis 2>/dev/null || true
+  while :; do
+    running=false
+    completed=0
+    for pid in "${pids[@]}"; do
+      if kill -0 "$pid" 2>/dev/null; then
+        running=true
+      else
+        completed=$((completed+1))
+      fi
+    done
+    printf "\r%s Generating %d of %d images..." "${emojis[i]}" "$completed" "$total"
+    [ "$running" = false ] && break
+    i=$(( (i + 1) % ${#emojis[@]} ))
+    sleep 0.5
+  done
+  tput cnorm 2>/dev/null || true
+  printf "\r\033[K\n"
+}
+
 # If called only with -f, favorite the last generated wallpaper and exit early
 if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_group_set" = false ]; then
   last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
@@ -1811,71 +1841,152 @@ generate_image() {
 last_output=""
 last_timestamp=""
 last_seed=""
-for ((i=1;i<=batch_count;i++)); do
-  [ "$verbose" = true ] && [ "$batch_count" -gt 1 ] && \
-    echo "🖼 Generating image $i of $batch_count..."
-  seed=$(random_seed)
-  timestamp="$(date +%Y%m%d-%H%M%S)"
-  tmp_output="$save_dir/${timestamp}.img"
-  TMPFILE="$tmp_output"
 
-  ctype_file=$(mktemp)
-  TMPJSON="$ctype_file"
-  provider="$image_provider"
-  generate_image "$tmp_output" "$ctype_file" &
-  gen_pid=$!
-  spinner "$gen_pid" "Generating image" &
+if [ "$batch_count" -gt 1 ]; then
+  declare -A pid_index
+  declare -a prompts_arr seeds_arr tmp_arr ctype_arr outputs_arr
+  pids=()
+  for ((i=1;i<=batch_count;i++)); do
+    if [ "$i" -gt 1 ] && [ "$custom_prompt" = false ]; then
+      if fetch_prompt; then
+        base_prompt_i="$prompt"
+      else
+        base_prompt_i="$base_prompt"
+      fi
+      prompt="(${tag}:${tag_weight}) $base_prompt_i (${style}:${style_weight}) [negative prompt: $negative_prompt]"
+      [ "$weather_flag" = true ] && prompt="$prompt, $env_text"
+    fi
+    prompts_arr[i]="$prompt"
+    seeds_arr[i]=$(random_seed)
+    timestamp="$(date +%Y%m%d-%H%M%S)"
+    tmp_file="$save_dir/${timestamp}_${i}.img"
+    tmp_arr[i]="$tmp_file"
+    ctype_file=$(mktemp)
+    ctype_arr[i]="$ctype_file"
+    (
+      prompt="${prompts_arr[i]}"
+      seed="${seeds_arr[i]}"
+      generate_image "$tmp_file" "$ctype_file"
+    ) &
+    pid=$!
+    pids+=("$pid")
+    pid_index[$pid]=$i
+  done
+  spinner_progress "$batch_count" "${pids[@]}" &
   spin_pid=$!
-  wait "$gen_pid"
-  status=$?
+  success=0
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+    status=$?
+    idx=${pid_index[$pid]}
+    cfile="${ctype_arr[idx]}"
+    tfile="${tmp_arr[idx]}"
+    pr="${prompts_arr[idx]}"
+    sd="${seeds_arr[idx]}"
+    if [ "$status" -eq 0 ]; then
+      gtype=$(cat "$cfile" 2>/dev/null || true)
+      ftype=$(file -b --mime-type "$tfile" 2>/dev/null || true)
+      if printf '%s' "$gtype" | grep -qi '^image/' && \
+         printf '%s' "$ftype" | grep -qi '^image/'; then
+        case "$gtype" in
+          image/png) ext="png" ;;
+          image/jpeg|image/jpg) ext="jpg" ;;
+          *) ext="png" ;;
+        esac
+        tag_slug=$(slugify "${tag:-custom}")
+        style_slug=$(slugify "$style")
+        fname="$(basename "$tfile" .img).${ext}"
+        out="$save_dir/$fname"
+        mv "$tfile" "$out"
+        echo "💾 Saved to: $out"
+        entry="$gen_group|$fname|$sd|$pr|$prompt_seed|$tag_seed|$style_seed"
+        echo "$entry" >> "$log_file"
+        echo "$entry" >> "$main_log"
+        outputs_arr[idx]="$out"
+        last_output="$out"
+        last_timestamp="${fname%%_*}"
+        last_seed="$sd"
+        success=$((success+1))
+      else
+        echo "❌ Invalid image file for job $idx" >&2
+        rm -f "$tfile"
+      fi
+    else
+      echo "❌ Generation $idx failed" >&2
+      rm -f "$tfile"
+    fi
+    rm -f "$cfile"
+  done
   wait "$spin_pid" 2>/dev/null || true
   printf '\n'
-  if [ "$status" -ne 0 ]; then
-    echo "❌ Failed to generate image via $provider" >&2
-    cleanup_and_exit 1
-  fi
-  generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
-  file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
-  [ "$verbose" = true ] && echo "🔍 File type: $file_type"
-  if ! printf '%s' "$generated_content_type" | grep -qi '^image/' || \
-     ! printf '%s' "$file_type" | grep -qi '^image/'; then
-    echo "❌ Invalid image file!" >&2
-    cleanup_and_exit 1
-  fi
-  echo "✅ Image generated successfully"
-  img_source="$provider"
+  echo "✅ ${success}/$batch_count images generated successfully"
+else
+  for ((i=1;i<=batch_count;i++)); do
+    [ "$verbose" = true ] && [ "$batch_count" -gt 1 ] && \
+      echo "🖼 Generating image $i of $batch_count..."
+    seed=$(random_seed)
+    timestamp="$(date +%Y%m%d-%H%M%S)"
+    tmp_output="$save_dir/${timestamp}.img"
+    TMPFILE="$tmp_output"
 
-  generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
-  rm -f "$ctype_file"
+    ctype_file=$(mktemp)
+    TMPJSON="$ctype_file"
+    provider="$image_provider"
+    generate_image "$tmp_output" "$ctype_file" &
+    gen_pid=$!
+    spinner "$gen_pid" "Generating image" &
+    spin_pid=$!
+    wait "$gen_pid"
+    status=$?
+    wait "$spin_pid" 2>/dev/null || true
+    printf '\n'
+    if [ "$status" -ne 0 ]; then
+      echo "❌ Failed to generate image via $provider" >&2
+      cleanup_and_exit 1
+    fi
+    generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
+    file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
+    [ "$verbose" = true ] && echo "🔍 File type: $file_type"
+    if ! printf '%s' "$generated_content_type" | grep -qi '^image/' || \
+       ! printf '%s' "$file_type" | grep -qi '^image/'; then
+      echo "❌ Invalid image file!" >&2
+      cleanup_and_exit 1
+    fi
+    echo "✅ Image generated successfully"
+    img_source="$provider"
 
-  case "$generated_content_type" in
-    image/png)
-      ext="png"
-      ;;
-    image/jpeg|image/jpg)
-      ext="jpg"
-      ;;
-    *)
-      ext="png"
-      ;;
-  esac
-  tag_slug=$(slugify "${tag:-custom}")
-  style_slug=$(slugify "$style")
-  filename="${timestamp}_${tag_slug}_${style_slug}.${ext}"
-  output="$save_dir/$filename"
-  mv "$tmp_output" "$output"
-  TMPFILE=""
-  TMPJSON=""
-  echo "💾 Saved to: $output"
+    generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
+    rm -f "$ctype_file"
 
-  entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$tag_seed|$style_seed"
-  echo "$entry" >> "$log_file"
-  echo "$entry" >> "$main_log"
+    case "$generated_content_type" in
+      image/png)
+        ext="png"
+        ;;
+      image/jpeg|image/jpg)
+        ext="jpg"
+        ;;
+      *)
+        ext="png"
+        ;;
+    esac
+    tag_slug=$(slugify "${tag:-custom}")
+    style_slug=$(slugify "$style")
+    filename="${timestamp}_${tag_slug}_${style_slug}.${ext}"
+    output="$save_dir/$filename"
+    mv "$tmp_output" "$output"
+    TMPFILE=""
+    TMPJSON=""
+    echo "💾 Saved to: $output"
 
-  last_output="$output"
-  last_timestamp="$timestamp"
-  last_seed="$seed"
-done
+    entry="$gen_group|$filename|$seed|$prompt|$prompt_seed|$tag_seed|$style_seed"
+    echo "$entry" >> "$log_file"
+    echo "$entry" >> "$main_log"
+
+    last_output="$output"
+    last_timestamp="$timestamp"
+    last_seed="$seed"
+  done
+fi
 
 if [ "$has_termux_wallpaper" = true ]; then
   termux-wallpaper -f "$last_output"
