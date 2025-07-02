@@ -101,12 +101,18 @@ Examples:
 END
 }
 # Check dependencies early so the script fails with a clear message
-for cmd in curl jq termux-wallpaper; do
+for cmd in curl jq; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "❌ Required command '$cmd' is not installed" >&2
     cleanup_and_exit 1
   fi
 done
+
+# Check for termux-wallpaper but don't fail if missing (for testing on non-Termux systems)
+has_termux_wallpaper=false
+if command -v termux-wallpaper >/dev/null 2>&1; then
+  has_termux_wallpaper=true
+fi
 
 # Parse options
 prompt=""
@@ -1047,12 +1053,27 @@ favorite_image() {
 # shellcheck disable=SC2317
 browse_gallery() {
   local fav_group="$1" list result sel decision group_list gsel gsel_val
-  for cmd in termux-dialog termux-open jq; do
+  for cmd in jq; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
       echo "❌ Required command '$cmd' is not installed" >&2
       return 1
     fi
   done
+  
+  # Check for termux-specific commands but don't fail if missing
+  has_termux_dialog=false
+  has_termux_open=false
+  if command -v termux-dialog >/dev/null 2>&1; then
+    has_termux_dialog=true
+  fi
+  if command -v termux-open >/dev/null 2>&1; then
+    has_termux_open=true
+  fi
+  
+  if [ "$has_termux_dialog" = false ] || [ "$has_termux_open" = false ]; then
+    echo "❌ Browse gallery requires termux-dialog and termux-open (Termux environment)" >&2
+    return 1
+  fi
   cd "$save_dir" 2>/dev/null || { echo "❌ No generated wallpapers found" >&2; return 1; }
   mapfile -t images < <(ls -t -- *.jpg *.png 2>/dev/null || true)
   [ "${#images[@]}" -gt 0 ] || { echo "❌ No images found" >&2; return 1; }
@@ -1233,8 +1254,13 @@ if [ -n "$reuse_mode" ]; then
     path=$(eval printf '%s' "$path")
     file="$path/$fname"
   fi
-  termux-wallpaper -f "$file"
-  echo "🎉 Reused wallpaper: $(basename "$file") (source: $source_desc, group: $target_group)"
+  if [ "$has_termux_wallpaper" = true ]; then
+    termux-wallpaper -f "$file"
+    echo "🎉 Reused wallpaper: $(basename "$file") (source: $source_desc, group: $target_group)"
+  else
+    echo "🎉 Would reuse wallpaper: $(basename "$file") (source: $source_desc, group: $target_group)"
+    echo "ℹ️  termux-wallpaper not available - wallpaper not set automatically"
+  fi
   cleanup_and_exit 0
 fi
 
@@ -1709,8 +1735,14 @@ for ((i=1;i<=batch_count;i++)); do
   last_seed="$seed"
 done
 
-termux-wallpaper -f "$last_output"
-echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
+if [ "$has_termux_wallpaper" = true ]; then
+  termux-wallpaper -f "$last_output"
+  echo "🎉 Wallpaper set from prompt: $prompt" "(source: $img_source)"
+else
+  echo "🎉 Image generated: $last_output"
+  echo "📝 Prompt: $prompt (source: $img_source)"
+  echo "ℹ️  termux-wallpaper not available - wallpaper not set automatically"
+fi
 
 [ "$favorite_wall" = true ] && {
   favorite_image "$last_output" "$prompt" "$tag" "$style" "$mood" "$model" "$last_seed" "$last_timestamp" "$fav_path" "$favorite_group"

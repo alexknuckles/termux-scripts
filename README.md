@@ -152,9 +152,10 @@ and each API request uses a new seed. These seeds are stored so results can be r
 If the request fails, wallai chooses a prompt from a built-in
 fallback list so generation can continue offline. Image generation exits on failure without retrying.
 
-Dependencies: `curl`, `jq`, `termux-wallpaper`, optional `exiftool` for the `-f` option (also used by the `walfave` alias).
+Dependencies: `curl`, `jq`, `termux-wallpaper` (for setting wallpaper), optional `exiftool` for the `-f` option (also used by the `walfave` alias).
 Images are saved as PNG or JPEG depending on what the API returns.
-If any of these tools are missing the script exits with a clear error
+The script can run on non-Termux systems for testing - it will generate images but won't set the wallpaper automatically.
+If any required tools are missing the script exits with a clear error
 message. Internet access is required for fetching prompts and generating
 the image.
 
