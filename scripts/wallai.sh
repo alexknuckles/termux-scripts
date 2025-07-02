@@ -1559,10 +1559,10 @@ if [ -z "$prompt" ]; then
     fi
   fi
   # 🧠 Step 2: Retrieve a text prompt for that tag
-  if [ "${#discovered_tags[@]}" -eq 0 ]; then
+  if [ "${#discovered_tags[@]}" -eq 0 ] || [ "$tag_provided" = true ]; then
     echo "🔖 Selected tag: $tag"
   fi
-  if [ "${#discovered_styles[@]}" -eq 0 ]; then
+  if [ "${#discovered_styles[@]}" -eq 0 ] || [ "$style_provided" = true ]; then
     echo "🖌 Selected style: $style"
   fi
   if ! fetch_prompt; then
