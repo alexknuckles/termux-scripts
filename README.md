@@ -126,8 +126,9 @@ lists of themes and styles.
 You can store a provider token for each group using `-k`, saved under that
 group's entry along with `prompt_model` and `image_model` preferences.
 The config file also contains an `api_providers` section listing Pollinations,
-OpenAI and OpenRouter endpoints. The global `defaults` section sets OpenRouter
-with `mistralai/mistral-7b-instruct:free` for text and Pollinations `flux` for image generation so new groups work
+OpenAI and OpenRouter endpoints. The global `defaults` section now uses
+Pollinations `openai` for text prompts, tag discovery and style discovery,
+and Pollinations `flux` for image generation so new groups work
 anonymously without requiring API keys.
 If `-pm`, `-tm` or `-sm` are supplied when a new group is created, the selected
 models are stored under `prompt_model` with `-pm` becoming the `base` model.
