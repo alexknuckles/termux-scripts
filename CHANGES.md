@@ -1,3 +1,4 @@
+- wallai parallelizes `-x N` batches with a spinner and sets the wallpaper from the last image.
 - New groups now inherit unset settings from the main profile.
 - Fixed YAML validation check causing unexpected token error in wallai.sh.
 - Fixed missing set_config_value definition causing command not found in wallai.

@@ -98,7 +98,7 @@ Discovery & Inspiration:
 - `-b [group]`           Browse generated wallpapers
 
 Image Generation:
-- `-x [n]`               Generate `n` images (default 1)
+ - `-x [n]`               Generate `n` images (runs in parallel when `n` > 1)
 - `-f`                   Favorite the image after generation
 - `-r`                   Select a random model
 - `-im <model>`          Image generation model
