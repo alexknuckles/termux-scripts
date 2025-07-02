@@ -918,7 +918,7 @@ discover_item() {
       exists=false
       if [ "$kind" = "tag" ]; then
         for i in "${gen_tags[@]}"; do
-          if [ "$(printf '%s' "$i" | tr '[:upper:]" '[:lower:]')" = "$lower_item" ]; then
+          if [ "$(printf '%s' "$i" | tr '[:upper:]' '[:lower:]')" = "$lower_item" ]; then
             exists=true
             break
           fi
