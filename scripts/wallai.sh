@@ -702,7 +702,7 @@ if [ -n "$describe_image_file" ]; then
   img_b64=$(base64 -w0 "$describe_image_file" 2>/dev/null)
   data_url="data:${mime_type};base64,${img_b64}"
   payload=$(jq -n --arg model "$openai_text_model" --arg url "$data_url" '{model:$model,messages:[{role:"user",content:[{type:"text",content:"Describe this image in a short wallpaper prompt"},{type:"image_url",image_url:{url:$url}}]}]}')
-  caption=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
+  caption=$(curl -sL --max-time 30 "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
   if [ -z "$caption" ]; then
     echo "❌ Failed to describe image" >&2
     cleanup_and_exit 1
@@ -870,7 +870,7 @@ discover_item() {
   fi
   payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
   [ "$verbose" = true ] && echo "🔍 Discover via $provider" >&2
-  result=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+  result=$(curl -sL --max-time 30 "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
   [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
   
   # Check if result is null, empty, or just whitespace
@@ -1526,7 +1526,7 @@ fetch_prompt() {
   prompt_seed=$(random_seed)
   payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
   [ "$verbose" = true ] && echo "🔍 Requesting prompt via $provider" >&2
-  response=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" || true)
+  response=$(curl -sL --max-time 30 "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" || true)
   prompt=$(printf '%s' "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
   [ "$verbose" = true ] && echo "🔍 Response: $prompt" >&2
   
