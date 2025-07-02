@@ -1502,12 +1502,18 @@ fetch_prompt() {
   payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
   [ "$verbose" = true ] && echo "🔍 Requesting prompt via $provider" >&2
   response=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" || true)
-  prompt=$(printf '%s' "$response" | jq -r '.choices[0].message.content' 2>/dev/null)
+  prompt=$(printf '%s' "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
   [ "$verbose" = true ] && echo "🔍 Response: $prompt" >&2
+  
+  # Check if prompt is null, empty, or just whitespace
+  if [ -z "$prompt" ] || [ "$prompt" = "null" ] || [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ]; then
+    return 1
+  fi
+  
   prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   prompt=$(printf '%s' "$prompt" | sed -E 's/^[Cc]reate a wallpaper of (a )?//')
   prompt=$(printf '%s\n' "$prompt" | awk '{for(i=1;i<=15 && i<=NF;i++){printf $i;if(i<15 && i<NF)printf " ";}}')
-  [ -n "$prompt" ]
+  [ -n "$prompt" ] && [ "$prompt" != "null" ]
 }
 
 if [ -z "$prompt" ]; then
@@ -1532,15 +1538,44 @@ if [ -z "$prompt" ]; then
   # 🧠 Step 2: Retrieve a text prompt for that tag
   if ! fetch_prompt; then
     echo "❌ Failed to fetch prompt. Using fallback."
-    fallback_prompts=(
-      "surreal dreamscape with neon colors"
-      "futuristic city skyline at dusk"
-      "ancient ruins shrouded in mist"
-      "mystical forest glowing softly"
-      "retro wave grid horizon with stars"
-      "lush alien jungle under twin moons"
-      "calm desert landscape under stars"
-    )
+    # Create tag-specific fallback prompts
+    case "$tag" in
+      "cosmic horror")
+        fallback_prompts=(
+          "eldritch tentacles emerging from dark cosmic void with ancient symbols"
+          "massive alien entity looming over twisted reality with glowing eyes"
+          "otherworldly geometry defying physics in deep space nightmare"
+          "ancient cosmic beings awakening from eternal slumber in darkness"
+        )
+        ;;
+      "dreamcore")
+        fallback_prompts=(
+          "surreal floating islands with impossible architecture and soft lighting"
+          "endless corridors with shifting walls and ethereal atmosphere"
+          "liminal spaces between reality and dreams with pastel colors"
+          "nostalgic childhood memories manifested in surreal dreamlike landscape"
+        )
+        ;;
+      "cyberpunk metropolis")
+        fallback_prompts=(
+          "neon-lit skyscrapers towering over rain-soaked streets with holograms"
+          "futuristic city with flying cars and massive digital billboards"
+          "dark alleyways illuminated by colorful neon signs and steam"
+          "high-tech urban landscape with chrome and glass architecture"
+        )
+        ;;
+      *)
+        fallback_prompts=(
+          "surreal dreamscape with neon colors and floating elements"
+          "futuristic city skyline at dusk with glowing lights"
+          "ancient ruins shrouded in mist and mystery"
+          "mystical forest glowing softly with magical energy"
+          "retro wave grid horizon with stars and synthwave aesthetic"
+          "lush alien jungle under twin moons and strange flora"
+          "calm desert landscape under stars with sand dunes"
+        )
+        ;;
+    esac
     prompt=$(printf '%s\n' "${fallback_prompts[@]}" | shuf -n1)
   fi
 fi
@@ -1613,8 +1648,9 @@ if [ "$weather_flag" = true ]; then
   prompt="$prompt, $env_text"
 fi
 
-# Auto-retry if prompt is empty
-if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ]; then
+# Auto-retry if prompt is empty or null
+if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ] || [ "$prompt" = "null" ]; then
+  echo "⚠️ Retrying prompt generation..."
   if fetch_prompt; then
     base_prompt="$prompt"
     prompt="(${tag}:${tag_weight}) $base_prompt (${style}:${style_weight}) [negative prompt: $negative_prompt]"
@@ -1623,9 +1659,27 @@ if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ]; then
       env_text=${env_text#, }
       prompt="$prompt, $env_text"
     fi
+  else
+    echo "❌ Retry failed. Using tag-based fallback."
+    case "$tag" in
+      "cosmic horror") base_prompt="eldritch tentacles emerging from dark cosmic void with ancient symbols" ;;
+      "dreamcore") base_prompt="surreal floating islands with impossible architecture and soft lighting" ;;
+      "cyberpunk metropolis") base_prompt="neon-lit skyscrapers towering over rain-soaked streets with holograms" ;;
+      "mystical forest") base_prompt="enchanted woodland with glowing mushrooms and ethereal mist" ;;
+      "retrofuturism") base_prompt="retro-futuristic cityscape with chrome buildings and flying vehicles" ;;
+      "alien architecture") base_prompt="otherworldly structures with impossible geometry and alien materials" ;;
+      "ethereal landscape") base_prompt="dreamlike terrain with floating rocks and soft luminous atmosphere" ;;
+      *) base_prompt="surreal dreamscape with vibrant colors and fantastical elements" ;;
+    esac
+    prompt="(${tag}:${tag_weight}) $base_prompt (${style}:${style_weight}) [negative prompt: $negative_prompt]"
+    if [ "$weather_flag" = true ]; then
+      env_text=$(printf ', %s' "${env_parts[@]}")
+      env_text=${env_text#, }
+      prompt="$prompt, $env_text"
+    fi
   fi
 fi
-if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ]; then
+if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ] || [ "$prompt" = "null" ]; then
   echo "❌ Prompt could not be generated. Check your config or arguments." >&2
   cleanup_and_exit 1
 fi
