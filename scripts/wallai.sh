@@ -346,6 +346,8 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
 done
 shift $((OPTIND - 1))
 
+[ "$verbose" = true ] && echo "🔧 Verbose mode enabled" >&2
+
 # Extract weights from tag or style arguments if provided as name:weight
 if [ "$tag_provided" = true ] && [[ "$tag" == *:* ]]; then
   weight_part="${tag##*:}"
@@ -407,6 +409,7 @@ fi
 # Load configuration and bootstrap defaults if needed
 config_file="$HOME/.wallai/config.yml"
 config_dir="$(dirname "$config_file")"
+[ "$verbose" = true ] && echo "📁 Using config $config_file" >&2
 if [ ! -f "$config_file" ]; then
   mkdir -p "$config_dir" "$HOME/pictures/generated-wallpapers" "$HOME/pictures/favorites"
   cat >"$config_file" <<'EOF'
@@ -497,15 +500,14 @@ groups:
       provider: pollinations
       model:
         text: openai
-    favorites_path: ~/pictures/favorites/main
-    generations_path: $HOME/pictures/generated-wallpapers/main
     favorites_path: $HOME/pictures/favorites/main
+    generations_path: $HOME/pictures/generated-wallpapers/main
     nsfw: false
     tags: ["dreamcore", "mystical forest", "cosmic horror", "ethereal landscape", "retrofuturism", "alien architecture", "cyberpunk metropolis"]
     styles: ["unreal engine", "cinematic lighting", "octane render", "hyperrealism", "volumetric lighting", "high detail", "4k concept art"]
-    image_model: flux
     moods: ["happy", "sad", "mysterious", "energetic", "peaceful"]
 EOF
+  [ "$verbose" = true ] && echo "📝 Created default config at $config_file" >&2
 fi
 
 # Cache config validation to avoid repeated Python calls
@@ -518,6 +520,7 @@ if [ -f "$config_cache" ]; then
 fi
 
 if [ "$cache_valid" = false ]; then
+  [ "$verbose" = true ] && echo "🔍 Validating configuration" >&2
   # Validate YAML syntax with better error handling
   validation_error=$(python3 - "$config_file" 2>&1 <<'PY' || echo "VALIDATION_FAILED"
 import sys, yaml
@@ -763,9 +766,12 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
     tag_weights: [$grp.tags[]? | if type=="string" then 1.5 else .[keys[0]] end],
     styles: [$grp.styles[]? | if type=="string" then . else keys[0] end],
     style_weights: [$grp.styles[]? | if type=="string" then 1.3 else .[keys[0]] end],
-    moods: [$grp.moods[]?]
+  moods: [$grp.moods[]?]
   }
-' 2>/dev/null)
+' 2>/dev/null) || {
+  echo "❌ Failed to load group config for $gen_group" >&2
+  cleanup_and_exit 1
+}
 
 gen_gen_path=$(printf '%s' "$group_config" | jq -r '.gen_path')
 [ -z "$gen_gen_path" ] && gen_gen_path="$HOME/pictures/generated-wallpapers/$gen_group"
@@ -1539,7 +1545,7 @@ if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
   { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; cleanup_and_exit 1; }
 fi
 # Select image models from provider config
-models=("${provider_image_models[$image_provider]}")
+models=(${provider_image_models[$image_provider]})
 if [ "$random_model" = true ]; then
   model=$(printf '%s\n' "${models[@]}" | shuf -n1)
   echo "🎲 Randomly selected model: $model"

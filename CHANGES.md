@@ -135,3 +135,6 @@
 - wallai adds timeouts to discovery and caption requests to avoid hanging when the API is unresponsive.
 - Default prompt, tag and style models now use Pollinations `openai` so these requests succeed without a key.
 - wallai supports new provider config structure and provider:model CLI flags.
+- Verbose mode prints the config path and notes when the config file is created.
+- wallai exits with an error if the group config is missing
+- Fixed default config to avoid duplicate keys so group config loads correctly
