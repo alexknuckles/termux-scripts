@@ -414,11 +414,11 @@ if [ ! -f "$config_file" ]; then
 api_providers:
   pollinations:
     base:
-      text: "https://text.pollinations.ai/openai"
+      text: ""
       image: "https://image.pollinations.ai"
     api_key: ""
     models:
-      text: ["gpt-4", "qwen2.5-72b-instruct", "deepseek-chat"]
+      text: []
       image: ["flux", "flux-realism", "flux-anime", "flux-3d", "any-dark", "turbo"]
   openai:
     base:
@@ -432,7 +432,7 @@ api_providers:
     base:
       text: "https://openrouter.ai/api/v1"
       image: "https://openrouter.ai/api/v1"
-    api_key: "your_openrouter_key"
+    api_key: ""
     models:
       text: ["mistralai/mistral-7b-instruct:free", "huggingface/meta-llama/llama-3.2-3b-instruct:free", "microsoft/phi-3-mini-128k-instruct:free", "qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free", "meta-llama/llama-3.1-8b-instruct:free", "openchat/openchat-7b:free", "gryphe/mythomist-7b:free", "undi95/toppy-m-7b:free", "koboldai/psyfighter-13b-2:free"]
       image: []
@@ -441,21 +441,21 @@ defaults:
     provider: pollinations
     name: flux
   prompt_model:
-    provider: pollinations
-    name: qwen2.5-72b-instruct
+    provider: openrouter
+    name: mistralai/mistral-7b-instruct:free
   tag_model:
-    provider: pollinations
-    name: qwen2.5-72b-instruct
+    provider: openrouter
+    name: mistralai/mistral-7b-instruct:free
   style_model:
-    provider: pollinations
-    name: qwen2.5-72b-instruct
+    provider: openrouter
+    name: mistralai/mistral-7b-instruct:free
 groups:
   main:
     image_model: flux
     prompt_model:
-      base: qwen2.5-72b-instruct
-      tag_model: qwen2.5-72b-instruct
-      style_model: qwen2.5-72b-instruct
+      base: mistralai/mistral-7b-instruct:free
+      tag_model: mistralai/mistral-7b-instruct:free
+      style_model: mistralai/mistral-7b-instruct:free
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
     nsfw: false
