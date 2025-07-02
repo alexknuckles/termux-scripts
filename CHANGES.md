@@ -126,3 +126,4 @@
 - wallai now routes OpenAI-compatible requests via configurable providers and documentation no longer references pollinations.ai.
 - Default provider switched to Pollinations with configurable models and a global `defaults` section.
 - Pollinations image generation now uses the `flux` model with its dedicated endpoint.
+- Updated default configuration format with per-model providers and endpoints.

@@ -397,59 +397,63 @@ if [ ! -f "$config_file" ]; then
   cat >"$config_file" <<'EOF'
 api_providers:
   pollinations:
-    text_base: "https://text.pollinations.ai/openai/v1"
-    image_base: "https://image.pollinations.ai"
-    api_key: ""
+    base:
+      text: "https://text.pollinations.ai/openai/v1"
+      image: "https://image.pollinations.ai/openai/v1"
+    api_key: "your_pollinations_key"
     models:
       text: ["gpt-4", "qwen:7b", "deepseek:coder"]
-      image: ["flux"]
+      image: ["stable-diffusion-v1", "deepfloyd-if", "dalle-3", "flux"]
   openai:
-    base: "https://api.openai.com/v1"
-    api_key: ""
+    base:
+      text: "https://api.openai.com/v1"
+      image: "https://api.openai.com/v1"
+    api_key: "your_openai_key"
     models:
       text: ["gpt-4", "gpt-3.5-turbo"]
       image: ["dall-e-3"]
   openrouter:
-    base: "https://openrouter.ai/api/v1"
-    api_key: ""
+    base:
+      text: "https://openrouter.ai/api/v1"
+      image: "https://openrouter.ai/api/v1"
+  # Or null/empty if not supported
+    api_key: "your_openrouter_key"
     models:
       text: ["anthropic/claude-3-haiku", "mistralai/mistral-7b-instruct"]
       image: []
 defaults:
-  provider: "pollinations"
-  models:
-    text: "gpt-4"
-    image: "flux"
-groups:
-  main:
-    provider_token: ""
-    image_model: flux
+  image_model:
+    provider: pollinations
+    name: flux
+  prompt_model:
+    provider: pollinations
+    name: gpt-4
+  tag_model:
+    provider: pollinations
+    name: gpt-4
+  style_model:
+    provider: pollinations
+    name: gpt-4
+Groups:
+  Main:
+    image_model:
+      provider: pollinations
+      name: flux
     prompt_model:
-      base: gpt-4
-      tag_model: gpt-4
-      style_model: gpt-4
+      provider: pollinations
+      name: gpt-4
+    tag_model:
+      provider: pollinations
+      name: gpt-4
+    style_model:
+      provider: pollinations
+      name: gpt-4
     favorites_path: ~/pictures/favorites/main
     generations_path: ~/pictures/generated-wallpapers/main
-    nsfw: false
-    allow_prompt_fetch: true
-    free_models:
-      - flux
-    tags:
-      - dreamcore
-      - mystical forest
-      - cosmic horror
-      - ethereal landscape
-      - retrofuturism
-      - alien architecture
-      - cyberpunk metropolis
-    styles:
-      - unreal engine
-      - cinematic lighting
-      - octane render
-      - hyperrealism
-      - volumetric lighting
-      - high detail
-      - 4k concept art
+    nsfw: true
+    tags: ["dreamcore", "mystical forest", "cosmic horror", "ethereal landscape", "retrofuturism", "alien architecture", "cyberpunk metropolis"]
+    styles: ["unreal engine", "cinematic lighting", "octane render", "hyperrealism", "volumetric lighting", "high detail", "4k concept art"]
+    moods: ["happy", "sad"]
 EOF
 fi
 
@@ -616,22 +620,25 @@ else
 fi
 
 # Global API provider defaults
-provider=$(printf '%s' "$config_json" | jq -r '.defaults.provider')
-text_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].text_base // .api_providers[$p].base // empty')
-image_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].image_base // .api_providers[$p].base // empty')
-api_key=$(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].api_key // empty')
-openai_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.text')
-openai_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.models.image')
+text_provider=$(printf '%s' "$config_json" | jq -r '.defaults.prompt_model.provider // "pollinations"')
+image_provider=$(printf '%s' "$config_json" | jq -r '.defaults.image_model.provider // "pollinations"')
+text_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].base.text // .api_providers[$p].text_base // .api_providers[$p].base // empty')
+image_api_base=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].base.image // .api_providers[$p].image_base // .api_providers[$p].base // empty')
+api_key_text=$(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].api_key // empty')
+api_key_image=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].api_key // empty')
+openai_text_model=$(printf '%s' "$config_json" | jq -r '.defaults.prompt_model.name // .defaults.models.text')
+openai_image_model=$(printf '%s' "$config_json" | jq -r '.defaults.image_model.name // .defaults.models.image')
+provider="$text_provider"
 
-mapfile -t provider_text_models < <(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].models.text[]?')
-mapfile -t provider_image_models < <(printf '%s' "$config_json" | jq -r --arg p "$provider" '.api_providers[$p].models.image[]?')
+mapfile -t provider_text_models < <(printf '%s' "$config_json" | jq -r --arg p "$text_provider" '.api_providers[$p].models.text[]?')
+mapfile -t provider_image_models < <(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.api_providers[$p].models.image[]?')
 
 valid_text=false
 valid_image=false
-if printf '%s' "$config_json" | jq -e --arg p "$provider" --arg m "$openai_text_model" '.api_providers[$p].models.text | index($m)' >/dev/null; then
+if printf '%s' "$config_json" | jq -e --arg p "$text_provider" --arg m "$openai_text_model" '.api_providers[$p].models.text | index($m)' >/dev/null; then
   valid_text=true
 fi
-if printf '%s' "$config_json" | jq -e --arg p "$provider" --arg m "$openai_image_model" '.api_providers[$p].models.image | index($m)' >/dev/null; then
+if printf '%s' "$config_json" | jq -e --arg p "$image_provider" --arg m "$openai_image_model" '.api_providers[$p].models.image | index($m)' >/dev/null; then
   valid_image=true
 fi
 
@@ -640,8 +647,10 @@ if [ -z "$text_api_base" ] || [ -z "$image_api_base" ] || [ "$valid_text" = fals
   cleanup_and_exit 1
 fi
 
-auth_header=()
-[ -n "$api_key" ] && auth_header=(-H "Authorization: Bearer $api_key")
+auth_header_text=()
+[ -n "$api_key_text" ] && auth_header_text=(-H "Authorization: Bearer $api_key_text")
+auth_header_image=()
+[ -n "$api_key_image" ] && auth_header_image=(-H "Authorization: Bearer $api_key_image")
 
 # Optional provider token for the current group
 provider_token=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '.groups[$g].provider_token // ""')
@@ -668,9 +677,11 @@ PY
 fi
 
 # Use provider token only if available for the current group
-curl_auth=("${auth_header[@]}")
+curl_auth_text=("${auth_header_text[@]}")
+curl_auth_image=("${auth_header_image[@]}")
 if [ -n "$provider_token" ]; then
-  curl_auth+=(-H "Authorization: Bearer $provider_token")
+  curl_auth_text+=(-H "Authorization: Bearer $provider_token")
+  curl_auth_image+=(-H "Authorization: Bearer $provider_token")
   echo "🔑 Using provider token for group: $gen_group"
 fi
 
@@ -681,7 +692,7 @@ if [ -n "$describe_image_file" ]; then
   img_b64=$(base64 -w0 "$describe_image_file" 2>/dev/null)
   data_url="data:${mime_type};base64,${img_b64}"
   payload=$(jq -n --arg model "$openai_text_model" --arg url "$data_url" '{model:$model,messages:[{role:"user",content:[{type:"text",content:"Describe this image in a short wallpaper prompt"},{type:"image_url",image_url:{url:$url}}]}]}')
-  caption=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
+  caption=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
   if [ -z "$caption" ]; then
     echo "❌ Failed to describe image" >&2
     cleanup_and_exit 1
@@ -857,7 +868,7 @@ discover_item() {
   fi
   payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
   [ "$verbose" = true ] && echo "🔍 Discover via $provider" >&2
-  result=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
+  result=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
   [ "$verbose" = true ] && echo "🔍 Response: $result" >&2
   result=$(printf '%s' "$result" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
   if [ "$count" -gt 1 ]; then
@@ -1480,7 +1491,7 @@ fetch_prompt() {
   prompt_seed=$(random_seed)
   payload=$(jq -n --arg model "$openai_text_model" --arg prompt "$query" '{model:$model,messages:[{role:"user",content:$prompt}]}')
   [ "$verbose" = true ] && echo "🔍 Requesting prompt via $provider" >&2
-  response=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" || true)
+  response=$(curl -sL "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" || true)
   prompt=$(printf '%s' "$response" | jq -r '.choices[0].message.content' 2>/dev/null)
   [ "$verbose" = true ] && echo "🔍 Response: $prompt" >&2
   prompt=$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
@@ -1619,14 +1630,14 @@ echo "🛠 Using model: $model"
 
 generate_image() {
   local out_file="$1" type_file="$2" url
-  if [ "$provider" = "pollinations" ]; then
+  if [ "$image_provider" = "pollinations" ]; then
     local encoded headers
     encoded=$(printf '%s' "$prompt" | jq -sRr @uri)
     headers=$(mktemp)
     local url_full="${image_api_base}/prompt/${encoded}?nologo=true&enhance=true&model=${model}&seed=${seed}"
     [ "$allow_nsfw" = false ] && url_full="${url_full}&safe=true"
     [ "$verbose" = true ] && echo "🔍 Image URL: $url_full" >&2
-    if ! curl -sL "${curl_auth[@]}" -D "$headers" "$url_full" -o "$out_file"; then
+    if ! curl -sL "${curl_auth_image[@]}" -D "$headers" "$url_full" -o "$out_file"; then
       rm -f "$headers"
       return 1
     fi
@@ -1637,7 +1648,7 @@ generate_image() {
     local payload
     payload=$(jq -n --arg model "$model" --arg prompt "$prompt" '{model:$model,prompt:$prompt}')
     [ "$verbose" = true ] && echo "🔍 Requesting image via $provider" >&2
-    url=$(curl -sL "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$image_api_base/images/generations" | jq -r '.data[0].url' 2>/dev/null)
+    url=$(curl -sL "${curl_auth_image[@]}" -H "Content-Type: application/json" -d "$payload" "$image_api_base/images/generations" | jq -r '.data[0].url' 2>/dev/null)
     [ -n "$url" ] || return 1
     curl -sL "$url" -o "$out_file"
     file_type=$(file -b --mime-type "$out_file" 2>/dev/null || true)
@@ -1658,6 +1669,7 @@ for ((i=1;i<=batch_count;i++)); do
 
   ctype_file=$(mktemp)
   TMPJSON="$ctype_file"
+  provider="$image_provider"
   generate_image "$tmp_output" "$ctype_file" &
   gen_pid=$!
   spinner "$gen_pid" "Generating image" &
