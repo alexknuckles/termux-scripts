@@ -127,3 +127,6 @@
 - Default provider switched to Pollinations with configurable models and a global `defaults` section.
 - Pollinations image generation now uses the `flux` model with its dedicated endpoint.
 - Updated default configuration format with per-model providers and endpoints.
+
+- Pollinations text models now include only the supported list: llamascout, mistral, openai, openai-fast, openai-large, phi, qwen-coder, elixposearch, midijourney, searchgpt and openai-reasoning.
+- Pollinations image models restricted to flux, kontext, turbo and gptimage with flux as the default.

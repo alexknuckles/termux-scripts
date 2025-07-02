@@ -418,8 +418,8 @@ api_providers:
       image: "https://image.pollinations.ai"
     api_key: ""
     models:
-      text: []
-      image: ["flux", "flux-realism", "flux-anime", "flux-3d", "any-dark", "turbo"]
+      text: ["llamascout", "mistral", "openai", "openai-fast", "openai-large", "phi", "qwen-coder", "elixposearch", "midijourney", "searchgpt", "openai-reasoning"]
+      image: ["flux", "kontext", "turbo", "gptimage"]
   openai:
     base:
       text: "https://api.openai.com/v1"
