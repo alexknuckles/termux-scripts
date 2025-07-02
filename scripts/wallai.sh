@@ -409,7 +409,7 @@ fi
 config_file="$HOME/.wallai/config.yml"
 config_dir="$(dirname "$config_file")"
 if [ ! -f "$config_file" ]; then
-  mkdir -p "$config_dir"
+  mkdir -p "$config_dir" "$HOME/pictures/generated-wallpapers" "$HOME/pictures/favorites"
   cat >"$config_file" <<'EOF'
 api_providers:
   pollinations:
@@ -457,10 +457,12 @@ groups:
       tag_model: openai
       style_model: openai
     favorites_path: ~/pictures/favorites/main
-    generations_path: ~/pictures/generated-wallpapers/main
+    generations_path: $HOME/pictures/generated-wallpapers/main
+    favorites_path: $HOME/pictures/favorites/main
     nsfw: false
     tags: ["dreamcore", "mystical forest", "cosmic horror", "ethereal landscape", "retrofuturism", "alien architecture", "cyberpunk metropolis"]
     styles: ["unreal engine", "cinematic lighting", "octane render", "hyperrealism", "volumetric lighting", "high detail", "4k concept art"]
+    image_model: flux
     moods: ["happy", "sad", "mysterious", "energetic", "peaceful"]
 EOF
 fi
