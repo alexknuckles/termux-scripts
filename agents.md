@@ -136,7 +136,7 @@ Add frontmatter or inline tags for script categorization:
 If any scripts have flags or interactive input, generate minimal test cases or test harnesses.
 Specifically ensure `githelper newrepo` succeeds when run in an empty directory and creates an initial commit.
 Run any newly added or modified scripts, functions or commands before opening a pull request to confirm they execute without immediate errors.
-- `tests/test_wallai.sh` runs during environment setup while network access is available. Do not rerun it after the sandbox drops network access. Any failures should be recorded under `/tmp/wallai-tests` for troubleshooting.
+- `tests/test_wallai.sh` runs during environment setup while network access is available. Do not rerun after the sandbox drops connectivity. Failures are logged under `/tmp/wallai-tests` with a `failures.log` summary. The script must keep running even when tests fail so issues can be fixed during the session.
 
 ---
 

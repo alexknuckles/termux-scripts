@@ -148,3 +148,4 @@
 - `--describe-image` flag shortened to `-di`.
 
 - Added setup_refresh.sh and setup-resources.txt to prefetch APIs during setup.
+- Wallai tests now log failures under /tmp/wallai-tests and keep running so setup continues.
