@@ -1536,7 +1536,7 @@ if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
   if [ "${#discovered_styles[@]}" -gt 0 ]; then
     style=$(printf '%s\n' "${discovered_styles[@]}" | shuf -n1)
   fi
-  [ "$verbose" = true ] && echo "🎯 Using discovered tag/style: $tag / $style"
+  echo "🎯 Using discovered tag/style: $tag / $style"
   if [ -z "$tag" ] && [ "${#gen_tags[@]}" -gt 0 ]; then
     tag=$(printf '%s\n' "${gen_tags[@]}" | shuf -n1)
   fi
