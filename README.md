@@ -133,6 +133,7 @@ If `-pm`, `-tm` or `-sm` are supplied when a new group is created, the selected
 models are stored under `prompt_model` with `-pm` becoming the `base` model.
 All generation activity is logged to `~/.wallai/wallai.log` so commands like
 `wallai -f` always operate on the most recent wallpaper regardless of group.
+Errors are saved to `~/.wallai/error.log` for troubleshooting.
 The default configuration also
 includes all built‑in themes
 (`dreamcore`, `mystical forest`, `cosmic horror`, `ethereal landscape`,

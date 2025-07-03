@@ -7,11 +7,28 @@ cleanup_and_exit() {
   exit "$code"
 }
 
-trap 'cleanup_and_exit 1' INT TERM
+log_error() {
+  local msg="$1"
+  mkdir -p "$config_dir"
+  printf '%s | %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$msg" >> "$error_log"
+}
+
+error_exit() {
+  local msg="$1"
+  echo "$msg" >&2
+  log_error "$msg"
+  cleanup_and_exit 1
+}
+
+trap 'error_exit "Interrupted"' INT TERM
 
 TMPFILE=""
 TMPJSON=""
 reuse_group=""
+config_dir="$HOME/.wallai"
+config_file="$config_dir/config.yml"
+error_log="$config_dir/error.log"
+mkdir -p "$config_dir"
 
 # wallai.sh - generate a wallpaper using OpenAI-compatible APIs
 #
@@ -100,8 +117,7 @@ END
 # Check dependencies early so the script fails with a clear message
 for cmd in curl jq; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
-    echo "❌ Required command '$cmd' is not installed" >&2
-    cleanup_and_exit 1
+    error_exit "❌ Required command '$cmd' is not installed"
   fi
 done
 
@@ -165,44 +181,43 @@ args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -im)
-      [ $# -ge 2 ] || { echo "Missing argument for -im" >&2; cleanup_and_exit 1; }
+      [ $# -ge 2 ] || { error_exit "Missing argument for -im"; }
       image_flag="$2"
       generation_opts=true
       shift 2
       ;;
     -pm)
-      [ $# -ge 2 ] || { echo "Missing argument for -pm" >&2; cleanup_and_exit 1; }
+      [ $# -ge 2 ] || { error_exit "Missing argument for -pm"; }
       prompt_flag="$2"
       generation_opts=true
       shift 2
       ;;
     -tm)
-      [ $# -ge 2 ] || { echo "Missing argument for -tm" >&2; cleanup_and_exit 1; }
+      [ $# -ge 2 ] || { error_exit "Missing argument for -tm"; }
       tag_flag="$2"
       generation_opts=true
       shift 2
       ;;
     -sm)
-      [ $# -ge 2 ] || { echo "Missing argument for -sm" >&2; cleanup_and_exit 1; }
+      [ $# -ge 2 ] || { error_exit "Missing argument for -sm"; }
       style_flag="$2"
       generation_opts=true
       shift 2
       ;;
     -di)
-      [ $# -ge 2 ] || { echo "Missing argument for -di" >&2; cleanup_and_exit 1; }
+      [ $# -ge 2 ] || { error_exit "Missing argument for -di"; }
       describe_image_file="$2"
       shift 2
       ;;
     --use)
-      [ $# -ge 2 ] || { echo "Missing argument for --use" >&2; cleanup_and_exit 1; }
+      [ $# -ge 2 ] || { error_exit "Missing argument for --use"; }
       case "$2" in
         group=*)
           reuse_group="${2#group=}"
           shift 2
           ;;
         *)
-          echo "Invalid argument for --use" >&2
-          cleanup_and_exit 1
+          error_exit "Invalid argument for --use"
           ;;
       esac
       ;;
@@ -333,14 +348,12 @@ while getopts ":p:t:s:rn:f:g:d:i:k:wvlhbx:m:u:" opt; do
         batch_count=1
         ;;
       *)
-          echo "Usage: wallai.sh [options] - see -h for help" >&2
-          cleanup_and_exit 1
+          error_exit "Usage: wallai.sh [options] - see -h for help"
           ;;
       esac
       ;;
     *)
-      echo "Usage: wallai.sh [options] - see -h for help" >&2
-      cleanup_and_exit 1
+      error_exit "Usage: wallai.sh [options] - see -h for help"
       ;;
   esac
 done
@@ -380,9 +393,7 @@ if [ -n "$discovery_arg" ]; then
     [0-9]*) discovery_mode="both"; batch_tag_count=$discovery_arg; batch_style_count=$discovery_arg ;;
     tag|style|both) discovery_mode="$discovery_arg" ;;
     *)
-      echo "❌ Invalid discovery mode: $discovery_arg" >&2
-      echo "Valid modes are: tag, style, or both" >&2
-      cleanup_and_exit 1
+      error_exit "❌ Invalid discovery mode: $discovery_arg. Valid modes are: tag, style, or both"
       ;;
   esac
 fi
@@ -407,8 +418,6 @@ if [ -z "$negative_prompt" ]; then
 fi
 
 # Load configuration and bootstrap defaults if needed
-config_file="$HOME/.wallai/config.yml"
-config_dir="$(dirname "$config_file")"
 [ "$verbose" = true ] && echo "📁 Using config $config_file" >&2
 if [ ! -f "$config_file" ]; then
   mkdir -p "$config_dir" "$HOME/pictures/generated-wallpapers" "$HOME/pictures/favorites"
@@ -533,9 +542,8 @@ except Exception as e:
 PY
 )
   if [ "$validation_error" = "VALIDATION_FAILED" ] || echo "$validation_error" | grep -q "YAML Error:"; then
-    echo "❌ Invalid config.yml format. Please check YAML syntax or run yamllint." >&2
     [ "$verbose" = true ] && echo "$validation_error" >&2
-    cleanup_and_exit 1
+    error_exit "❌ Invalid config.yml format. Please check YAML syntax or run yamllint."
   fi
   echo "$config_mtime" > "$config_cache"
 fi
@@ -634,15 +642,13 @@ parse_model_flag() {
     end
   ')
   if [ -z "$actual_model" ]; then
-    echo "❌ Invalid $type model or alias: $provider:$alias_or_model" >&2
-    cleanup_and_exit 1
+    error_exit "❌ Invalid $type model or alias: $provider:$alias_or_model"
   fi
   endpoint=$(printf '%s' "$config_json" | jq -r --arg p "$provider" --arg t "$type" '
     .provider[$p].endpoint[$t] // .provider[$p].endpoint // empty
   ')
   [ -z "$endpoint" ] && {
-    echo "❌ No $type endpoint for provider: $provider" >&2
-    cleanup_and_exit 1
+    error_exit "❌ No $type endpoint for provider: $provider"
   }
   model_provider="$provider"
   model_name="$actual_model"
@@ -678,8 +684,7 @@ api_key_image=$(printf '%s' "$config_json" | jq -r --arg p "$image_provider" '.p
 provider="$text_provider"
 
 if [ -z "$text_api_base" ] || [ -z "$image_api_base" ]; then
-  echo "❌ Invalid provider endpoints" >&2
-  cleanup_and_exit 1
+  error_exit "❌ Invalid provider endpoints"
 fi
 
 auth_header_text=()
@@ -722,15 +727,14 @@ fi
 
 # If an image is provided for description, fetch a caption prompt
 if [ -n "$describe_image_file" ]; then
-  [ -f "$describe_image_file" ] || { echo "❌ Image file not found: $describe_image_file" >&2; cleanup_and_exit 1; }
+  [ -f "$describe_image_file" ] || { error_exit "❌ Image file not found: $describe_image_file"; }
   mime_type=$(file -b --mime-type "$describe_image_file" 2>/dev/null || echo "image/png")
   img_b64=$(base64 -w0 "$describe_image_file" 2>/dev/null)
   data_url="data:${mime_type};base64,${img_b64}"
   payload=$(jq -n --arg model "$openai_text_model" --arg url "$data_url" '{model:$model,messages:[{role:"user",content:[{type:"text",content:"Describe this image in a short wallpaper prompt"},{type:"image_url",image_url:{url:$url}}]}]}')
   caption=$(curl -sL --max-time 30 "${curl_auth_text[@]}" -H "Content-Type: application/json" -d "$payload" "$text_api_base/chat/completions" | jq -r '.choices[0].message.content' 2>/dev/null)
   if [ -z "$caption" ]; then
-    echo "❌ Failed to describe image" >&2
-    cleanup_and_exit 1
+    error_exit "❌ Failed to describe image"
   fi
   prompt="$caption"
   generation_opts=true
@@ -769,8 +773,7 @@ group_config=$(printf '%s' "$config_json" | jq -r --arg g "$gen_group" '
   moods: [$grp.moods[]?]
   }
 ' 2>/dev/null) || {
-  echo "❌ Failed to load group config for $gen_group" >&2
-  cleanup_and_exit 1
+  error_exit "❌ Failed to load group config for $gen_group"
 }
 
 gen_gen_path=$(printf '%s' "$group_config" | jq -r '.gen_path')
@@ -1066,8 +1069,7 @@ fi
 if [ "$use_last" = true ]; then
   last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
-    echo "❌ No wallpaper has been generated yet" >&2
-    cleanup_and_exit 1
+    error_exit "❌ No wallpaper has been generated yet"
   fi
   fields=$(printf '%s' "$last_entry" | awk -F'|' '{print NF}')
   if [ "$fields" -ge 7 ]; then
@@ -1309,8 +1311,7 @@ spinner_progress() {
 if [ "$favorite_wall" = true ] && [ "$generation_opts" = false ] && [ "$gen_group_set" = false ]; then
   last_entry=$(tail -n1 "$main_log" 2>/dev/null || true)
   if [ -z "$last_entry" ]; then
-    echo "❌ No wallpaper has been generated yet" >&2
-    cleanup_and_exit 1
+    error_exit "❌ No wallpaper has been generated yet"
   fi
   fields=$(printf '%s' "$last_entry" | awk -F'|' '{print NF}')
   if [ "$fields" -ge 7 ]; then
@@ -1340,7 +1341,7 @@ fi
 if [ -n "$reuse_mode" ]; then
   case "$reuse_mode" in
     latest|random|favorites) ;;
-    *) echo "Invalid reuse mode: $reuse_mode" >&2; cleanup_and_exit 1 ;;
+    *) error_exit "Invalid reuse mode: $reuse_mode" ;;
   esac
   file=""
   source_desc="$reuse_mode"
@@ -1351,7 +1352,7 @@ if [ -n "$reuse_mode" ]; then
     [ -z "$fav_path" ] && fav_path="$HOME/pictures/favorites/$target_group"
     fav_path=$(eval printf '%s' "$fav_path")
     file=$(find "$fav_path" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' \) 2>/dev/null | shuf -n1)
-    [ -n "$file" ] || { echo "❌ No favorites found" >&2; cleanup_and_exit 1; }
+    [ -n "$file" ] || { error_exit "❌ No favorites found"; }
   else
     if [ "$reuse_mode" = "latest" ]; then
       if [ "$target_group" = "main" ]; then
@@ -1366,7 +1367,7 @@ if [ -n "$reuse_mode" ]; then
         entry=$(grep "^$target_group|" "$main_log" | shuf -n1)
       fi
     fi
-    [ -n "$entry" ] || { echo "❌ No wallpaper found" >&2; cleanup_and_exit 1; }
+    [ -n "$entry" ] || { error_exit "❌ No wallpaper found"; }
     fields=$(printf '%s' "$entry" | awk -F'|' '{print NF}')
     if [ "$fields" -ge 7 ]; then
       group=$(printf '%s' "$entry" | cut -d'|' -f1)
@@ -1543,7 +1544,7 @@ if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
   if [ -z "$style" ] && [ "${#gen_styles[@]}" -gt 0 ]; then
     style=$(printf '%s\n' "${gen_styles[@]}" | shuf -n1)
   fi
-  { [ -n "$tag" ] && [ -n "$style" ]; } || { echo "❌ Missing tag or style for generation" >&2; cleanup_and_exit 1; }
+  { [ -n "$tag" ] && [ -n "$style" ]; } || { error_exit "❌ Missing tag or style for generation"; }
 fi
 # Select image models from provider config
 models=(${provider_image_models[$image_provider]})
@@ -1555,9 +1556,7 @@ if [ -z "$model" ]; then
   model="$openai_image_model"
 fi
 if ! printf '%s\n' "${models[@]}" | grep -qxF "$model"; then
-  echo "Invalid model: $model" >&2
-  echo "Valid models: ${models[*]}" >&2
-  cleanup_and_exit 1
+  error_exit "Invalid model: $model. Valid models: ${models[*]}"
 fi
 
 # wallai.sh - generate a wallpaper using OpenAI-compatible APIs
@@ -1808,8 +1807,7 @@ if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ] || [ "$prompt" = "null"
   fi
 fi
 if [ -z "$(printf '%s' "$prompt" | tr -d '[:space:]')" ] || [ "$prompt" = "null" ]; then
-  echo "❌ Prompt could not be generated. Check your config or arguments." >&2
-  cleanup_and_exit 1
+  error_exit "❌ Prompt could not be generated. Check your config or arguments."
 fi
 
 # Ensure we always have a value for the generated content type
@@ -1952,16 +1950,14 @@ else
     wait "$spin_pid" 2>/dev/null || true
     printf '\n'
     if [ "$status" -ne 0 ]; then
-      echo "❌ Failed to generate image via $provider" >&2
-      cleanup_and_exit 1
+      error_exit "❌ Failed to generate image via $provider"
     fi
     generated_content_type=$(cat "$ctype_file" 2>/dev/null || true)
     file_type=$(file -b --mime-type "$tmp_output" 2>/dev/null || true)
     [ "$verbose" = true ] && echo "🔍 File type: $file_type"
     if ! printf '%s' "$generated_content_type" | grep -qi '^image/' || \
        ! printf '%s' "$file_type" | grep -qi '^image/'; then
-      echo "❌ Invalid image file!" >&2
-      cleanup_and_exit 1
+      error_exit "❌ Invalid image file!"
     fi
     echo "✅ Image generated successfully"
     img_source="$provider"
