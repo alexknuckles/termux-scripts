@@ -136,6 +136,7 @@ Add frontmatter or inline tags for script categorization:
 If any scripts have flags or interactive input, generate minimal test cases or test harnesses.
 Specifically ensure `githelper newrepo` succeeds when run in an empty directory and creates an initial commit.
 Run any newly added or modified scripts, functions or commands before opening a pull request to confirm they execute without immediate errors.
+- Execute `tests/test_wallai.sh` to validate every wallai.sh argument. If the test fails, fix the issue before creating a pull request.
 
 ---
 
