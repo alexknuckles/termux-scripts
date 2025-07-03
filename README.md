@@ -95,7 +95,6 @@ Prompt Customization:
 Discovery & Inspiration:
 - `-d`                   Discover new tags/styles
 - `-i [tag|style|pair]`  Use inspired mode from favorites
-- `-b [group]`           Browse generated wallpapers
 
 Image Generation:
  - `-x [n]`               Generate `n` images (runs in parallel when `n` > 1)
@@ -165,9 +164,8 @@ The installer creates a `walfave` alias and `walfave-shortcut.sh` so you
 can archive the currently set wallpaper with metadata via `wallai -f` without generating a new image.
 It also installs `walfave-group-shortcut.sh` which lets you pick the favorites group using on-screen buttons.
 
-Use `wallai -b` to browse previously generated wallpapers and archive them to a favorites group. The option
-lists files under `~/pictures/generated-wallpapers`, opens the selected image with `termux-open`, then asks whether
-to add it to a group. If no group is specified and multiple groups exist, wallai prompts for one.
+The Web UI (`~/.wallai/ui/index.html`) now lets you browse generated wallpapers and manage
+tags, favorites and groups directly in the database, so the `-b` flag is no longer needed.
 
 ## githelper.sh
 
