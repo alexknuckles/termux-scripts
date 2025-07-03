@@ -5,21 +5,28 @@ set -euo pipefail
 # Usage: test_wallai.sh
 # Dependencies: curl, jq, file, python3-yaml
 # Output: prints progress and exits with non-zero on failure
+# Logs are saved in a temporary directory
 # TAG: test
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 WALLAI="$ROOT_DIR/scripts/wallai.sh"
+LOG_DIR="$(mktemp -d /tmp/wallai-tests-XXXXXX)"
+echo "Logs in $LOG_DIR"
 
 run_test() {
   local desc="$1"
   shift
+  local log="$LOG_DIR/$(echo "$desc" | tr ' /:' '_').log"
   echo "Testing: $desc"
-  bash "$WALLAI" "$@" >/dev/null
+  if ! bash "$WALLAI" "$@" >"$log" 2>&1; then
+    echo "❌ Failed: $desc (see $log)" >&2
+    exit 1
+  fi
 }
 
 tests=(
-  "-h" "-h -v" "-h -g test" "-h -k token" "-h --describe-image img.jpg" \
+  "-h" "-h -v" "-h -g test" "-h -k token" "-h -di img.jpg" \
   "-h -p prompt" "-h -t tag" "-h -s style" "-h -m mood" "-h -n neg" \
   "-h -w" "-h -l" "-h -d" "-h -d tag" "-h -d style" "-h -d both" \
   "-h -i" "-h -i tag" "-h -i style" "-h -i pair" \
@@ -53,12 +60,16 @@ run_gen_test() {
   local desc="$1"
   shift
   echo "Generating: $desc"
-  local before after
+  local before after log
+  log="$LOG_DIR/gen_$(echo "$desc" | tr ' /:' '_').log"
   before=$(find "$HOME/pictures/generated-wallpapers" -type f 2>/dev/null | wc -l)
-  bash "$WALLAI" "$@" >/dev/null
+  if ! bash "$WALLAI" "$@" >"$log" 2>&1; then
+    echo "❌ Generation failed for $desc (see $log)" >&2
+    exit 1
+  fi
   after=$(find "$HOME/pictures/generated-wallpapers" -type f 2>/dev/null | wc -l)
   if [ "$after" -le "$before" ]; then
-    echo "❌ No image generated for $desc" >&2
+    echo "❌ No image generated for $desc (see $log)" >&2
     exit 1
   fi
 }
@@ -95,3 +106,4 @@ for gargs in "${GEN_TESTS[@]}"; do
 done
 
 echo "All wallai generation tests passed."
+echo "Logs saved to $LOG_DIR"
