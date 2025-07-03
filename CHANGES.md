@@ -146,3 +146,5 @@
 - wallai tests now verify multiple flags can be used together.
 - Removed the web UI and wallai-webui shortcut.
 - `--describe-image` flag shortened to `-di`.
+
+- Added setup_refresh.sh and setup-resources.txt to prefetch APIs during setup.
