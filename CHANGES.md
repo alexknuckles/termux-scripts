@@ -145,3 +145,4 @@
 - Selected style message prints after style selection.
 - wallai tests now verify multiple flags can be used together.
 - Added web UI for editing the new SQLite config and a wallai-webui shortcut.
+- Web UI now manages groups, tags and favorites so the `-b` option is deprecated.
