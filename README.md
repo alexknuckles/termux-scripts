@@ -62,7 +62,7 @@ Run the installer with `-u` to remove the symlinks, shortcuts and alias file and
 
 Generates an AI-based wallpaper using OpenAI-compatible APIs. The script requests a 15-word
 description for a random theme using a random seed so prompts vary even for the same theme.
-Providers are configured in `~/.wallai/config.yml` with a global `defaults`
+Providers are configured in `~/.wallai/config.db` with a global `defaults`
 section choosing which provider and models to use. Pollinations is the default
 and works without an API key. It uses the `flux` model for image generation,
 but you can add OpenAI or OpenRouter keys and switch providers as needed.
@@ -118,8 +118,9 @@ Examples:
 Environment variables:
 - `ALLOW_NSFW` set to `false` to disallow NSFW prompts (defaults to `true`).
 
-Wallai keeps per-group settings in `~/.wallai/config.yml`. The file is created
+Wallai keeps per-group settings in `~/.wallai/config.db`. The file is created
 automatically with a `main` group on first run. Each group can specify
+Open `~/.wallai/ui/index.html` or run the `wallai-webui` shortcut to edit the database.
 paths for generated images and favorites, whether NSFW prompts are allowed,
 the prompt model used for discovery, the image model used for generation and
 lists of themes and styles.
