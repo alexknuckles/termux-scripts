@@ -1,0 +1,3 @@
+# URL destination-file
+https://api.github.com static-api.json
+https://raw.githubusercontent.com/alexknuckles/termux-scripts/main/README.md latest-readme.md
