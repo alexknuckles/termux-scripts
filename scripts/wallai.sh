@@ -1814,6 +1814,7 @@ generated_content_type=""
 
 echo "🎨 Final prompt: $prompt"
 echo "🛠 Using model: $model"
+echo "👥 Generation group: $gen_group"
 
 # ✨ Step 3: Generate image via $provider
 
