@@ -138,3 +138,5 @@
 - Verbose mode prints the config path and notes when the config file is created.
 - wallai exits with an error if the group config is missing
 - Fixed default config to avoid duplicate keys so group config loads correctly
+- Added tests/test_wallai.sh and requirement to run it before pull requests.
+- Expanded wallai tests to generate images for all commands.
