@@ -81,7 +81,7 @@ General Options:
 - `-v`                   Enable verbose mode (prints the config path on startup)
 - `-g <group>`           Use or create a group config
 - `-k <token>`           Save provider token to the group
-- `--describe-image <file>`  Generate prompt from image caption
+- `-di <file>`  Generate prompt from image caption
 
 Prompt Customization:
 - `-p <prompt>`          Use custom prompt
@@ -119,7 +119,6 @@ Environment variables:
 
 Wallai keeps per-group settings in `~/.wallai/config.db`. The file is created
 automatically with a `main` group on first run. Each group can specify
-Open `~/.wallai/ui/index.html` or run the `wallai-webui` shortcut to edit the database.
 paths for generated images and favorites, whether NSFW prompts are allowed,
 the prompt model used for discovery, the image model used for generation and
 lists of themes and styles.
@@ -163,9 +162,6 @@ the image.
 The installer creates a `walfave` alias and `walfave-shortcut.sh` so you
 can archive the currently set wallpaper with metadata via `wallai -f` without generating a new image.
 It also installs `walfave-group-shortcut.sh` which lets you pick the favorites group using on-screen buttons.
-
-The Web UI (`~/.wallai/ui/index.html`) now lets you browse generated wallpapers and manage
-tags, favorites and groups directly in the database, so the `-b` flag is no longer needed.
 
 ## githelper.sh
 

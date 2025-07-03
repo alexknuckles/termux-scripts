@@ -120,7 +120,7 @@
 - wallai now supports weighted tags/styles in config and batch generation with `-x [count]`.
 - Unified cleanup with interrupt trap and grouped help output with examples.
 - wallai infers mood in inspired mode, validates YAML on load, retries empty prompts,
-  and can caption shared images via `--describe-image` or a single image argument.
+  and can caption shared images via `-di` or a single image argument.
 
 - Fixed unbound variable check for discovered tag/style arrays in wallai.
 - Fixed crash when adding favorites when the config contained weighted tags or styles.
@@ -144,5 +144,5 @@
 - wallai displays the selected group before generating images.
 - Selected style message prints after style selection.
 - wallai tests now verify multiple flags can be used together.
-- Added web UI for editing the new SQLite config and a wallai-webui shortcut.
-- Web UI now manages groups, tags and favorites so the `-b` option is deprecated.
+- Removed the web UI and wallai-webui shortcut.
+- `--describe-image` flag shortened to `-di`.

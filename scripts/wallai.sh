@@ -61,7 +61,7 @@ ${bold}General Options:${normal}
   -v                 Enable verbose mode
   -g <group>         Use or create a group config
   -k <token>         Save provider token to the group
-  --describe-image <file>  Generate prompt from image caption
+  -di <file>        Generate prompt from image caption
 
 ${bold}Prompt Customization:${normal}
   -p <prompt>        Use custom prompt
@@ -94,7 +94,7 @@ Examples:
   wallai.sh -t dreamcore -m surreal -x 3 -f
   wallai.sh -u favorites -g sci-fi
   wallai.sh -i tag -d
-  wallai.sh --describe-image picture.jpg
+  wallai.sh -di picture.jpg
 END
 }
 # Check dependencies early so the script fails with a clear message
@@ -188,8 +188,8 @@ while [ $# -gt 0 ]; do
       generation_opts=true
       shift 2
       ;;
-    --describe-image)
-      [ $# -ge 2 ] || { echo "Missing argument for --describe-image" >&2; cleanup_and_exit 1; }
+    -di)
+      [ $# -ge 2 ] || { echo "Missing argument for -di" >&2; cleanup_and_exit 1; }
       describe_image_file="$2"
       shift 2
       ;;
