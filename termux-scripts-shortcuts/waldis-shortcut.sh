@@ -4,4 +4,4 @@ set -euo pipefail
 # waldis-shortcut.sh - generate a wallpaper using discovery mode
 # TAG: shortcut
 
-exec "$HOME/bin/termux-scripts/wallai" -d "$@"
+exec "$HOME/bin/termux-scripts/wallai" -d -x "$@"

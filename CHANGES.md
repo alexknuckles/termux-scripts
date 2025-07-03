@@ -151,3 +151,4 @@
 - Wallai tests now log failures under /tmp/wallai-tests and keep running so setup continues.
 - walfave alias now ignores failures so shortcuts exit cleanly.
 - Added waldis-shortcut for discovery-based generation.
+- waldis now calls `wallai -d -x` so discovery automatically generates a wallpaper.
