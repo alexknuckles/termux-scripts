@@ -153,3 +153,4 @@
 - walfave alias now ignores failures so shortcuts exit cleanly.
 - Added waldis-shortcut for discovery-based generation.
 - waldis now calls `wallai -d -x` so discovery automatically generates a wallpaper.
+- wallai -d -x now shows the discovered tag and style without requiring -v.
