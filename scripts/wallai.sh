@@ -1661,9 +1661,6 @@ if [ -z "$prompt" ]; then
   if [ "${#discovered_tags[@]}" -eq 0 ] || [ "$tag_provided" = true ]; then
     echo "🔖 Selected tag: $tag"
   fi
-  if [ "${#discovered_styles[@]}" -eq 0 ] || [ "$style_provided" = true ]; then
-    echo "🖌 Selected style: $style"
-  fi
   if ! fetch_prompt; then
     echo "❌ Failed to fetch prompt. Using fallback."
     # Create tag-specific fallback prompts
@@ -1719,6 +1716,11 @@ if [ -z "$style" ]; then
     )
     style=$(printf '%s\n' "${styles[@]}" | shuf -n1)
   fi
+fi
+
+# Show the selected style once it has been determined
+if [ "${#discovered_styles[@]}" -eq 0 ] || [ "$style_provided" = true ]; then
+  echo "🖌 Selected style: $style"
 fi
 
 # Determine weights from config if not set by inspiration
