@@ -1530,12 +1530,13 @@ if [ "$group_created" = "1" ]; then
   fi
 fi
 if [ -n "$discovery_mode" ] && [ "$force_generate" = true ]; then
-  if [ -z "$tag" ] && [ "${#discovered_tags[@]}" -gt 0 ]; then
+  if [ "${#discovered_tags[@]}" -gt 0 ]; then
     tag=$(printf '%s\n' "${discovered_tags[@]}" | shuf -n1)
   fi
-  if [ -z "$style" ] && [ "${#discovered_styles[@]}" -gt 0 ]; then
+  if [ "${#discovered_styles[@]}" -gt 0 ]; then
     style=$(printf '%s\n' "${discovered_styles[@]}" | shuf -n1)
   fi
+  [ "$verbose" = true ] && echo "🎯 Using discovered tag/style: $tag / $style"
   if [ -z "$tag" ] && [ "${#gen_tags[@]}" -gt 0 ]; then
     tag=$(printf '%s\n' "${gen_tags[@]}" | shuf -n1)
   fi
