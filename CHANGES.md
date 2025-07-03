@@ -143,3 +143,4 @@
 
 - wallai displays the selected group before generating images.
 - Selected style message prints after style selection.
+- wallai tests now verify multiple flags can be used together.

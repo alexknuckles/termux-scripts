@@ -28,11 +28,24 @@ tests=(
   "-h -tm pollinations:openai" "-h -sm pollinations:openai" \
   "-h -u latest" "-h --use group=main" )
 
+# Multiple argument combinations to verify complex parsing
+multi_tests=(
+  "-h -p prompt -t tag -s style" \
+  "-h -g test -f group -u latest" \
+  "-h -p prompt -m mood -n neg -w" \
+  "-h -p prompt -t tag -s style -im pollinations:flux -pm pollinations:openai"
+)
+
 for args in "${tests[@]}"; do
   # split args into array
   IFS=' ' read -r -a arr <<< "$args"
   run_test "$args" "${arr[@]}"
 
+done
+
+for args in "${multi_tests[@]}"; do
+  IFS=' ' read -r -a arr <<< "$args"
+  run_test "$args" "${arr[@]}"
 done
 
 echo "All wallai argument tests passed."
@@ -71,7 +84,9 @@ GEN_TESTS=(
   "-p test -im pollinations:flux" \
   "-p test -pm pollinations:openai" \
   "-p test -tm pollinations:openai" \
-  "-p test -sm pollinations:openai"
+  "-p test -sm pollinations:openai" \
+  "-p combo -t tag -s style -m mood -n neg" \
+  "-p combo -t tag -s style -im pollinations:flux -pm pollinations:openai"
 )
 
 for gargs in "${GEN_TESTS[@]}"; do
