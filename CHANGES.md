@@ -1,4 +1,5 @@
 - Fixed discovery tags and styles not applied when using -d -x.
+- wallai now logs errors to `~/.wallai/error.log`.
 - wallai parallelizes `-x N` batches with a spinner and sets the wallpaper from the last image.
 - New groups now inherit unset settings from the main profile.
 - Fixed YAML validation check causing unexpected token error in wallai.sh.
