@@ -1,27 +1,35 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
+# Record overall failure status and log directory
+LOG_ROOT="/tmp/wallai-tests"
+mkdir -p "$LOG_ROOT"
+LOG_DIR="$(mktemp -d "$LOG_ROOT"/run-XXXXXX)"
+FAIL=0
+FAILED_LOG="$LOG_DIR/failures.log"
+
 # test_wallai.sh - verify wallai.sh argument parsing and generation
 # Usage: test_wallai.sh
 # Dependencies: curl, jq, file, python3-yaml
-# Output: prints progress and exits with non-zero on failure
-# Logs are saved in a temporary directory
+# Output: prints progress and logs any failures without exiting
+# Logs are saved under /tmp/wallai-tests for later review
 # TAG: test
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 WALLAI="$ROOT_DIR/scripts/wallai.sh"
-LOG_DIR="$(mktemp -d /tmp/wallai-tests-XXXXXX)"
 echo "Logs in $LOG_DIR"
 
 run_test() {
   local desc="$1"
   shift
-  local log="$LOG_DIR/$(echo "$desc" | tr ' /:' '_').log"
+  local log
+  log="$LOG_DIR/$(echo "$desc" | tr ' /:' '_').log"
   echo "Testing: $desc"
   if ! bash "$WALLAI" "$@" >"$log" 2>&1; then
     echo "❌ Failed: $desc (see $log)" >&2
-    exit 1
+    printf '%s\n' "$desc" >> "$FAILED_LOG"
+    FAIL=1
   fi
 }
 
@@ -65,16 +73,19 @@ run_gen_test() {
   before=$(find "$HOME/pictures/generated-wallpapers" -type f 2>/dev/null | wc -l)
   if ! bash "$WALLAI" "$@" >"$log" 2>&1; then
     echo "❌ Generation failed for $desc (see $log)" >&2
-    exit 1
+    printf '%s\n' "gen $desc" >> "$FAILED_LOG"
+    FAIL=1
   fi
   after=$(find "$HOME/pictures/generated-wallpapers" -type f 2>/dev/null | wc -l)
   if [ "$after" -le "$before" ]; then
     echo "❌ No image generated for $desc (see $log)" >&2
-    exit 1
+    printf '%s\n' "gen $desc" >> "$FAILED_LOG"
+    FAIL=1
   fi
 }
 # use a temporary HOME so tests do not pollute real files
-export HOME=$(mktemp -d)
+HOME=$(mktemp -d)
+export HOME
 mkdir -p "$HOME/pictures" "$HOME/pictures/generated-wallpapers"
 
 # Initial run to create config and a favorite entry for inspired mode
@@ -105,5 +116,10 @@ for gargs in "${GEN_TESTS[@]}"; do
   run_gen_test "$gargs" "${arr[@]}"
 done
 
-echo "All wallai generation tests passed."
+if [ "$FAIL" -eq 0 ]; then
+  echo "All wallai tests passed."
+else
+  echo "Some wallai tests failed. See $FAILED_LOG for a list." >&2
+fi
 echo "Logs saved to $LOG_DIR"
+exit 0
