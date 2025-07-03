@@ -142,3 +142,4 @@
 - Expanded wallai tests to generate images for all commands.
 
 - wallai displays the selected group before generating images.
+- Selected style message prints after style selection.
