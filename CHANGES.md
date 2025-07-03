@@ -149,3 +149,5 @@
 
 - Added setup_refresh.sh and setup-resources.txt to prefetch APIs during setup.
 - Wallai tests now log failures under /tmp/wallai-tests and keep running so setup continues.
+- walfave alias now ignores failures so shortcuts exit cleanly.
+- Added waldis-shortcut for discovery-based generation.
