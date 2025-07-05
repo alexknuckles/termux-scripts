@@ -165,6 +165,17 @@ can archive the currently set wallpaper with metadata via `wallai -f` without ge
 It also installs `walfave-group-shortcut.sh` which lets you pick the favorites group using on-screen buttons.
 The `waldis` alias and `waldis-shortcut.sh` invoke `wallai -d -x` so an image is generated after discovery.
 
+## wallai-go
+
+A simplified Go version of wallai that fetches a wallpaper from the Pollinations API.
+
+### Usage
+```bash
+wallai-go -p "prompt" [-im model] [-x n] [-o dir] [-w=false]
+```
+
+Dependencies: `termux-wallpaper` (optional)
+
 ## githelper.sh
 
 <p align="center" style="margin-bottom:0;">

@@ -1,5 +1,6 @@
 # Short aliases for Termux scripts
 alias wal='wallai'
+alias walgo='wallai-go'
 alias walfave='wallai -f || true'
 alias waldis='wallai -d -x'
 alias walgal='wallai -b'
