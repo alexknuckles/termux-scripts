@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,11 +24,38 @@ import (
 
 func main() {
 	prompt := flag.String("p", "", "Prompt text")
+	tag := flag.String("t", "", "Tag to append to the prompt")
+	style := flag.String("s", "", "Visual style")
+	mood := flag.String("m", "", "Mood descriptor")
+	negative := flag.String("n", "", "Negative prompt")
 	model := flag.String("im", "flux", "Image model")
+	randomModel := flag.Bool("r", false, "Pick random model")
+	verbose := flag.Bool("v", false, "Verbose output")
+	seed := flag.Int64("seed", time.Now().Unix(), "Random seed")
 	count := flag.Int("x", 1, "Number of images")
 	outDir := flag.String("o", filepath.Join(os.Getenv("HOME"), "pictures", "generated-wallpapers"), "Output directory")
 	setWall := flag.Bool("w", true, "Set wallpaper using termux-wallpaper")
+	models := []string{"flux", "stable-diffusion", "anime-v2"}
 	flag.Parse()
+
+	if *randomModel {
+		rand.Seed(*seed)
+		*model = models[rand.Intn(len(models))]
+	}
+
+	finalPrompt := *prompt
+	if *tag != "" {
+		finalPrompt += " " + *tag
+	}
+	if *style != "" {
+		finalPrompt += " " + *style
+	}
+	if *mood != "" {
+		finalPrompt += " " + *mood
+	}
+	if *negative != "" {
+		finalPrompt += " [negative prompt: " + *negative + "]"
+	}
 
 	if strings.TrimSpace(*prompt) == "" {
 		fmt.Fprintln(os.Stderr, "prompt required (-p)")
@@ -43,8 +71,11 @@ func main() {
 	}
 
 	for i := 0; i < *count; i++ {
-		enc := url.PathEscape(*prompt)
+		enc := url.PathEscape(finalPrompt)
 		apiURL := fmt.Sprintf("https://image.pollinations.ai/prompt/%s?nologo=true&model=%s", enc, url.QueryEscape(*model))
+		if *verbose {
+			fmt.Fprintln(os.Stderr, "URL:", apiURL)
+		}
 		resp, err := http.Get(apiURL)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to fetch image: %v\n", err)
