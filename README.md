@@ -171,8 +171,21 @@ A simplified Go version of wallai that fetches a wallpaper from the Pollinations
 
 ### Usage
 ```bash
-wallai-go -p "prompt" [-im model] [-x n] [-o dir] [-w=false]
+wallai-go -p "prompt" [-t tag] [-s style] [-m mood] [-n text] \
+          [-im model] [-r] [-x n] [-o dir] [-w=false] [-v]
 ```
+
+Flags:
+ - `-t` tag to append to the prompt
+ - `-s` visual style
+ - `-m` mood descriptor
+ - `-n` negative prompt words
+ - `-im` image model (defaults to `flux`)
+ - `-r` choose a random model from the built in list
+ - `-x` number of images
+ - `-o` output directory
+ - `-w` set wallpaper (true by default)
+ - `-v` print the API URL
 
 Dependencies: `termux-wallpaper` (optional)
 
